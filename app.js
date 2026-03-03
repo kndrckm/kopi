@@ -13,6 +13,7 @@ let currentUser = null;
         let isDraggingNav = false;
         let navStartX = 0;
         let indInitialLeft = 0;
+        let userDisplayName = null;
 
         // Setup Auth Listener
         supabase.auth.onAuthStateChange(async (event, session) => {
@@ -123,7 +124,6 @@ let currentUser = null;
             switchView('view-login');
         }
 
-        let userDisplayName = null;
 
         async function fetchUserProfile() {
             if (!currentUser) return;
