@@ -14,6 +14,10 @@ let currentUser = null;
         let navStartX = 0;
         let indInitialLeft = 0;
         let userDisplayName = null;
+        let selectedDateTime = new Date();
+        let selectedType = 'Americano';
+        let selectedSize = 'Small';
+        let selectedTemp = 'Iced';
 
         // Setup Auth Listener
         supabase.auth.onAuthStateChange((event, session) => {
@@ -475,10 +479,6 @@ let currentUser = null;
         }
 
         // --- FORM STATE ---
-        let selectedDateTime = new Date();
-        let selectedType = 'Americano';
-        let selectedSize = 'Small';
-        let selectedTemp = 'Iced';
         let uploadedPhotoDataUrl = null;
         let uploadedPhotoBlob = null;
 
