@@ -68,11 +68,6 @@ textarea {
     overflow-x: hidden;
 }
 
-#view-onboarding {
-    display: block;
-    /* Fallback visibility before JS kicks in */
-}
-
 .view.active {
     display: block;
 }

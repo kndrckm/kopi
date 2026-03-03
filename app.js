@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             coffeeEntries = [];
             renderTodayCoffee();
             updateCalendarStickers();
-            switchView('view-onboarding');
+            switchView('view-login');
         }
     });
 
@@ -32,13 +32,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const { data: { session }, error } = await supabase.auth.getSession();
     if (error) {
         console.error('Error fetching session:', error.message);
-        switchView('view-onboarding');
+        switchView('view-login');
     } else if (session) {
         currentUser = session.user;
         fetchCoffeeEntries();
         switchView('view-calendar');
     } else {
-        switchView('view-onboarding');
+        switchView('view-login');
     }
 
     const MONTHS_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
