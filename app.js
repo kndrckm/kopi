@@ -546,63 +546,102 @@ let currentUser = null;
             });
         }
 
-        // ============================================================
-        // RENDER TODAY COFFEE LIST
-        // ============================================================
         function renderTodayCoffee() {
             if (!todayCoffeeList) return;
+            const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
             const todayStr = new Date().toDateString();
-            const todaysCoffees = coffeeEntries.map((e, idx) => ({ ...e, originalIdx: idx })).filter(e => e.date_string === todayStr);
+            const allWithIdx = coffeeEntries.map((e, idx) => ({ ...e, originalIdx: idx }));
+            const todaysCoffees = allWithIdx.filter(e => e.date_string === todayStr);
+            const pastCoffees = allWithIdx.filter(e => e.date_string && e.date_string !== todayStr);
 
+            // --- TODAY ---
             if (todaysCoffees.length === 0) {
                 todayCoffeeList.innerHTML = `<div class="card empty-state-card"><div class="empty-state-icon">☕</div><p class="empty-state-text">None, take a sip!</p></div>`;
-                return;
-            }
-            todayCoffeeList.innerHTML = '';
-            todaysCoffees.forEach((entry) => {
-                const tempIcon = entry.temp === 'Hot' ? '♨️' : '🧊';
-                const stickerHtml = entry.sticker
-                    ? `<img src="${entry.sticker}" alt="sticker" class="coffee-item-sticker">`
-                    : `<span class="coffee-item-emoji">${entry.emoji}</span>`;
+            } else {
+                todayCoffeeList.innerHTML = '';
+                todaysCoffees.forEach((entry) => {
+                    const tempIcon = entry.temp === 'Hot' ? '♨️' : '🧊';
+                    const stickerHtml = entry.sticker
+                        ? `<img src="${entry.sticker}" alt="sticker" class="coffee-item-sticker">`
+                        : `<span class="coffee-item-emoji">${entry.emoji || '☕'}</span>`;
 
-                todayCoffeeList.insertAdjacentHTML('beforeend', `
-                <div class="swipe-container">
-                    <div class="swipe-content coffee-item-card" data-idx="${entry.originalIdx}">
-                        <div class="coffee-item-info">
-                            <div class="coffee-item-icon">${stickerHtml}</div>
-                            <div class="coffee-item-text">
-                                <h3>${entry.type} ${tempIcon}</h3>
-                                <p>${entry.size} • ${entry.time}</p>
+                    todayCoffeeList.insertAdjacentHTML('beforeend', `
+                    <div class="swipe-container">
+                        <div class="swipe-content coffee-item-card" data-idx="${entry.originalIdx}">
+                            <div class="coffee-item-info">
+                                <div class="coffee-item-icon">${stickerHtml}</div>
+                                <div class="coffee-item-text">
+                                    <h3>${entry.type} ${tempIcon}</h3>
+                                    <p>${entry.size} • ${entry.time}</p>
+                                </div>
                             </div>
+                            ${entry.price ? `<div class="coffee-item-price">${entry.price}</div>` : ''}
                         </div>
-                        ${entry.price ? `<div class="coffee-item-price">${entry.price}</div>` : ''}
-                    </div>
-                    <div class="swipe-actions">
-                        <button class="action-btn share-btn"><i class="ph ph-export"></i><span>Share</span></button>
-                        <button class="action-btn delete-btn" data-del="${entry.id || entry.originalIdx}"><i class="ph ph-trash"></i><span>Delete</span></button>
-                    </div>
-                </div>`);
-            });
-            todayCoffeeList.querySelectorAll('.swipe-content').forEach(initSwipe);
-            todayCoffeeList.querySelectorAll('.delete-btn').forEach(btn => {
-                btn.addEventListener('click', async () => {
-                    const delId = btn.dataset.del;
-                    if (currentUser && typeof delId === 'string' && delId.length > 5) {
-                        // It's a Supabase UUID
-                        const { error } = await supabase.from('coffee_entries').delete().eq('id', delId);
-                        if (!error) {
-                            const idx = coffeeEntries.findIndex(e => e.id === delId);
-                            if (idx !== -1) coffeeEntries.splice(idx, 1);
+                        <div class="swipe-actions">
+                            <button class="action-btn share-btn"><i class="ph ph-export"></i><span>Share</span></button>
+                            <button class="action-btn delete-btn" data-del="${entry.id || entry.originalIdx}"><i class="ph ph-trash"></i><span>Delete</span></button>
+                        </div>
+                    </div>`);
+                });
+                todayCoffeeList.querySelectorAll('.swipe-content').forEach(initSwipe);
+                todayCoffeeList.querySelectorAll('.delete-btn').forEach(btn => {
+                    btn.addEventListener('click', async () => {
+                        const delId = btn.dataset.del;
+                        if (currentUser && typeof delId === 'string' && delId.length > 5) {
+                            const { error } = await supabase.from('coffee_entries').delete().eq('id', delId);
+                            if (!error) {
+                                const idx = coffeeEntries.findIndex(e => e.id === delId);
+                                if (idx !== -1) coffeeEntries.splice(idx, 1);
+                            } else {
+                                console.error('Delete error', error.message);
+                            }
                         } else {
-                            console.error('Delete error', error.message);
+                            coffeeEntries.splice(parseInt(delId), 1);
                         }
-                    } else {
-                        coffeeEntries.splice(parseInt(delId), 1);
-                    }
+                        renderTodayCoffee();
+                        updateCalendarStickers();
+                    });
+                });
+            }
 
-                    renderTodayCoffee();
-                    updateCalendarStickers();
+            // --- PAST RECORDS ---
+            const pastCoffeeList = document.getElementById('past-coffee-list');
+            if (!pastCoffeeList) return;
+            pastCoffeeList.innerHTML = '';
+
+            if (pastCoffees.length === 0) return;
+
+            // Group by date_string, sorted newest first
+            const grouped = {};
+            pastCoffees.forEach(e => {
+                if (!grouped[e.date_string]) grouped[e.date_string] = [];
+                grouped[e.date_string].push(e);
+            });
+
+            const sortedDates = Object.keys(grouped).sort((a, b) => new Date(b) - new Date(a));
+
+            sortedDates.forEach(dateStr => {
+                const d = new Date(dateStr);
+                const header = `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
+                pastCoffeeList.insertAdjacentHTML('beforeend', `<div class="past-date-header">${header}</div>`);
+
+                grouped[dateStr].forEach(entry => {
+                    const tempIcon = entry.temp === 'Hot' ? '♨️' : '🧊';
+                    const stickerHtml = entry.sticker
+                        ? `<img src="${entry.sticker}" alt="sticker" class="coffee-item-sticker">`
+                        : `<span class="coffee-item-emoji">${entry.emoji || '☕'}</span>`;
+                    pastCoffeeList.insertAdjacentHTML('beforeend', `
+                        <div class="card coffee-item-card" style="margin-bottom:10px;">
+                            <div class="coffee-item-info">
+                                <div class="coffee-item-icon">${stickerHtml}</div>
+                                <div class="coffee-item-text">
+                                    <h3>${entry.type} ${tempIcon}</h3>
+                                    <p>${entry.size} • ${entry.time}</p>
+                                </div>
+                            </div>
+                            ${entry.price ? `<div class="coffee-item-price">${entry.price}</div>` : ''}
+                        </div>`);
                 });
             });
         }
@@ -623,18 +662,45 @@ let currentUser = null;
 
                 const coffeesForDay = coffeeEntries.filter(e => e.date_string === thisCellDateStr);
 
+                // Remove old click listener by cloning
+                const newDay = day.cloneNode(false);
+                day.parentNode.replaceChild(newDay, day);
+                newDay.className = day.className;
+                newDay.dataset.day = dayNum;
+
                 if (coffeesForDay.length > 0) {
-                    day.classList.add('has-coffee');
-                    const first = coffeesForDay[0];
-                    if (first.sticker) {
-                        day.innerHTML = `<img src="${first.sticker}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:12px;">`;
-                    } else {
-                        day.innerHTML = first.emoji;
+                    newDay.classList.add('has-coffee');
+                    newDay.textContent = '';
+
+                    const gridCount = Math.min(coffeesForDay.length, 4);
+                    const gridClass = gridCount <= 1 ? 'grid-1' : gridCount <= 2 ? 'grid-2' : 'grid-4';
+                    const gridDiv = document.createElement('div');
+                    gridDiv.className = `cal-day-grid ${gridClass}`;
+
+                    for (let i = 0; i < gridCount; i++) {
+                        const c = coffeesForDay[i];
+                        if (c.sticker) {
+                            const img = document.createElement('img');
+                            img.src = c.sticker;
+                            img.alt = '';
+                            gridDiv.appendChild(img);
+                        } else {
+                            const span = document.createElement('span');
+                            span.className = 'cal-emoji';
+                            span.textContent = c.emoji || '☕';
+                            gridDiv.appendChild(span);
+                        }
                     }
-                    day.dataset.day = dayNum;
+                    newDay.appendChild(gridDiv);
+
+                    // Click to open day detail overlay
+                    newDay.addEventListener('click', () => openDayOverlay(new Date(currentYear, currentMonth, dayNum)));
                 } else {
-                    day.classList.remove('has-coffee');
-                    day.textContent = dayNum;
+                    newDay.classList.remove('has-coffee');
+                    newDay.textContent = dayNum;
+
+                    // Even empty days can be clicked
+                    newDay.addEventListener('click', () => openDayOverlay(new Date(currentYear, currentMonth, dayNum)));
                 }
             });
         }
@@ -656,6 +722,105 @@ let currentUser = null;
                 const currentX = new DOMMatrix(el.style.transform).m41;
                 currentTranslate = currentX < limit / 2 ? limit : 0;
                 el.style.transform = `translateX(${currentTranslate}px)`;
+            });
+        }
+
+        // ============================================================
+        // DAY DETAIL OVERLAY (BOTTOM SHEET)
+        // ============================================================
+        const dayOverlay = document.getElementById('day-overlay');
+        const dayOverlayBackdrop = document.getElementById('day-overlay-backdrop');
+        const dayOverlayTitle = document.getElementById('day-overlay-title');
+        const dayOverlaySub = document.getElementById('day-overlay-subtitle');
+        const dayOverlayCupCount = document.getElementById('day-overlay-cup-count');
+        const dayOverlayRecords = document.getElementById('day-overlay-records');
+        const btnAddCupOverlay = document.getElementById('btn-add-cup-overlay');
+
+        function openDayOverlay(date) {
+            const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+            dayOverlayTitle.textContent = `${date.getDate()} ${MONTHS_SHORT[date.getMonth()]}`;
+            dayOverlaySub.textContent = dayNames[date.getDay()];
+
+            const dateStr = date.toDateString();
+            const dayCoffees = coffeeEntries.filter(e => e.date_string === dateStr);
+            dayOverlayCupCount.textContent = `${dayCoffees.length} Cup${dayCoffees.length !== 1 ? 's' : ''}`;
+
+            dayOverlayRecords.innerHTML = '';
+            if (dayCoffees.length === 0) {
+                dayOverlayRecords.innerHTML = '<div class="card empty-state-card"><div class="empty-state-icon">☕</div><p class="empty-state-text">No records yet</p></div>';
+            } else {
+                dayCoffees.forEach(entry => {
+                    const tempIcon = entry.temp === 'Hot' ? '♨️' : '🧊';
+                    const stickerHtml = entry.sticker
+                        ? `<img src="${entry.sticker}" alt="sticker" class="coffee-item-sticker">`
+                        : `<span class="coffee-item-emoji">${entry.emoji || '☕'}</span>`;
+                    dayOverlayRecords.insertAdjacentHTML('beforeend', `
+                        <div class="card coffee-item-card" style="margin-bottom:10px;">
+                            <div class="coffee-item-info">
+                                <div class="coffee-item-icon">${stickerHtml}</div>
+                                <div class="coffee-item-text">
+                                    <h3>${entry.type} ${tempIcon}</h3>
+                                    <p>${entry.size} • ${entry.time}</p>
+                                </div>
+                            </div>
+                            ${entry.price ? `<div class="coffee-item-price">${entry.price}</div>` : ''}
+                        </div>`);
+                });
+            }
+
+            // Set selected date for Add a Cup
+            btnAddCupOverlay.onclick = () => {
+                selectedDateTime = date;
+                closeDayOverlay();
+                if (modalAddCoffee) modalAddCoffee.classList.add('active');
+            };
+
+            // Show overlay
+            dayOverlayBackdrop.classList.add('active');
+            dayOverlay.classList.add('active');
+        }
+
+        function closeDayOverlay() {
+            dayOverlay.classList.remove('active');
+            dayOverlayBackdrop.classList.remove('active');
+        }
+
+        // Close on backdrop click
+        if (dayOverlayBackdrop) dayOverlayBackdrop.addEventListener('click', closeDayOverlay);
+
+        // Swipe-down to close
+        const dayOverlayHandle = document.getElementById('day-overlay-handle');
+        if (dayOverlayHandle && dayOverlay) {
+            let swipeStartY = 0, swipeCurrentY = 0, isSwiping = false;
+
+            dayOverlayHandle.addEventListener('touchstart', (e) => {
+                swipeStartY = e.touches[0].clientY;
+                isSwiping = true;
+                dayOverlay.style.transition = 'none';
+            }, { passive: true });
+
+            dayOverlayHandle.addEventListener('touchmove', (e) => {
+                if (!isSwiping) return;
+                swipeCurrentY = e.touches[0].clientY;
+                const diff = swipeCurrentY - swipeStartY;
+                if (diff > 0) {
+                    dayOverlay.style.transform = `translateY(${diff}px)`;
+                }
+            }, { passive: true });
+
+            dayOverlayHandle.addEventListener('touchend', () => {
+                isSwiping = false;
+                dayOverlay.style.transition = 'transform 0.35s cubic-bezier(0.32,0.72,0,1)';
+                const diff = swipeCurrentY - swipeStartY;
+                if (diff > 120) {
+                    closeDayOverlay();
+                    dayOverlay.style.transform = '';
+                } else {
+                    dayOverlay.style.transform = 'translateY(0)';
+                }
+                swipeCurrentY = 0;
             });
         }
 

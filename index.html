@@ -21,12 +21,6 @@
 
 <body>
     <div id="app-container">
-
-        <!-- ======================= -->
-        <!-- ONBOARDING VIEW         -->
-        <!-- ======================= -->
-
-
         <!-- ======================= -->
         <!-- LOGIN VIEW              -->
         <!-- ======================= -->
@@ -94,13 +88,15 @@
                 <h2>Today Coffee</h2>
             </div>
 
-            <!-- Today Coffee List (JS will populate) -->
             <div class="coffee-list" id="today-coffee-list">
                 <div class="card empty-state-card">
                     <div class="empty-state-icon">☕</div>
                     <p class="empty-state-text">None, take a sip!</p>
                 </div>
             </div>
+
+            <!-- Past Days' Records -->
+            <div id="past-coffee-list"></div>
         </div>
 
         <!-- ======================= -->
@@ -359,6 +355,25 @@
                         <!-- JS populates -->
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- DAY DETAIL OVERLAY (BOTTOM SHEET) -->
+        <div class="day-overlay-backdrop" id="day-overlay-backdrop"></div>
+        <div class="day-overlay" id="day-overlay">
+            <div class="day-overlay-handle" id="day-overlay-handle"><span></span></div>
+            <div class="day-overlay-header">
+                <h2 id="day-overlay-title">3 Mar</h2>
+                <p id="day-overlay-subtitle">Tue</p>
+            </div>
+            <div class="day-overlay-body">
+                <button class="btn-primary icon-btn" id="btn-add-cup-overlay"><i class="ph ph-plus"></i> Add a
+                    Cup</button>
+                <div class="day-records-header">
+                    <h3>Coffee Records</h3>
+                    <span id="day-overlay-cup-count">0 Cups</span>
+                </div>
+                <div id="day-overlay-records"></div>
             </div>
         </div>
 

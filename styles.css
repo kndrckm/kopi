@@ -40,9 +40,10 @@ textarea {
     max-height: 932px;
     background-color: var(--bg-color);
     position: relative;
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: hidden;
     box-shadow: 0 0 40px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
 }
 
 @media (min-width: 431px) {
@@ -51,19 +52,15 @@ textarea {
         max-height: 932px;
         max-width: 430px;
         margin: auto;
-        border-radius: 0;
-        border: none;
-        box-shadow: 0 0 40px rgba(0, 0, 0, 0.1);
     }
 }
 
 .view {
     display: none;
     padding: 24px;
-    padding-bottom: 120px;
+    padding-bottom: 24px;
     animation: fadeIn 0.3s ease-out forwards;
-    /* allow scrolling inside views */
-    height: 100%;
+    flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
 }
@@ -380,8 +377,44 @@ p {
 
 .cal-day.has-coffee {
     background-color: #efe8df;
-    font-size: 28px;
-    padding: 2px;
+    font-size: 20px;
+    padding: 1px;
+    cursor: pointer;
+}
+
+.cal-day-grid {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    gap: 1px;
+}
+
+.cal-day-grid.grid-1 {
+    grid-template-columns: 1fr;
+}
+
+.cal-day-grid.grid-2 {
+    grid-template-columns: 1fr 1fr;
+}
+
+.cal-day-grid.grid-4 {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+}
+
+.cal-day-grid img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+.cal-day-grid .cal-emoji {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    line-height: 1;
 }
 
 /* Progress */
@@ -1496,4 +1529,178 @@ input:checked+.slider-toggle:before {
 ::-webkit-scrollbar {
     width: 0px;
     background: transparent;
+}
+
+/* ========== BOTTOM NAV ========== */
+.bottom-nav {
+    padding: 12px 0 20px;
+    display: flex;
+    justify-content: center;
+    background: var(--bg-color);
+    flex-shrink: 0;
+}
+
+.bottom-nav.hidden {
+    display: none;
+}
+
+.nav-pill {
+    display: flex;
+    gap: 0;
+    background: var(--card-bg);
+    border-radius: 40px;
+    padding: 6px;
+    position: relative;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+}
+
+.nav-indicator {
+    position: absolute;
+    height: calc(100% - 12px);
+    width: 48px;
+    top: 6px;
+    left: 6px;
+    background-color: var(--bg-color);
+    border-radius: 50px;
+    transition: left 0.4s cubic-bezier(0.25, 1, 0.5, 1), width 0.2s ease-in;
+    z-index: 0;
+}
+
+.nav-item {
+    background: none;
+    border: none;
+    width: 52px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    color: var(--text-muted);
+    cursor: pointer;
+    position: relative;
+    z-index: 1;
+    transition: color 0.2s;
+}
+
+.nav-item.active {
+    color: var(--primary-color);
+}
+
+/* ========== DAY DETAIL OVERLAY (BOTTOM SHEET) ========== */
+.day-overlay-backdrop {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 900;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.day-overlay-backdrop.active {
+    display: block;
+    opacity: 1;
+}
+
+.day-overlay {
+    display: none;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 90%;
+    background: var(--bg-color);
+    border-radius: 28px 28px 0 0;
+    z-index: 950;
+    flex-direction: column;
+    overflow: hidden;
+    transform: translateY(100%);
+    transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.day-overlay.active {
+    display: flex;
+    transform: translateY(0);
+}
+
+.day-overlay-handle {
+    display: flex;
+    justify-content: center;
+    padding: 12px 0 4px;
+    cursor: grab;
+    flex-shrink: 0;
+}
+
+.day-overlay-handle span {
+    width: 40px;
+    height: 5px;
+    background: #ccc;
+    border-radius: 3px;
+}
+
+.day-overlay-header {
+    padding: 8px 24px 16px;
+    flex-shrink: 0;
+}
+
+.day-overlay-header h2 {
+    font-size: 28px;
+    font-weight: 700;
+}
+
+.day-overlay-header p {
+    color: var(--text-muted);
+    font-size: 14px;
+    margin-top: 2px;
+}
+
+.day-overlay-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 24px 24px;
+}
+
+.day-overlay-body .btn-primary {
+    margin-bottom: 20px;
+}
+
+.day-records-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.day-records-header h3 {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.day-records-header span {
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+/* ========== PAST RECORDS SECTION ========== */
+.past-date-header {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-top: 24px;
+    margin-bottom: 12px;
+}
+
+.section-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.section-title h2 {
+    font-size: 18px;
+    font-weight: 700;
 }
