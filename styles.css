@@ -69,31 +69,6 @@ textarea {
     display: block;
 }
 
-.modal-view.active {
-    display: flex;
-}
-
-.modal-view {
-    display: none;
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 1000;
-    animation: slideUp 0.3s ease-out forwards;
-}
-
-@keyframes slideUp {
-    from {
-        transform: translateY(100%);
-    }
-
-    to {
-        transform: translateY(0);
-    }
-}
-
 @keyframes fadeIn {
     from {
         opacity: 0;
@@ -310,8 +285,10 @@ p {
     margin: 24px 0;
 }
 
-.btn-card {
-    background: white;
+.btn-sheet {
+    background: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     color: var(--primary-color);
     border: none;
     border-radius: 20px;
@@ -319,15 +296,12 @@ p {
     font-size: 16px;
     font-weight: 600;
     cursor: pointer;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     transition: all 0.2s;
-    height: auto;
-    width: auto;
 }
 
-.btn-card:active {
+.btn-sheet:active {
     transform: scale(0.95);
-    background: #fafafa;
+    background: rgba(255, 255, 255, 0.75);
 }
 
 /* CARDS */
@@ -873,24 +847,47 @@ input:checked+.slider-toggle:before {
 }
 
 
-/* MODAL VIEWS (Fullscreen) */
+/* ========== BOTTOM SHEET SYSTEM ========== */
 .modal-view {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.45);
+    background: rgba(0, 0, 0, 0);
     z-index: 200;
-    transform: translateY(100%);
-    transition: transform 0.3s cubic-bezier(0.1, 0.7, 0.1, 1);
+    display: flex;
     flex-direction: column;
     justify-content: flex-end;
+    pointer-events: none;
+    transition: background 0.35s ease-out;
 }
 
 .modal-view.active {
+    background: rgba(0, 0, 0, 0.45);
+    pointer-events: all;
+}
+
+.modal-view .sheet-content {
     display: flex;
+    flex-direction: column;
+    max-height: 90%;
+    transform: translateY(100%);
+    transition: transform 0.35s ease-out;
+    will-change: transform;
+}
+
+.modal-view.active .sheet-content {
     transform: translateY(0);
+}
+
+/* Stacking: previous sheet scales down */
+.modal-view.stacked .sheet-content {
+    transform: scale(0.95) translateY(0);
+    transform-origin: top center;
+    border-radius: 16px 16px 0 0;
+    opacity: 0.7;
+    transition: transform 0.35s ease-out, opacity 0.35s ease-out;
 }
 
 .modal-header {

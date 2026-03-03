@@ -201,19 +201,21 @@
         <!-- COFFEE TYPE EDITOR       -->
         <!-- ======================= -->
         <div id="modal-type-editor" class="modal-view">
-            <div class="modal-header flex-between">
-                <button class="btn-card" id="btn-close-type-editor">Cancel</button>
-                <h2>Coffee Type</h2>
-                <button class="btn-pill-small" id="btn-save-types">Save</button>
-            </div>
-            <div class="modal-body">
-                <div id="type-editor-list" class="type-editor-list">
-                    <!-- JS populates -->
+            <div class="sheet-content">
+                <div class="modal-header flex-between">
+                    <button class="btn-sheet" id="btn-close-type-editor">Cancel</button>
+                    <h2>Coffee Type</h2>
+                    <button class="btn-sheet" id="btn-save-types">Save</button>
                 </div>
-                <button class="type-add-others-btn" id="btn-add-others-editor">
-                    <span class="type-add-icon">＋</span>
-                    <span>Others</span>
-                </button>
+                <div class="modal-body">
+                    <div id="type-editor-list" class="type-editor-list">
+                        <!-- JS populates -->
+                    </div>
+                    <button class="type-add-others-btn" id="btn-add-others-editor">
+                        <span class="type-add-icon">＋</span>
+                        <span>Others</span>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -221,23 +223,25 @@
         <!-- NEW / EDIT COFFEE TYPE   -->
         <!-- ======================= -->
         <div id="modal-new-type" class="modal-view">
-            <div class="modal-header flex-between">
-                <button class="btn-card" id="btn-cancel-new-type">Cancel</button>
-                <h2 id="new-type-title">New Coffee Type</h2>
-                <button class="btn-pill-small" id="btn-save-new-type">Save</button>
-            </div>
-            <div class="modal-body" style="text-align:center;">
-                <div class="new-type-icon-preview" id="new-type-icon-preview">
-                    <span class="new-type-icon-emoji" id="new-type-icon-emoji">☕</span>
-                    <button class="new-type-icon-edit-btn" id="btn-edit-type-icon"><i
-                            class="ph ph-pencil-simple"></i></button>
+            <div class="sheet-content">
+                <div class="modal-header flex-between">
+                    <button class="btn-sheet" id="btn-cancel-new-type">Cancel</button>
+                    <h2 id="new-type-title">New Coffee Type</h2>
+                    <button class="btn-sheet" id="btn-save-new-type">Save</button>
                 </div>
-                <p class="setting-hint" style="margin-bottom:24px;">Tap to change icon</p>
+                <div class="modal-body" style="text-align:center;">
+                    <div class="new-type-icon-preview" id="new-type-icon-preview">
+                        <span class="new-type-icon-emoji" id="new-type-icon-emoji">☕</span>
+                        <button class="new-type-icon-edit-btn" id="btn-edit-type-icon"><i
+                                class="ph ph-pencil-simple"></i></button>
+                    </div>
+                    <p class="setting-hint" style="margin-bottom:24px;">Tap to change icon</p>
 
-                <div class="form-group" style="text-align:left;">
-                    <label>Coffee Name</label>
-                    <input type="text" class="text-input" id="input-new-type-name"
-                        placeholder="e.g., Cappuccino, Cold Brew">
+                    <div class="form-group" style="text-align:left;">
+                        <label>Coffee Name</label>
+                        <input type="text" class="text-input" id="input-new-type-name"
+                            placeholder="e.g., Cappuccino, Cold Brew">
+                    </div>
                 </div>
             </div>
         </div>
@@ -246,31 +250,33 @@
         <!-- ICON PICKER OVERLAY      -->
         <!-- ======================= -->
         <div id="icon-picker-overlay" class="modal-view">
-            <div class="modal-header flex-between">
-                <div></div>
-                <h2>Select Icon</h2>
-                <button class="btn-text highlight" id="btn-icon-picker-done">Done</button>
-            </div>
-            <div class="modal-body" style="text-align:center;">
-                <div class="icon-picker-preview">
-                    <span class="icon-picker-selected" id="icon-picker-selected">☕</span>
-                    <p class="setting-hint">Selected Icon</p>
+            <div class="sheet-content">
+                <div class="modal-header flex-between">
+                    <div></div>
+                    <h2>Select Icon</h2>
+                    <button class="btn-sheet" id="btn-icon-picker-done">Done</button>
                 </div>
-                <div class="form-group" style="margin:20px 0;">
-                    <input type="text" class="text-input" id="input-other-emoji" placeholder="Other Emoji..."
-                        style="text-align:center;font-size:20px;">
-                </div>
-                <p style="font-weight:600;text-align:left;margin-bottom:12px;">Choose an Icon</p>
-                <div class="icon-picker-grid" id="icon-picker-grid">
-                    <!-- JS populates -->
+                <div class="modal-body" style="text-align:center;">
+                    <div class="icon-picker-preview">
+                        <span class="icon-picker-selected" id="icon-picker-selected">☕</span>
+                        <p class="setting-hint">Selected Icon</p>
+                    </div>
+                    <div class="form-group" style="margin:20px 0;">
+                        <input type="text" class="text-input" id="input-other-emoji" placeholder="Other Emoji..."
+                            style="text-align:center;font-size:20px;">
+                    </div>
+                    <p style="font-weight:600;text-align:left;margin-bottom:12px;">Choose an Icon</p>
+                    <div class="icon-picker-grid" id="icon-picker-grid">
+                        <!-- JS populates -->
+                    </div>
                 </div>
             </div>
         </div>
 
 
         <!-- LANGUAGE PICKER OVERLAY -->
-        <div id="lang-overlay" class="picker-overlay">
-            <div class="picker-card">
+        <div id="lang-overlay" class="modal-view">
+            <div class="picker-card sheet-content">
                 <div class="picker-handle"></div>
                 <div class="picker-header">
                     <h3 style="font-size:16px;">Language</h3>
@@ -289,184 +295,188 @@
         <!-- ADD COFFEE MODAL        -->
         <!-- ======================= -->
         <div id="modal-add-coffee" class="modal-view">
-            <div class="modal-header flex-between">
-                <button class="btn-card" id="btn-cancel-add">Cancel</button>
-                <h2>Add Coffee</h2>
-                <button class="btn-pill-small" id="btn-save-coffee">Save</button>
+            <div class="sheet-content">
+                <div class="modal-header flex-between">
+                    <button class="btn-sheet" id="btn-cancel-add">Cancel</button>
+                    <h2>Add Coffee</h2>
+                    <button class="btn-sheet" id="btn-save-coffee">Save</button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Photo (Optional)</label>
+                        <div class="photo-upload-box" id="photo-placeholder">
+                            <i class="ph ph-camera"></i>
+                            <span class="photo-upload-title">Add Photo</span>
+                            <span class="photo-upload-hint">Capture your coffee moment</span>
+                        </div>
+                        <input type="file" id="photo-input" accept="image/*" hidden>
+                    </div>
+
+                    <div class="card list-input selectable" id="btn-open-dt-picker">
+                        <div class="list-input-left">
+                            <div class="icon-bg"><i class="ph ph-calendar-blank"></i></div>
+                            <div>
+                                <h3 id="add-coffee-date">Tue, 3 Mar</h3>
+                                <p id="add-coffee-time">03.04</p>
+                            </div>
+                        </div>
+                        <i class="ph ph-caret-right chevron"></i>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Name (Optional)</label>
+                        <input type="text" class="text-input" placeholder="">
+                    </div>
+
+                    <!-- Coffee Type (2x3 grid) -->
+                    <div class="form-group">
+                        <label>Coffee Type</label>
+                        <div class="coffee-type-grid">
+                            <div class="type-card-lg">
+                                <span class="type-emoji">☕</span>
+                                <span>Espresso</span>
+                            </div>
+                            <div class="type-card-lg">
+                                <span class="type-emoji">🥛</span>
+                                <span>Latte</span>
+                            </div>
+                            <div class="type-card-lg">
+                                <span class="type-emoji">⚪</span>
+                                <span>Flat White</span>
+                            </div>
+                            <div class="type-card-lg active">
+                                <span class="type-emoji">🥃</span>
+                                <span>Americano</span>
+                            </div>
+                            <div class="type-card-lg">
+                                <span class="type-emoji">☁️</span>
+                                <span>Cappuccino</span>
+                            </div>
+                            <div class="type-card-lg">
+                                <span class="type-emoji">🍫</span>
+                                <span>Mocha</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Size Selector -->
+                    <div class="form-group">
+                        <label>Size</label>
+                        <div class="size-selector">
+                            <button class="size-btn active">Small</button>
+                            <button class="size-btn">Medium</button>
+                            <button class="size-btn">Large</button>
+                        </div>
+                    </div>
+
+                    <!-- Temperature Toggle -->
+                    <div class="form-group">
+                        <label>Temperature</label>
+                        <div class="temp-selector">
+                            <button class="temp-btn active">🧊 Iced</button>
+                            <button class="temp-btn">♨️ Hot</button>
+                        </div>
+                    </div>
+
+                    <!-- Price -->
+                    <div class="form-group">
+                        <label>Price (Optional)</label>
+                        <input type="number" class="text-input" placeholder="0">
+                    </div>
+
+                    <!-- Note -->
+                    <div class="form-group">
+                        <label>Note (Optional)</label>
+                        <input type="text" class="text-input" placeholder="Morning ritual, with friends...">
+                    </div>
+                </div>
             </div>
 
-            <div class="modal-body">
-                <div class="form-group">
-                    <label>Photo (Optional)</label>
-                    <div class="photo-upload-box" id="photo-placeholder">
-                        <i class="ph ph-camera"></i>
-                        <span class="photo-upload-title">Add Photo</span>
-                        <span class="photo-upload-hint">Capture your coffee moment</span>
+            <!-- DATE/TIME PICKER OVERLAY -->
+            <div id="dt-picker-overlay" class="modal-view">
+                <div class="picker-card sheet-content">
+                    <div class="picker-handle"></div>
+                    <div class="picker-header">
+                        <div></div>
+                        <button class="btn-text highlight" id="btn-dt-picker-done">Done</button>
                     </div>
-                    <input type="file" id="photo-input" accept="image/*" hidden>
-                </div>
-
-                <div class="card list-input selectable" id="btn-open-dt-picker">
-                    <div class="list-input-left">
-                        <div class="icon-bg"><i class="ph ph-calendar-blank"></i></div>
-                        <div>
-                            <h3 id="add-coffee-date">Tue, 3 Mar</h3>
-                            <p id="add-coffee-time">03.04</p>
-                        </div>
+                    <div class="picker-columns">
+                        <div class="picker-column" id="picker-dt-date"></div>
+                        <div class="picker-column" id="picker-dt-hour"></div>
+                        <div class="picker-column" id="picker-dt-minute"></div>
                     </div>
-                    <i class="ph ph-caret-right chevron"></i>
-                </div>
-
-                <div class="form-group">
-                    <label>Name (Optional)</label>
-                    <input type="text" class="text-input" placeholder="">
-                </div>
-
-                <!-- Coffee Type (2x3 grid) -->
-                <div class="form-group">
-                    <label>Coffee Type</label>
-                    <div class="coffee-type-grid">
-                        <div class="type-card-lg">
-                            <span class="type-emoji">☕</span>
-                            <span>Espresso</span>
-                        </div>
-                        <div class="type-card-lg">
-                            <span class="type-emoji">🥛</span>
-                            <span>Latte</span>
-                        </div>
-                        <div class="type-card-lg">
-                            <span class="type-emoji">⚪</span>
-                            <span>Flat White</span>
-                        </div>
-                        <div class="type-card-lg active">
-                            <span class="type-emoji">🥃</span>
-                            <span>Americano</span>
-                        </div>
-                        <div class="type-card-lg">
-                            <span class="type-emoji">☁️</span>
-                            <span>Cappuccino</span>
-                        </div>
-                        <div class="type-card-lg">
-                            <span class="type-emoji">🍫</span>
-                            <span>Mocha</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Size Selector -->
-                <div class="form-group">
-                    <label>Size</label>
-                    <div class="size-selector">
-                        <button class="size-btn active">Small</button>
-                        <button class="size-btn">Medium</button>
-                        <button class="size-btn">Large</button>
-                    </div>
-                </div>
-
-                <!-- Temperature Toggle -->
-                <div class="form-group">
-                    <label>Temperature</label>
-                    <div class="temp-selector">
-                        <button class="temp-btn active">🧊 Iced</button>
-                        <button class="temp-btn">♨️ Hot</button>
-                    </div>
-                </div>
-
-                <!-- Price -->
-                <div class="form-group">
-                    <label>Price (Optional)</label>
-                    <input type="number" class="text-input" placeholder="0">
-                </div>
-
-                <!-- Note -->
-                <div class="form-group">
-                    <label>Note (Optional)</label>
-                    <input type="text" class="text-input" placeholder="Morning ritual, with friends...">
                 </div>
             </div>
+
+            <!-- MONTH/YEAR PICKER OVERLAY -->
+            <div id="picker-overlay" class="modal-view">
+                <div class="picker-card sheet-content">
+                    <div class="picker-handle"></div>
+                    <div class="picker-header">
+                        <div></div>
+                        <button class="btn-text highlight" id="btn-picker-done">Done</button>
+                    </div>
+                    <div class="picker-columns">
+                        <div class="picker-column" id="picker-year">
+                            <!-- JS populates -->
+                        </div>
+                        <div class="picker-column" id="picker-month">
+                            <!-- JS populates -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SAVE SUCCESS TOAST -->
+            <div class="save-toast" id="save-toast">✅ Save Success</div>
+
+            <!-- DAY DETAIL OVERLAY (BOTTOM SHEET) -->
+            <div class="modal-view" id="day-overlay-wrapper">
+                <div class="day-overlay sheet-content" id="day-overlay">
+                    <div class="day-overlay-handle" id="day-overlay-handle"><span></span></div>
+                    <div class="day-overlay-header">
+                        <h2 id="day-overlay-title">3 Mar</h2>
+                        <p id="day-overlay-subtitle">Tue</p>
+                    </div>
+                    <div class="day-overlay-body">
+                        <button class="btn-primary icon-btn" id="btn-add-cup-overlay"><i class="ph ph-plus"></i> Add a
+                            Cup</button>
+                        <div class="day-records-header">
+                            <h3>Coffee Records</h3>
+                            <span id="day-overlay-cup-count">0 Cups</span>
+                        </div>
+                        <div id="day-overlay-records"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FLOATING BOTTOM NAVIGATION -->
+            <div id="bottom-nav" class="bottom-nav">
+                <div class="nav-pill" id="nav-pill">
+                    <div class="nav-indicator" id="nav-indicator"></div>
+                    <button class="nav-item active" data-target="view-calendar"><i
+                            class="ph-fill ph-coffee"></i></button>
+                    <button class="nav-item" data-target="view-statistics"><i
+                            class="ph-bold ph-chart-line-up"></i></button>
+                    <button class="nav-item" data-target="view-settings"><i class="ph-bold ph-gear"></i></button>
+                </div>
+            </div>
+
         </div>
 
-        <!-- DATE/TIME PICKER OVERLAY -->
-        <div id="dt-picker-overlay" class="picker-overlay">
-            <div class="picker-card">
-                <div class="picker-handle"></div>
-                <div class="picker-header">
-                    <div></div>
-                    <button class="btn-text highlight" id="btn-dt-picker-done">Done</button>
-                </div>
-                <div class="picker-columns">
-                    <div class="picker-column" id="picker-dt-date"></div>
-                    <div class="picker-column" id="picker-dt-hour"></div>
-                    <div class="picker-column" id="picker-dt-minute"></div>
-                </div>
-            </div>
-        </div>
+        <!-- Supabase CDN -->
+        <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+        <script type="module" src="app.js"></script>
 
-        <!-- MONTH/YEAR PICKER OVERLAY -->
-        <div id="picker-overlay" class="picker-overlay">
-            <div class="picker-card">
-                <div class="picker-handle"></div>
-                <div class="picker-header">
-                    <div></div>
-                    <button class="btn-text highlight" id="btn-picker-done">Done</button>
-                </div>
-                <div class="picker-columns">
-                    <div class="picker-column" id="picker-year">
-                        <!-- JS populates -->
-                    </div>
-                    <div class="picker-column" id="picker-month">
-                        <!-- JS populates -->
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- SAVE SUCCESS TOAST -->
-        <div class="save-toast" id="save-toast">✅ Save Success</div>
-
-        <!-- DAY DETAIL OVERLAY (BOTTOM SHEET) -->
-        <div class="day-overlay-backdrop" id="day-overlay-backdrop"></div>
-        <div class="day-overlay" id="day-overlay">
-            <div class="day-overlay-handle" id="day-overlay-handle"><span></span></div>
-            <div class="day-overlay-header">
-                <h2 id="day-overlay-title">3 Mar</h2>
-                <p id="day-overlay-subtitle">Tue</p>
-            </div>
-            <div class="day-overlay-body">
-                <button class="btn-primary icon-btn" id="btn-add-cup-overlay"><i class="ph ph-plus"></i> Add a
-                    Cup</button>
-                <div class="day-records-header">
-                    <h3>Coffee Records</h3>
-                    <span id="day-overlay-cup-count">0 Cups</span>
-                </div>
-                <div id="day-overlay-records"></div>
-            </div>
-        </div>
-
-        <!-- FLOATING BOTTOM NAVIGATION -->
-        <div id="bottom-nav" class="bottom-nav">
-            <div class="nav-pill" id="nav-pill">
-                <div class="nav-indicator" id="nav-indicator"></div>
-                <button class="nav-item active" data-target="view-calendar"><i class="ph-fill ph-coffee"></i></button>
-                <button class="nav-item" data-target="view-statistics"><i class="ph-bold ph-chart-line-up"></i></button>
-                <button class="nav-item" data-target="view-settings"><i class="ph-bold ph-gear"></i></button>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- Supabase CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script type="module" src="app.js"></script>
-
-    <!-- Register Service Worker -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js').catch(err => {
-                console.warn('SW registration failed:', err);
-            });
-        }
-    </script>
+        <!-- Register Service Worker -->
+        <script>
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('sw.js').catch(err => {
+                    console.warn('SW registration failed:', err);
+                });
+            }
+        </script>
 </body>
 
 </html>

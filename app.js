@@ -352,14 +352,97 @@ let currentUser = null;
         }
         navItems.forEach(btn => btn.addEventListener('click', () => { if (btn.dataset.target) switchView(btn.dataset.target); }));
 
+        // ============================================================
+        // UNIFIED BOTTOM SHEET SYSTEM
+        // ============================================================
+        const sheetStack = []; // tracks open sheets for stacking
+
+        function openSheet(el) {
+            if (!el) return;
+            // Stack: mark previous top sheet as stacked
+            if (sheetStack.length > 0) {
+                const prev = sheetStack[sheetStack.length - 1];
+                prev.classList.add('stacked');
+            }
+            sheetStack.push(el);
+            // Update z-index so newer sheets are on top
+            el.style.zIndex = 200 + sheetStack.length * 10;
+            el.classList.add('active');
+        }
+
+        function closeSheet(el) {
+            if (!el) return;
+            el.classList.remove('active');
+            // Remove from stack
+            const idx = sheetStack.indexOf(el);
+            if (idx > -1) sheetStack.splice(idx, 1);
+            // Unstack the new top sheet
+            if (sheetStack.length > 0) {
+                sheetStack[sheetStack.length - 1].classList.remove('stacked');
+            }
+            el.style.zIndex = '';
+        }
+
+        // Click-to-dismiss on backdrop (the dark area)
+        document.querySelectorAll('.modal-view').forEach(mv => {
+            mv.addEventListener('click', (e) => {
+                if (e.target === mv) closeSheet(mv);
+            });
+        });
+
+        // Swipe-to-dismiss on sheet-content
+        document.querySelectorAll('.modal-view .sheet-content').forEach(sc => {
+            let startY = 0, currentY = 0, isDragging = false;
+
+            sc.addEventListener('touchstart', (e) => {
+                // Only start drag if not on a button/input/scrollable area that has scroll
+                const target = e.target;
+                if (target.closest('button, input, select, textarea, .picker-overlay')) return;
+                const scrollable = target.closest('.modal-body');
+                if (scrollable && scrollable.scrollTop > 0) return;
+                startY = e.touches[0].clientY;
+                isDragging = true;
+                sc.style.transition = 'none';
+            }, { passive: true });
+
+            sc.addEventListener('touchmove', (e) => {
+                if (!isDragging) return;
+                currentY = e.touches[0].clientY;
+                const diff = currentY - startY;
+                if (diff > 0) {
+                    sc.style.transform = `translateY(${diff}px)`;
+                    // Fade backdrop proportionally
+                    const mv = sc.closest('.modal-view');
+                    const opacity = Math.max(0, 0.45 - (diff / 800));
+                    mv.style.background = `rgba(0,0,0,${opacity})`;
+                }
+            }, { passive: true });
+
+            sc.addEventListener('touchend', () => {
+                if (!isDragging) return;
+                isDragging = false;
+                const diff = currentY - startY;
+                sc.style.transition = '';
+                const mv = sc.closest('.modal-view');
+                mv.style.background = '';
+                if (diff > 100) {
+                    closeSheet(mv);
+                } else {
+                    sc.style.transform = '';
+                }
+                currentY = 0;
+                startY = 0;
+            });
+        });
+
         // --- ADD COFFEE MODAL ---
         const btnAddCup = document.getElementById('btn-add-cup-main');
         const modalAddCoffee = document.getElementById('modal-add-coffee');
         const btnCancelAdd = document.getElementById('btn-cancel-add');
         const btnSaveCoffee = document.getElementById('btn-save-coffee');
 
-        if (btnAddCup) btnAddCup.addEventListener('click', () => { updateAddCoffeeDateTime(); rebuildTypeGrid(); modalAddCoffee.classList.add('active'); });
-        if (btnCancelAdd) btnCancelAdd.addEventListener('click', () => modalAddCoffee.classList.remove('active'));
+        if (btnAddCup) btnAddCup.addEventListener('click', () => { updateAddCoffeeDateTime(); rebuildTypeGrid(); openSheet(modalAddCoffee); });
+        if (btnCancelAdd) btnCancelAdd.addEventListener('click', () => closeSheet(modalAddCoffee));
 
         // --- DATE/TIME PICKER ---
         const btnOpenDtPicker = document.getElementById('btn-open-dt-picker');
@@ -422,18 +505,14 @@ let currentUser = null;
             pickerSelectedDtHour = selectedDateTime.getHours();
             pickerSelectedDtMinute = selectedDateTime.getMinutes();
             buildDtPicker();
-            dtPickerOverlay.classList.add('active');
+            openSheet(dtPickerOverlay);
         });
 
         if (btnDtPickerDone) btnDtPickerDone.addEventListener('click', () => {
             const now = new Date();
             selectedDateTime = new Date(now.getFullYear(), now.getMonth(), pickerSelectedDtDate, pickerSelectedDtHour, pickerSelectedDtMinute);
             updateAddCoffeeDateTimeDisplay();
-            dtPickerOverlay.classList.remove('active');
-        });
-
-        if (dtPickerOverlay) dtPickerOverlay.addEventListener('click', (e) => {
-            if (e.target === dtPickerOverlay) dtPickerOverlay.classList.remove('active');
+            closeSheet(dtPickerOverlay);
         });
 
         function updateAddCoffeeDateTimeDisplay() {
@@ -820,8 +899,7 @@ let currentUser = null;
         // ============================================================
         // DAY DETAIL OVERLAY (BOTTOM SHEET)
         // ============================================================
-        const dayOverlay = document.getElementById('day-overlay');
-        const dayOverlayBackdrop = document.getElementById('day-overlay-backdrop');
+        const dayOverlayWrapper = document.getElementById('day-overlay-wrapper');
         const dayOverlayTitle = document.getElementById('day-overlay-title');
         const dayOverlaySub = document.getElementById('day-overlay-subtitle');
         const dayOverlayCupCount = document.getElementById('day-overlay-cup-count');
@@ -865,54 +943,14 @@ let currentUser = null;
             // Set selected date for Add a Cup
             btnAddCupOverlay.onclick = () => {
                 selectedDateTime = date;
-                closeDayOverlay();
-                if (modalAddCoffee) modalAddCoffee.classList.add('active');
+                closeSheet(dayOverlayWrapper);
+                updateAddCoffeeDateTime();
+                rebuildTypeGrid();
+                openSheet(modalAddCoffee);
             };
 
             // Show overlay
-            dayOverlayBackdrop.classList.add('active');
-            dayOverlay.classList.add('active');
-        }
-
-        function closeDayOverlay() {
-            dayOverlay.classList.remove('active');
-            dayOverlayBackdrop.classList.remove('active');
-        }
-
-        // Close on backdrop click
-        if (dayOverlayBackdrop) dayOverlayBackdrop.addEventListener('click', closeDayOverlay);
-
-        // Swipe-down to close (on the entire overlay)
-        if (dayOverlay) {
-            let swipeStartY = 0, swipeCurrentY = 0, isSwiping = false;
-
-            dayOverlay.addEventListener('touchstart', (e) => {
-                swipeStartY = e.touches[0].clientY;
-                isSwiping = true;
-                dayOverlay.style.transition = 'none';
-            }, { passive: true });
-
-            dayOverlay.addEventListener('touchmove', (e) => {
-                if (!isSwiping) return;
-                swipeCurrentY = e.touches[0].clientY;
-                const diff = swipeCurrentY - swipeStartY;
-                if (diff > 0) {
-                    dayOverlay.style.transform = `translateY(${diff}px)`;
-                }
-            }, { passive: true });
-
-            dayOverlay.addEventListener('touchend', () => {
-                isSwiping = false;
-                dayOverlay.style.transition = 'transform 0.35s cubic-bezier(0.32,0.72,0,1)';
-                const diff = swipeCurrentY - swipeStartY;
-                if (diff > 120) {
-                    closeDayOverlay();
-                    dayOverlay.style.transform = '';
-                } else {
-                    dayOverlay.style.transform = 'translateY(0)';
-                }
-                swipeCurrentY = 0;
-            });
+            openSheet(dayOverlayWrapper);
         }
 
         // Build calendar logic moved up
@@ -1200,9 +1238,8 @@ let currentUser = null;
             pickerMonthCol.querySelectorAll('.picker-item').forEach((item, i) => item.classList.toggle('selected', i === pickerSelectedMonth));
         }
 
-        if (btnOpenPicker) btnOpenPicker.addEventListener('click', () => { buildPicker(); pickerOverlay.classList.add('active'); });
-        if (btnPickerDone) btnPickerDone.addEventListener('click', () => { pickerOverlay.classList.remove('active'); updateStatsSubtitle(); });
-        if (pickerOverlay) pickerOverlay.addEventListener('click', (e) => { if (e.target === pickerOverlay) { pickerOverlay.classList.remove('active'); updateStatsSubtitle(); } });
+        if (btnOpenPicker) btnOpenPicker.addEventListener('click', () => { buildPicker(); openSheet(pickerOverlay); });
+        if (btnPickerDone) btnPickerDone.addEventListener('click', () => { closeSheet(pickerOverlay); updateStatsSubtitle(); });
         updateStatsSubtitle();
 
         // ============================================================
@@ -1220,15 +1257,15 @@ let currentUser = null;
         if (btnOpenTypeEditor) btnOpenTypeEditor.addEventListener('click', () => {
             editingTypes = coffeeTypes.map(t => ({ ...t }));
             renderTypeEditor();
-            modalTypeEditor.classList.add('active');
+            openSheet(modalTypeEditor);
         });
 
-        if (btnCloseTypeEditor) btnCloseTypeEditor.addEventListener('click', () => modalTypeEditor.classList.remove('active'));
+        if (btnCloseTypeEditor) btnCloseTypeEditor.addEventListener('click', () => closeSheet(modalTypeEditor));
 
         if (btnSaveTypes) btnSaveTypes.addEventListener('click', async () => {
             // Save to DB
             coffeeTypes = editingTypes.map(t => ({ ...t }));
-            modalTypeEditor.classList.remove('active');
+            closeSheet(modalTypeEditor);
             rebuildTypeGrid();
 
             if (currentUser) {
@@ -1309,7 +1346,7 @@ let currentUser = null;
             if (newTypeTitle) newTypeTitle.textContent = 'New Coffee Type';
             if (newTypeIconEmoji) newTypeIconEmoji.textContent = newTypeEmoji;
             if (inputNewTypeName) inputNewTypeName.value = '';
-            if (modalNewType) modalNewType.classList.add('active');
+            if (modalNewType) openSheet(modalNewType);
         }
 
         function openEditTypeModal(typeObj, fromEditor = false) {
@@ -1318,11 +1355,11 @@ let currentUser = null;
             if (newTypeTitle) newTypeTitle.textContent = 'Edit Coffee Type';
             if (newTypeIconEmoji) newTypeIconEmoji.textContent = typeObj.emoji;
             if (inputNewTypeName) inputNewTypeName.value = typeObj.name;
-            if (modalNewType) modalNewType.classList.add('active');
+            if (modalNewType) openSheet(modalNewType);
         }
 
         if (btnCancelNewType) btnCancelNewType.addEventListener('click', () => {
-            modalNewType.classList.remove('active');
+            closeSheet(modalNewType);
         });
 
         if (btnEditTypeIcon) btnEditTypeIcon.addEventListener('click', () => {
@@ -1368,8 +1405,7 @@ let currentUser = null;
                 }
                 rebuildTypeGrid();
             }
-
-            modalNewType.classList.remove('active');
+            closeSheet(modalNewType);
         });
 
         // ============================================================
@@ -1428,12 +1464,12 @@ let currentUser = null;
                 };
             }
 
-            if (iconPickerOverlay) iconPickerOverlay.classList.add('active');
+            if (iconPickerOverlay) openSheet(iconPickerOverlay);
         }
 
         if (btnIconPickerDone) btnIconPickerDone.addEventListener('click', () => {
             if (iconPickerCallback) iconPickerCallback(selectedIconEmoji);
-            iconPickerOverlay.classList.remove('active');
+            closeSheet(iconPickerOverlay);
         });
 
         // ============================================================
@@ -1443,9 +1479,8 @@ let currentUser = null;
         const btnOpenLang = document.getElementById('btn-open-language');
         const btnLangDone = document.getElementById('btn-lang-done');
 
-        if (btnOpenLang) btnOpenLang.addEventListener('click', () => langOverlay.classList.add('active'));
-        if (btnLangDone) btnLangDone.addEventListener('click', () => langOverlay.classList.remove('active'));
-        if (langOverlay) langOverlay.addEventListener('click', (e) => { if (e.target === langOverlay) langOverlay.classList.remove('active'); });
+        if (btnOpenLang) btnOpenLang.addEventListener('click', () => openSheet(langOverlay));
+        if (btnLangDone) btnLangDone.addEventListener('click', () => closeSheet(langOverlay));
 
         // Language option selection
         document.querySelectorAll('.lang-option').forEach(opt => {
