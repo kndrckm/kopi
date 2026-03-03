@@ -473,7 +473,7 @@ let currentUser = null;
             // +Others card
             const othersDiv = document.createElement('div');
             othersDiv.className = 'type-card-lg';
-            othersDiv.innerHTML = '<span class="type-emoji" style="font-size:28px;">＋</span><span>Others</span>';
+            othersDiv.innerHTML = '<span class="type-emoji" style="font-size:36px;">＋</span><span>Others</span>';
             othersDiv.addEventListener('click', () => openNewTypeModal());
             grid.appendChild(othersDiv);
         }
@@ -1255,82 +1255,37 @@ let currentUser = null;
 
         function renderTypeEditor() {
             typeEditorList.innerHTML = '';
-            editingTypes.forEach((t, i) => {
-                const row = document.createElement('div');
-                row.className = 'type-editor-row';
-                row.dataset.idx = i;
-                row.innerHTML = `
-                <span class="drag-handle">☰</span>
-                <button class="type-emoji-btn" title="Change emoji">${t.emoji}</button>
-                <span class="type-name-label" style="flex:1;font-size:15px;font-weight:600;">${t.name}</span>
-                <button class="type-edit-btn" title="Edit"><i class="ph ph-pencil-simple"></i></button>
-                <button class="type-delete-btn" title="Delete"><i class="ph ph-trash"></i></button>
-            `;
+            // Match the grid style of the selection screen
+            typeEditorList.classList.add('coffee-type-grid');
 
-                // Edit button → open edit modal
-                row.querySelector('.type-edit-btn').addEventListener('click', () => {
+            editingTypes.forEach((t, i) => {
+                const card = document.createElement('div');
+                card.className = 'type-card-lg';
+                card.style.position = 'relative';
+                card.innerHTML = `
+                    <span class="type-emoji">${t.emoji}</span>
+                    <span>${t.name}</span>
+                    <button class="type-delete-btn" title="Delete" style="position: absolute; top: -6px; right: -6px; background: #FF3B30; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.15); z-index: 2;">
+                        <i class="ph-bold ph-trash"></i>
+                    </button>
+                `;
+
+                // Click to edit
+                card.addEventListener('click', (e) => {
+                    if (e.target.closest('.type-delete-btn')) return;
                     editingTypeIdx = i;
                     openEditTypeModal(t, true);
                 });
 
-                // Delete button
-                row.querySelector('.type-delete-btn').addEventListener('click', () => {
-                    if (editingTypes.length <= 1) return; // Keep at least 1
+                // Delete logic
+                card.querySelector('.type-delete-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (editingTypes.length <= 1) return;
                     editingTypes.splice(i, 1);
                     renderTypeEditor();
                 });
 
-                // Emoji click → open icon picker for this item
-                row.querySelector('.type-emoji-btn').addEventListener('click', () => {
-                    editingTypeIdx = i;
-                    openIconPicker(t.emoji, (newEmoji) => {
-                        editingTypes[i].emoji = newEmoji;
-                        renderTypeEditor();
-                    });
-                });
-
-                typeEditorList.appendChild(row);
-            });
-
-            // Touch-based drag reorder
-            let dragRow = null, dragIdx = null, placeholder = null;
-            typeEditorList.querySelectorAll('.drag-handle').forEach(handle => {
-                handle.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    dragRow = handle.closest('.type-editor-row');
-                    dragIdx = parseInt(dragRow.dataset.idx);
-                    dragRow.style.opacity = '0.5';
-                    dragRow.style.background = '#f9f5f0';
-                }, { passive: false });
-            });
-
-            typeEditorList.addEventListener('touchmove', (e) => {
-                if (dragRow === null) return;
-                const touch = e.touches[0];
-                const rows = [...typeEditorList.querySelectorAll('.type-editor-row')];
-                for (const r of rows) {
-                    const rect = r.getBoundingClientRect();
-                    if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
-                        const overIdx = parseInt(r.dataset.idx);
-                        if (overIdx !== dragIdx) {
-                            const [moved] = editingTypes.splice(dragIdx, 1);
-                            editingTypes.splice(overIdx, 0, moved);
-                            dragIdx = overIdx;
-                            renderTypeEditor();
-                            return;
-                        }
-                        break;
-                    }
-                }
-            }, { passive: true });
-
-            typeEditorList.addEventListener('touchend', () => {
-                if (dragRow) {
-                    dragRow.style.opacity = '1';
-                    dragRow.style.background = '';
-                }
-                dragRow = null;
-                dragIdx = null;
+                typeEditorList.appendChild(card);
             });
         }
 
