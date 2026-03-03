@@ -10,6 +10,9 @@ let currentUser = null;
         // Declare shared state early to avoid TDZ issues with auth callbacks
         const todayCoffeeList = document.getElementById('today-coffee-list');
         let coffeeEntries = [];
+        let isDraggingNav = false;
+        let navStartX = 0;
+        let indInitialLeft = 0;
 
         // Setup Auth Listener
         supabase.auth.onAuthStateChange((event, session) => {
@@ -116,9 +119,7 @@ let currentUser = null;
             if (activeBtn && indicator) indicator.style.left = `${activeBtn.offsetLeft}px`;
         }, 50);
 
-        let isDraggingNav = false;
-        let navStartX = 0;
-        let indInitialLeft = 0;
+        // isDraggingNav, navStartX, indInitialLeft moved to top of IIFE
 
         function switchView(viewId) {
             views.forEach(v => v.classList.remove('active'));
