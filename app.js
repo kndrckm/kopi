@@ -536,7 +536,7 @@ let currentUser = null;
             if (!todayCoffeeList) return;
 
             const todayStr = new Date().toDateString();
-            const todaysCoffees = coffeeEntries.map((e, idx) => ({ ...e, originalIdx: idx })).filter(e => e.dateString === todayStr);
+            const todaysCoffees = coffeeEntries.map((e, idx) => ({ ...e, originalIdx: idx })).filter(e => e.date_string === todayStr);
 
             if (todaysCoffees.length === 0) {
                 todayCoffeeList.innerHTML = `<div class="card empty-state-card"><div class="empty-state-icon">☕</div><p class="empty-state-text">None, take a sip!</p></div>`;
@@ -604,7 +604,7 @@ let currentUser = null;
                 const dayNum = parseInt(day.textContent) || parseInt(day.dataset.day);
                 const thisCellDateStr = new Date(currentYear, currentMonth, dayNum).toDateString();
 
-                const coffeesForDay = coffeeEntries.filter(e => e.dateString === thisCellDateStr);
+                const coffeesForDay = coffeeEntries.filter(e => e.date_string === thisCellDateStr);
 
                 if (coffeesForDay.length > 0) {
                     day.classList.add('has-coffee');
