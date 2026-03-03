@@ -855,7 +855,7 @@ input:checked+.slider-toggle:before {
 
 /* MODAL VIEWS (Fullscreen) */
 .modal-view {
-    position: fixed;
+    position: absolute;
     top: 0;
     left: 0;
     width: 100%;
@@ -1325,7 +1325,7 @@ input:checked+.slider-toggle:before {
 
 /* PICKER OVERLAY */
 .picker-overlay {
-    position: fixed;
+    position: absolute;
     top: 0;
     left: 0;
     width: 100%;
