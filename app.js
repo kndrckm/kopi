@@ -15,9 +15,11 @@ let currentUser = null;
         let indInitialLeft = 0;
 
         // Setup Auth Listener
-        supabase.auth.onAuthStateChange((event, session) => {
+        supabase.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_IN') {
                 currentUser = session.user;
+                await fetchUserProfile();
+                await fetchCoffeeTypes();
                 updateUserGreeting();
                 fetchCoffeeEntries();
             } else if (event === 'SIGNED_OUT') {
@@ -41,8 +43,8 @@ let currentUser = null;
         const MONTHS_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
         const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-        // Coffee types (editable)
-        let coffeeTypes = [
+        // Coffee types (editable, DB-backed)
+        const DEFAULT_COFFEE_TYPES = [
             { emoji: '☕', name: 'Espresso' },
             { emoji: '🥛', name: 'Latte' },
             { emoji: '⚪', name: 'Flat White' },
@@ -50,6 +52,34 @@ let currentUser = null;
             { emoji: '☁️', name: 'Cappuccino' },
             { emoji: '🍫', name: 'Mocha' }
         ];
+        let coffeeTypes = [...DEFAULT_COFFEE_TYPES];
+
+        async function fetchCoffeeTypes() {
+            if (!currentUser) return;
+            const { data, error } = await supabase
+                .from('user_coffee_types')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .order('sort_order', { ascending: true });
+            if (error) {
+                console.error('Fetch types error:', error.message);
+                return;
+            }
+            if (data && data.length > 0) {
+                coffeeTypes = data.map(d => ({ id: d.id, emoji: d.emoji, name: d.name }));
+            } else {
+                // Insert defaults for new user
+                const inserts = DEFAULT_COFFEE_TYPES.map((t, i) => ({
+                    user_id: currentUser.id, emoji: t.emoji, name: t.name, sort_order: i
+                }));
+                const { data: inserted, error: insErr } = await supabase
+                    .from('user_coffee_types').insert(inserts).select();
+                if (!insErr && inserted) {
+                    coffeeTypes = inserted.map(d => ({ id: d.id, emoji: d.emoji, name: d.name }));
+                }
+            }
+            rebuildTypeGrid();
+        }
 
         // Build calendar
         const calendarGrid = document.getElementById('calendar-grid');
@@ -83,6 +113,8 @@ let currentUser = null;
         const { data: { session }, error } = await supabase.auth.getSession();
         if (session) {
             currentUser = session.user;
+            await fetchUserProfile();
+            await fetchCoffeeTypes();
             updateUserGreeting();
             fetchCoffeeEntries();
             switchView('view-calendar');
@@ -91,12 +123,26 @@ let currentUser = null;
             switchView('view-login');
         }
 
+        let userDisplayName = null;
+
+        async function fetchUserProfile() {
+            if (!currentUser) return;
+            const { data, error } = await supabase
+                .from('user_profiles')
+                .select('display_name')
+                .eq('user_id', currentUser.id)
+                .single();
+            if (data && data.display_name) {
+                userDisplayName = data.display_name;
+            }
+        }
+
         function updateUserGreeting() {
             const greetingEl = document.getElementById('user-greeting');
             if (!greetingEl) return;
 
             if (!currentUser) {
-                greetingEl.textContent = 'Mar'; // Fallback
+                greetingEl.textContent = 'Mar';
                 return;
             }
 
@@ -105,7 +151,7 @@ let currentUser = null;
             if (hour >= 12 && hour < 17) timeOfDay = 'Afternoon';
             else if (hour >= 17 || hour < 4) timeOfDay = 'Evening';
 
-            const name = localStorage.getItem('monicoffee_display_name')
+            const name = userDisplayName
                 || currentUser.user_metadata?.full_name
                 || currentUser.email.split('@')[0];
             greetingEl.textContent = `${timeOfDay}, ${name}`;
@@ -259,20 +305,26 @@ let currentUser = null;
 
         // Pre-fill current display name
         if (inputDisplayName) {
-            const savedName = localStorage.getItem('monicoffee_display_name');
-            if (savedName) inputDisplayName.value = savedName;
+            if (userDisplayName) inputDisplayName.value = userDisplayName;
             else if (currentUser) {
                 inputDisplayName.value = currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || '';
             }
         }
 
         if (btnSaveDisplayName) {
-            btnSaveDisplayName.addEventListener('click', () => {
+            btnSaveDisplayName.addEventListener('click', async () => {
                 const newName = inputDisplayName?.value?.trim();
-                if (newName) {
-                    localStorage.setItem('monicoffee_display_name', newName);
-                    updateUserGreeting();
-                    alert('Display name saved!');
+                if (newName && currentUser) {
+                    const { error } = await supabase
+                        .from('user_profiles')
+                        .upsert({ user_id: currentUser.id, display_name: newName, updated_at: new Date().toISOString() });
+                    if (error) {
+                        console.error('Save profile error:', error.message);
+                    } else {
+                        userDisplayName = newName;
+                        updateUserGreeting();
+                        showSaveToast();
+                    }
                 }
             });
         }
@@ -396,6 +448,12 @@ let currentUser = null;
             const grid = document.querySelector('.coffee-type-grid');
             if (!grid) return;
             grid.innerHTML = '';
+            // Make scrollable if >6 types (including +Others)
+            if (coffeeTypes.length >= 6) {
+                grid.classList.add('scrollable');
+            } else {
+                grid.classList.remove('scrollable');
+            }
             coffeeTypes.forEach((t, i) => {
                 const div = document.createElement('div');
                 div.className = 'type-card-lg' + (t.name === selectedType ? ' active' : '');
@@ -407,6 +465,12 @@ let currentUser = null;
                 });
                 grid.appendChild(div);
             });
+            // +Others card
+            const othersDiv = document.createElement('div');
+            othersDiv.className = 'type-card-lg';
+            othersDiv.innerHTML = '<span class="type-emoji" style="font-size:28px;">＋</span><span>Others</span>';
+            othersDiv.addEventListener('click', () => openNewTypeModal());
+            grid.appendChild(othersDiv);
         }
 
         // --- FORM STATE ---
@@ -1150,6 +1214,7 @@ let currentUser = null;
         const typeEditorList = document.getElementById('type-editor-list');
 
         let editingTypes = [];
+        let editingTypeIdx = null; // for edit mode
 
         if (btnOpenTypeEditor) btnOpenTypeEditor.addEventListener('click', () => {
             editingTypes = coffeeTypes.map(t => ({ ...t }));
@@ -1159,60 +1224,261 @@ let currentUser = null;
 
         if (btnCloseTypeEditor) btnCloseTypeEditor.addEventListener('click', () => modalTypeEditor.classList.remove('active'));
 
-        if (btnSaveTypes) btnSaveTypes.addEventListener('click', () => {
-            // Read values from inputs
-            typeEditorList.querySelectorAll('.type-editor-row').forEach((row, i) => {
-                editingTypes[i].name = row.querySelector('.type-name-input').value;
-                editingTypes[i].emoji = row.querySelector('.type-emoji-btn').textContent;
-            });
+        if (btnSaveTypes) btnSaveTypes.addEventListener('click', async () => {
+            // Save to DB
             coffeeTypes = editingTypes.map(t => ({ ...t }));
             modalTypeEditor.classList.remove('active');
+            rebuildTypeGrid();
+
+            if (currentUser) {
+                // Delete all existing, re-insert with order
+                await supabase.from('user_coffee_types').delete().eq('user_id', currentUser.id);
+                const inserts = coffeeTypes.map((t, i) => ({
+                    user_id: currentUser.id, emoji: t.emoji, name: t.name, sort_order: i
+                }));
+                const { data, error } = await supabase.from('user_coffee_types').insert(inserts).select();
+                if (!error && data) {
+                    coffeeTypes = data.map(d => ({ id: d.id, emoji: d.emoji, name: d.name }));
+                }
+            }
+            showSaveToast();
         });
+
+        // +Others button in type editor
+        const btnAddOthersEditor = document.getElementById('btn-add-others-editor');
+        if (btnAddOthersEditor) {
+            btnAddOthersEditor.addEventListener('click', () => {
+                openNewTypeModal(true); // fromEditor = true
+            });
+        }
 
         function renderTypeEditor() {
             typeEditorList.innerHTML = '';
             editingTypes.forEach((t, i) => {
                 const row = document.createElement('div');
                 row.className = 'type-editor-row';
-                row.draggable = true;
                 row.dataset.idx = i;
                 row.innerHTML = `
                 <span class="drag-handle">☰</span>
                 <button class="type-emoji-btn" title="Change emoji">${t.emoji}</button>
-                <input type="text" class="type-name-input" value="${t.name}">
+                <span class="type-name-label" style="flex:1;font-size:15px;font-weight:600;">${t.name}</span>
+                <button class="type-edit-btn" title="Edit"><i class="ph ph-pencil-simple"></i></button>
+                <button class="type-delete-btn" title="Delete"><i class="ph ph-trash"></i></button>
             `;
-                // Emoji click → prompt for new emoji
-                row.querySelector('.type-emoji-btn').addEventListener('click', () => {
-                    const newEmoji = prompt('Enter new emoji:', t.emoji);
-                    if (newEmoji) {
-                        row.querySelector('.type-emoji-btn').textContent = newEmoji;
-                        editingTypes[i].emoji = newEmoji;
-                    }
+
+                // Edit button → open edit modal
+                row.querySelector('.type-edit-btn').addEventListener('click', () => {
+                    editingTypeIdx = i;
+                    openEditTypeModal(t, true);
                 });
+
+                // Delete button
+                row.querySelector('.type-delete-btn').addEventListener('click', () => {
+                    if (editingTypes.length <= 1) return; // Keep at least 1
+                    editingTypes.splice(i, 1);
+                    renderTypeEditor();
+                });
+
+                // Emoji click → open icon picker for this item
+                row.querySelector('.type-emoji-btn').addEventListener('click', () => {
+                    editingTypeIdx = i;
+                    openIconPicker(t.emoji, (newEmoji) => {
+                        editingTypes[i].emoji = newEmoji;
+                        renderTypeEditor();
+                    });
+                });
+
                 typeEditorList.appendChild(row);
             });
 
-            // Drag & Drop reorder
-            let dragIdx = null;
-            typeEditorList.querySelectorAll('.type-editor-row').forEach(row => {
-                row.addEventListener('dragstart', (e) => {
-                    dragIdx = parseInt(row.dataset.idx);
-                    row.style.opacity = '0.4';
-                });
-                row.addEventListener('dragend', () => { row.style.opacity = '1'; });
-                row.addEventListener('dragover', (e) => { e.preventDefault(); });
-                row.addEventListener('drop', (e) => {
+            // Touch-based drag reorder
+            let dragRow = null, dragIdx = null, placeholder = null;
+            typeEditorList.querySelectorAll('.drag-handle').forEach(handle => {
+                handle.addEventListener('touchstart', (e) => {
                     e.preventDefault();
-                    const dropIdx = parseInt(row.dataset.idx);
-                    if (dragIdx !== null && dragIdx !== dropIdx) {
-                        const [moved] = editingTypes.splice(dragIdx, 1);
-                        editingTypes.splice(dropIdx, 0, moved);
-                        renderTypeEditor();
+                    dragRow = handle.closest('.type-editor-row');
+                    dragIdx = parseInt(dragRow.dataset.idx);
+                    dragRow.style.opacity = '0.5';
+                    dragRow.style.background = '#f9f5f0';
+                }, { passive: false });
+            });
+
+            typeEditorList.addEventListener('touchmove', (e) => {
+                if (dragRow === null) return;
+                const touch = e.touches[0];
+                const rows = [...typeEditorList.querySelectorAll('.type-editor-row')];
+                for (const r of rows) {
+                    const rect = r.getBoundingClientRect();
+                    if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+                        const overIdx = parseInt(r.dataset.idx);
+                        if (overIdx !== dragIdx) {
+                            const [moved] = editingTypes.splice(dragIdx, 1);
+                            editingTypes.splice(overIdx, 0, moved);
+                            dragIdx = overIdx;
+                            renderTypeEditor();
+                            return;
+                        }
+                        break;
                     }
-                    dragIdx = null;
-                });
+                }
+            }, { passive: true });
+
+            typeEditorList.addEventListener('touchend', () => {
+                if (dragRow) {
+                    dragRow.style.opacity = '1';
+                    dragRow.style.background = '';
+                }
+                dragRow = null;
+                dragIdx = null;
             });
         }
+
+        // ============================================================
+        // NEW / EDIT COFFEE TYPE MODAL
+        // ============================================================
+        const modalNewType = document.getElementById('modal-new-type');
+        const newTypeTitle = document.getElementById('new-type-title');
+        const newTypeIconEmoji = document.getElementById('new-type-icon-emoji');
+        const btnEditTypeIcon = document.getElementById('btn-edit-type-icon');
+        const inputNewTypeName = document.getElementById('input-new-type-name');
+        const btnCancelNewType = document.getElementById('btn-cancel-new-type');
+        const btnSaveNewType = document.getElementById('btn-save-new-type');
+        let newTypeEmoji = '☕';
+        let newTypeFromEditor = false;
+
+        function openNewTypeModal(fromEditor = false) {
+            newTypeFromEditor = fromEditor;
+            editingTypeIdx = null;
+            newTypeEmoji = '☕';
+            if (newTypeTitle) newTypeTitle.textContent = 'New Coffee Type';
+            if (newTypeIconEmoji) newTypeIconEmoji.textContent = newTypeEmoji;
+            if (inputNewTypeName) inputNewTypeName.value = '';
+            if (modalNewType) modalNewType.classList.add('active');
+        }
+
+        function openEditTypeModal(typeObj, fromEditor = false) {
+            newTypeFromEditor = fromEditor;
+            newTypeEmoji = typeObj.emoji;
+            if (newTypeTitle) newTypeTitle.textContent = 'Edit Coffee Type';
+            if (newTypeIconEmoji) newTypeIconEmoji.textContent = typeObj.emoji;
+            if (inputNewTypeName) inputNewTypeName.value = typeObj.name;
+            if (modalNewType) modalNewType.classList.add('active');
+        }
+
+        if (btnCancelNewType) btnCancelNewType.addEventListener('click', () => {
+            modalNewType.classList.remove('active');
+        });
+
+        if (btnEditTypeIcon) btnEditTypeIcon.addEventListener('click', () => {
+            openIconPicker(newTypeEmoji, (emoji) => {
+                newTypeEmoji = emoji;
+                if (newTypeIconEmoji) newTypeIconEmoji.textContent = emoji;
+            });
+        });
+
+        // Also allow clicking the icon preview itself
+        if (newTypeIconEmoji) newTypeIconEmoji.addEventListener('click', () => {
+            openIconPicker(newTypeEmoji, (emoji) => {
+                newTypeEmoji = emoji;
+                newTypeIconEmoji.textContent = emoji;
+            });
+        });
+
+        if (btnSaveNewType) btnSaveNewType.addEventListener('click', async () => {
+            const name = inputNewTypeName?.value?.trim();
+            if (!name) return;
+
+            const newType = { emoji: newTypeEmoji, name };
+
+            if (newTypeFromEditor) {
+                // Editing within the type editor
+                if (editingTypeIdx !== null) {
+                    editingTypes[editingTypeIdx].emoji = newTypeEmoji;
+                    editingTypes[editingTypeIdx].name = name;
+                } else {
+                    editingTypes.push(newType);
+                }
+                renderTypeEditor();
+            } else {
+                // Adding from Add Coffee → save directly to DB
+                coffeeTypes.push(newType);
+                if (currentUser) {
+                    const { data, error } = await supabase.from('user_coffee_types')
+                        .insert([{ user_id: currentUser.id, emoji: newTypeEmoji, name, sort_order: coffeeTypes.length - 1 }])
+                        .select();
+                    if (!error && data && data[0]) {
+                        coffeeTypes[coffeeTypes.length - 1].id = data[0].id;
+                    }
+                }
+                rebuildTypeGrid();
+            }
+
+            modalNewType.classList.remove('active');
+        });
+
+        // ============================================================
+        // ICON PICKER
+        // ============================================================
+        const iconPickerOverlay = document.getElementById('icon-picker-overlay');
+        const iconPickerSelected = document.getElementById('icon-picker-selected');
+        const iconPickerGrid = document.getElementById('icon-picker-grid');
+        const inputOtherEmoji = document.getElementById('input-other-emoji');
+        const btnIconPickerDone = document.getElementById('btn-icon-picker-done');
+
+        const ICON_EMOJIS = [
+            '☕', '🥤', '🧋', '🍵', '🫖',
+            '🥛', '🍼', '🧃', '🥃', '🍷',
+            '🥂', '🍾', '🍸', '🍹', '☁️',
+            '⚪', '🔥', '🧊', '🍫', '🍪',
+            '🥐', '🧈', '🍰', '🎂', '🌟'
+        ];
+
+        let iconPickerCallback = null;
+        let selectedIconEmoji = '☕';
+
+        function openIconPicker(currentEmoji, callback) {
+            selectedIconEmoji = currentEmoji;
+            iconPickerCallback = callback;
+            if (iconPickerSelected) iconPickerSelected.textContent = currentEmoji;
+            if (inputOtherEmoji) inputOtherEmoji.value = '';
+
+            // Build grid
+            if (iconPickerGrid) {
+                iconPickerGrid.innerHTML = '';
+                ICON_EMOJIS.forEach(emoji => {
+                    const item = document.createElement('div');
+                    item.className = 'icon-picker-item' + (emoji === currentEmoji ? ' selected' : '');
+                    item.textContent = emoji;
+                    item.addEventListener('click', () => {
+                        selectedIconEmoji = emoji;
+                        iconPickerSelected.textContent = emoji;
+                        if (inputOtherEmoji) inputOtherEmoji.value = '';
+                        iconPickerGrid.querySelectorAll('.icon-picker-item').forEach(i => i.classList.remove('selected'));
+                        item.classList.add('selected');
+                    });
+                    iconPickerGrid.appendChild(item);
+                });
+            }
+
+            // Listen for custom emoji input
+            if (inputOtherEmoji) {
+                inputOtherEmoji.oninput = () => {
+                    const val = inputOtherEmoji.value.trim();
+                    if (val) {
+                        selectedIconEmoji = val;
+                        if (iconPickerSelected) iconPickerSelected.textContent = val;
+                        iconPickerGrid.querySelectorAll('.icon-picker-item').forEach(i => i.classList.remove('selected'));
+                    }
+                };
+            }
+
+            if (iconPickerOverlay) iconPickerOverlay.classList.add('active');
+        }
+
+        if (btnIconPickerDone) btnIconPickerDone.addEventListener('click', () => {
+            if (iconPickerCallback) iconPickerCallback(selectedIconEmoji);
+            iconPickerOverlay.classList.remove('active');
+        });
 
         // ============================================================
         // SETTINGS — LANGUAGE PICKER

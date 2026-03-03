@@ -203,17 +203,70 @@
         <div id="modal-type-editor" class="modal-view">
             <div class="modal-header flex-between">
                 <button class="btn-text highlight" id="btn-close-type-editor">Cancel</button>
-                <h2>Coffee Types</h2>
+                <h2>Coffee Type</h2>
                 <button class="btn-pill-small" id="btn-save-types">Save</button>
             </div>
             <div class="modal-body">
-                <p class="setting-hint" style="margin-bottom:16px;">Tap emoji to change icon. Tap name to edit. Drag ☰
-                    to reorder.</p>
                 <div id="type-editor-list" class="type-editor-list">
+                    <!-- JS populates -->
+                </div>
+                <button class="type-add-others-btn" id="btn-add-others-editor">
+                    <span class="type-add-icon">＋</span>
+                    <span>Others</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ======================= -->
+        <!-- NEW / EDIT COFFEE TYPE   -->
+        <!-- ======================= -->
+        <div id="modal-new-type" class="modal-view">
+            <div class="modal-header flex-between">
+                <button class="btn-text highlight" id="btn-cancel-new-type">Cancel</button>
+                <h2 id="new-type-title">New Coffee Type</h2>
+                <button class="btn-pill-small" id="btn-save-new-type">Save</button>
+            </div>
+            <div class="modal-body" style="text-align:center;">
+                <div class="new-type-icon-preview" id="new-type-icon-preview">
+                    <span class="new-type-icon-emoji" id="new-type-icon-emoji">☕</span>
+                    <button class="new-type-icon-edit-btn" id="btn-edit-type-icon"><i
+                            class="ph ph-pencil-simple"></i></button>
+                </div>
+                <p class="setting-hint" style="margin-bottom:24px;">Tap to change icon</p>
+
+                <div class="form-group" style="text-align:left;">
+                    <label>Coffee Name</label>
+                    <input type="text" class="text-input" id="input-new-type-name"
+                        placeholder="e.g., Cappuccino, Cold Brew">
+                </div>
+            </div>
+        </div>
+
+        <!-- ======================= -->
+        <!-- ICON PICKER OVERLAY      -->
+        <!-- ======================= -->
+        <div id="icon-picker-overlay" class="modal-view">
+            <div class="modal-header flex-between">
+                <div></div>
+                <h2>Select Icon</h2>
+                <button class="btn-text highlight" id="btn-icon-picker-done">Done</button>
+            </div>
+            <div class="modal-body" style="text-align:center;">
+                <div class="icon-picker-preview">
+                    <span class="icon-picker-selected" id="icon-picker-selected">☕</span>
+                    <p class="setting-hint">Selected Icon</p>
+                </div>
+                <div class="form-group" style="margin:20px 0;">
+                    <input type="text" class="text-input" id="input-other-emoji" placeholder="Other Emoji..."
+                        style="text-align:center;font-size:20px;">
+                </div>
+                <p style="font-weight:600;text-align:left;margin-bottom:12px;">Choose an Icon</p>
+                <div class="icon-picker-grid" id="icon-picker-grid">
                     <!-- JS populates -->
                 </div>
             </div>
         </div>
+
 
         <!-- LANGUAGE PICKER OVERLAY -->
         <div id="lang-overlay" class="picker-overlay">
