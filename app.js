@@ -3,8 +3,8 @@ import { supabase } from './supabase.js';
 
 let currentUser = null;
 
-// Initialize App
-document.addEventListener('DOMContentLoaded', async () => {
+// Initialize App — modules run after DOM is ready, no need for DOMContentLoaded
+(async () => {
 
     // Setup Auth Listener
     supabase.auth.onAuthStateChange((event, session) => {
@@ -97,7 +97,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (hour >= 12 && hour < 17) timeOfDay = 'Afternoon';
         else if (hour >= 17 || hour < 4) timeOfDay = 'Evening';
 
-        const name = currentUser.user_metadata?.full_name || currentUser.email.split('@')[0];
+        const name = localStorage.getItem('monicoffee_display_name')
+            || currentUser.user_metadata?.full_name
+            || currentUser.email.split('@')[0];
         greetingEl.textContent = `${timeOfDay}, ${name}`;
     }
 
@@ -242,6 +244,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         btnLogout.addEventListener('click', async () => {
             const { error } = await supabase.auth.signOut();
             if (error) console.error('Error logging out:', error.message);
+        });
+    }
+
+    // --- DISPLAY NAME (Nickname) ---
+    const inputDisplayName = document.getElementById('input-display-name');
+    const btnSaveDisplayName = document.getElementById('btn-save-display-name');
+
+    // Pre-fill current display name
+    if (inputDisplayName) {
+        const savedName = localStorage.getItem('monicoffee_display_name');
+        if (savedName) inputDisplayName.value = savedName;
+        else if (currentUser) {
+            inputDisplayName.value = currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || '';
+        }
+    }
+
+    if (btnSaveDisplayName) {
+        btnSaveDisplayName.addEventListener('click', () => {
+            const newName = inputDisplayName?.value?.trim();
+            if (newName) {
+                localStorage.setItem('monicoffee_display_name', newName);
+                updateUserGreeting();
+                alert('Display name saved!');
+            }
         });
     }
 
@@ -838,4 +864,4 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('current-lang').textContent = lang;
         });
     });
-});
+})();
