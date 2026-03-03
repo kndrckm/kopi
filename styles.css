@@ -58,7 +58,7 @@ textarea {
 .view {
     display: none;
     padding: 24px;
-    padding-bottom: 24px;
+    padding-bottom: 90px;
     animation: fadeIn 0.3s ease-out forwards;
     flex: 1;
     overflow-y: auto;
@@ -1536,8 +1536,12 @@ input:checked+.slider-toggle:before {
     padding: 12px 0 20px;
     display: flex;
     justify-content: center;
-    background: var(--bg-color);
-    flex-shrink: 0;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    pointer-events: none;
 }
 
 .bottom-nav.hidden {
@@ -1547,11 +1551,14 @@ input:checked+.slider-toggle:before {
 .nav-pill {
     display: flex;
     gap: 0;
-    background: var(--card-bg);
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border-radius: 40px;
     padding: 6px;
     position: relative;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    pointer-events: auto;
 }
 
 .nav-indicator {
@@ -1630,7 +1637,6 @@ input:checked+.slider-toggle:before {
     display: flex;
     justify-content: center;
     padding: 12px 0 4px;
-    cursor: grab;
     flex-shrink: 0;
 }
 
@@ -1703,4 +1709,208 @@ input:checked+.slider-toggle:before {
 .section-title h2 {
     font-size: 18px;
     font-weight: 700;
+}
+
+/* ========== SAVE SUCCESS TOAST ========== */
+.save-toast {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    background: var(--primary-color);
+    color: white;
+    padding: 16px 32px;
+    border-radius: 20px;
+    font-size: 16px;
+    font-weight: 600;
+    z-index: 2000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s, transform 0.3s;
+    box-shadow: 0 8px 30px rgba(139, 107, 74, 0.3);
+    text-align: center;
+}
+
+.save-toast.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+/* ========== LOADING SKELETON ========== */
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+.coffee-item-skeleton {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 20px;
+    background: var(--card-bg);
+    border-radius: 24px;
+    margin-bottom: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+}
+
+.skeleton-circle {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(90deg, #eee 25%, #ddd 50%, #eee 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    flex-shrink: 0;
+}
+
+.skeleton-lines {
+    flex: 1;
+}
+
+.skeleton-line {
+    height: 12px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #eee 25%, #ddd 50%, #eee 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    margin-bottom: 8px;
+}
+
+.skeleton-line:last-child {
+    width: 60%;
+    margin-bottom: 0;
+}
+
+/* ========== STATISTICS CHARTS ========== */
+.daily-cups-chart {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    height: 120px;
+    gap: 4px;
+    padding: 0 4px;
+}
+
+.daily-bar-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    height: 100%;
+    justify-content: flex-end;
+}
+
+.daily-bar {
+    width: 100%;
+    max-width: 36px;
+    background: var(--primary-color);
+    border-radius: 8px 8px 4px 4px;
+    min-height: 4px;
+    transition: height 0.4s ease;
+}
+
+.daily-bar-count {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-main);
+    margin-bottom: 4px;
+}
+
+.daily-bar-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 8px;
+}
+
+.donut-container {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.donut-chart {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.donut-hole {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 60px;
+    height: 60px;
+    background: var(--card-bg);
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.donut-hole .donut-total {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--primary-color);
+    line-height: 1;
+}
+
+.donut-hole .donut-label {
+    font-size: 8px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.donut-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+}
+
+.legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.legend-pct {
+    color: var(--text-muted);
+    margin-left: auto;
+}
+
+.stickers-display {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+    justify-content: center;
+    min-height: 80px;
+    padding: 10px;
+}
+
+.stickers-display img {
+    width: 60px;
+    height: 60px;
+    object-fit: contain;
+}
+
+.stickers-display .sticker-emoji {
+    font-size: 40px;
 }

@@ -475,6 +475,7 @@ let currentUser = null;
                 coffeeEntries = data || [];
                 renderTodayCoffee();
                 updateCalendarStickers();
+                updateStatistics();
             }
         }
 
@@ -489,22 +490,38 @@ let currentUser = null;
                 const timeStr = `${String(now.getHours()).padStart(2, '0')}.${String(now.getMinutes()).padStart(2, '0')}`;
                 const priceInput = modalAddCoffee.querySelector('input[type="number"]');
                 const price = priceInput ? parseFloat(priceInput.value) || 0 : 0;
+                const hasPhoto = !!uploadedPhotoBlob;
+                const photoBlob = uploadedPhotoBlob; // capture reference before reset
 
                 const entry = {
                     user_id: currentUser ? currentUser.id : null,
                     type: selectedType, size: selectedSize, temp: selectedTemp,
                     time: timeStr, price, sticker: null,
                     emoji: getTypeEmoji(selectedType),
-                    date_string: selectedDateTime.toDateString() // mapping dateString to date_string
+                    date_string: selectedDateTime.toDateString()
                 };
 
-                if (uploadedPhotoBlob) {
-                    // Process with imgly bg removal
-                    btnSaveCoffee.textContent = 'Processing...';
-                    btnSaveCoffee.disabled = true;
+                // Close modal + show toast immediately
+                modalAddCoffee.classList.remove('active');
+                resetPhotoBox();
+                showSaveToast();
+
+                // Add skeleton loading row if photo needs processing
+                let skeletonId = null;
+                if (hasPhoto) {
+                    skeletonId = 'skeleton-' + Date.now();
+                    const skeletonHtml = `<div id="${skeletonId}" class="coffee-item-skeleton"><div class="skeleton-circle"></div><div class="skeleton-lines"><div class="skeleton-line"></div><div class="skeleton-line"></div></div></div>`;
+                    if (todayCoffeeList) {
+                        const emptyState = todayCoffeeList.querySelector('.empty-state-card');
+                        if (emptyState) todayCoffeeList.innerHTML = '';
+                        todayCoffeeList.insertAdjacentHTML('afterbegin', skeletonHtml);
+                    }
+                }
+
+                // Process photo in background
+                if (hasPhoto) {
                     try {
-                        const stickerBlob = await removeBackground(uploadedPhotoBlob);
-                        // Upload to Supabase Storage
+                        const stickerBlob = await removeBackground(photoBlob);
                         const fileName = `${currentUser ? currentUser.id : 'anon'}/${Date.now()}.png`;
                         const { data: uploadData, error: uploadError } = await supabase.storage
                             .from('stickers')
@@ -512,38 +529,48 @@ let currentUser = null;
                                 contentType: 'image/png',
                                 upsert: false
                             });
-                        if (uploadError) {
-                            console.error('Storage upload error:', uploadError.message);
-                        } else {
-                            // Get public URL
+                        if (!uploadError) {
                             const { data: urlData } = supabase.storage
                                 .from('stickers')
                                 .getPublicUrl(fileName);
                             entry.sticker = urlData.publicUrl;
+                        } else {
+                            console.error('Storage upload error:', uploadError.message);
                         }
                     } catch (err) {
                         console.error('BG removal / upload failed:', err);
                     }
-                    btnSaveCoffee.textContent = 'Save';
-                    btnSaveCoffee.disabled = false;
                 }
 
+                // Insert into DB
                 if (currentUser) {
                     const { data, error } = await supabase.from('coffee_entries').insert([entry]).select();
                     if (error) {
                         console.error('Insert error:', error.message);
-                    } else if (data) {
-                        coffeeEntries.unshift(data[0]); // Add to local array
+                    } else if (data && data[0]) {
+                        coffeeEntries.unshift(data[0]);
                     }
                 } else {
-                    coffeeEntries.unshift(entry); // Fallback for local testing
+                    coffeeEntries.unshift(entry);
                 }
 
+                // Remove skeleton and render real data
+                if (skeletonId) {
+                    const skel = document.getElementById(skeletonId);
+                    if (skel) skel.remove();
+                }
                 renderTodayCoffee();
                 updateCalendarStickers();
-                modalAddCoffee.classList.remove('active');
-                resetPhotoBox();
+                updateStatistics();
             });
+        }
+
+        // Show save success toast
+        function showSaveToast() {
+            const toast = document.getElementById('save-toast');
+            if (!toast) return;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 1500);
         }
 
         function renderTodayCoffee() {
@@ -790,18 +817,17 @@ let currentUser = null;
         // Close on backdrop click
         if (dayOverlayBackdrop) dayOverlayBackdrop.addEventListener('click', closeDayOverlay);
 
-        // Swipe-down to close
-        const dayOverlayHandle = document.getElementById('day-overlay-handle');
-        if (dayOverlayHandle && dayOverlay) {
+        // Swipe-down to close (on the entire overlay)
+        if (dayOverlay) {
             let swipeStartY = 0, swipeCurrentY = 0, isSwiping = false;
 
-            dayOverlayHandle.addEventListener('touchstart', (e) => {
+            dayOverlay.addEventListener('touchstart', (e) => {
                 swipeStartY = e.touches[0].clientY;
                 isSwiping = true;
                 dayOverlay.style.transition = 'none';
             }, { passive: true });
 
-            dayOverlayHandle.addEventListener('touchmove', (e) => {
+            dayOverlay.addEventListener('touchmove', (e) => {
                 if (!isSwiping) return;
                 swipeCurrentY = e.touches[0].clientY;
                 const diff = swipeCurrentY - swipeStartY;
@@ -810,7 +836,7 @@ let currentUser = null;
                 }
             }, { passive: true });
 
-            dayOverlayHandle.addEventListener('touchend', () => {
+            dayOverlay.addEventListener('touchend', () => {
                 isSwiping = false;
                 dayOverlay.style.transition = 'transform 0.35s cubic-bezier(0.32,0.72,0,1)';
                 const diff = swipeCurrentY - swipeStartY;
@@ -884,6 +910,7 @@ let currentUser = null;
                     }
                 }
                 updateStatsSubtitle();
+                updateStatistics();
             });
         });
 
@@ -905,10 +932,166 @@ let currentUser = null;
                     subYear.textContent = pickerSelectedYear;
                 }
             } else if (statsSubtitle) {
-                // fallback
                 if (currentPeriod === 'week') statsSubtitle.textContent = `Week of ${MONTHS_FULL[pickerSelectedMonth]} ${pickerSelectedYear}`;
                 else if (currentPeriod === 'month') statsSubtitle.textContent = `${MONTHS_FULL[pickerSelectedMonth]} ${pickerSelectedYear}`;
                 else statsSubtitle.textContent = `${pickerSelectedYear}`;
+            }
+        }
+
+        // ============================================================
+        // UPDATE STATISTICS
+        // ============================================================
+        function updateStatistics() {
+            const now = new Date();
+            let filtered = [];
+
+            if (currentPeriod === 'week') {
+                const dayOfWeek = now.getDay();
+                const weekStart = new Date(now);
+                weekStart.setDate(now.getDate() - dayOfWeek);
+                weekStart.setHours(0, 0, 0, 0);
+                const weekEnd = new Date(weekStart);
+                weekEnd.setDate(weekStart.getDate() + 7);
+                filtered = coffeeEntries.filter(e => {
+                    const d = new Date(e.date_string);
+                    return d >= weekStart && d < weekEnd;
+                });
+            } else if (currentPeriod === 'month') {
+                filtered = coffeeEntries.filter(e => {
+                    const d = new Date(e.date_string);
+                    return d.getMonth() === (typeof pickerSelectedMonth !== 'undefined' ? pickerSelectedMonth : now.getMonth())
+                        && d.getFullYear() === (typeof pickerSelectedYear !== 'undefined' ? pickerSelectedYear : now.getFullYear());
+                });
+            } else {
+                filtered = coffeeEntries.filter(e => {
+                    const d = new Date(e.date_string);
+                    return d.getFullYear() === (typeof pickerSelectedYear !== 'undefined' ? pickerSelectedYear : now.getFullYear());
+                });
+            }
+
+            // Stickers display
+            const chartArea = document.getElementById('stats-chart-area');
+            if (chartArea) {
+                if (filtered.length === 0) {
+                    chartArea.innerHTML = '<div class="stickers-display"><p style="color:var(--text-muted);font-size:14px;">No coffee yet</p></div>';
+                } else {
+                    let html = '<div class="stickers-display">';
+                    filtered.forEach(e => {
+                        if (e.sticker) {
+                            html += `<img src="${e.sticker}" alt="">`;
+                        } else {
+                            html += `<span class="sticker-emoji">${e.emoji || '☕'}</span>`;
+                        }
+                    });
+                    html += '</div>';
+                    chartArea.innerHTML = html;
+                }
+            }
+
+            // Total cups & spend
+            const totalCupsEl = document.getElementById('stat-total-cups');
+            const totalSpendEl = document.getElementById('stat-total-spend');
+            if (totalCupsEl) totalCupsEl.textContent = filtered.length;
+            if (totalSpendEl) {
+                const totalSpend = filtered.reduce((sum, e) => sum + (e.price || 0), 0);
+                totalSpendEl.textContent = totalSpend.toLocaleString();
+            }
+
+            // Most popular
+            const popularEl = document.getElementById('stat-most-popular');
+            if (popularEl && filtered.length > 0) {
+                const typeCounts = {};
+                filtered.forEach(e => { typeCounts[e.type] = (typeCounts[e.type] || 0) + 1; });
+                const topType = Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0];
+                const topEmoji = (coffeeTypes.find(t => t.name === topType[0]) || {}).emoji || '☕';
+                popularEl.innerHTML = `<div class="popular-icon">${topEmoji}</div><div class="popular-text"><h3>${topType[0]}</h3><p>${topType[1]} Cups</p></div>`;
+            } else if (popularEl) {
+                popularEl.innerHTML = '<div class="popular-icon">☕</div><div class="popular-text"><h3>—</h3><p>0 Cups</p></div>';
+            }
+
+            // Daily Cups bar chart
+            const dailyChart = document.getElementById('daily-cups-chart');
+            if (dailyChart) {
+                const dayLabels = currentPeriod === 'week'
+                    ? ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+                    : currentPeriod === 'month'
+                        ? Array.from({ length: new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() }, (_, i) => i + 1)
+                        : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+                const dayCounts = new Array(dayLabels.length).fill(0);
+
+                if (currentPeriod === 'week') {
+                    const dayOfWeek = now.getDay();
+                    const weekStart = new Date(now);
+                    weekStart.setDate(now.getDate() - dayOfWeek);
+                    weekStart.setHours(0, 0, 0, 0);
+                    filtered.forEach(e => {
+                        const d = new Date(e.date_string);
+                        const idx = d.getDay();
+                        if (idx >= 0 && idx < 7) dayCounts[idx]++;
+                    });
+                } else if (currentPeriod === 'month') {
+                    filtered.forEach(e => {
+                        const d = new Date(e.date_string);
+                        const dayIdx = d.getDate() - 1;
+                        if (dayIdx >= 0 && dayIdx < dayCounts.length) dayCounts[dayIdx]++;
+                    });
+                } else {
+                    filtered.forEach(e => {
+                        const d = new Date(e.date_string);
+                        dayCounts[d.getMonth()]++;
+                    });
+                }
+
+                const maxCount = Math.max(...dayCounts, 1);
+                let chartHtml = '';
+                dayLabels.forEach((label, i) => {
+                    const h = (dayCounts[i] / maxCount) * 90;
+                    const countLabel = dayCounts[i] > 0 ? dayCounts[i] : '';
+                    chartHtml += `<div class="daily-bar-col">
+                        <span class="daily-bar-count">${countLabel}</span>
+                        <div class="daily-bar" style="height:${Math.max(h, 4)}px;${dayCounts[i] === 0 ? 'opacity:0.2;' : ''}"></div>
+                        <span class="daily-bar-label">${label}</span>
+                    </div>`;
+                });
+                dailyChart.innerHTML = chartHtml;
+            }
+
+            // By Type donut chart
+            const byTypeChart = document.getElementById('by-type-chart');
+            if (byTypeChart) {
+                if (filtered.length === 0) {
+                    byTypeChart.innerHTML = '<p style="color:var(--text-muted);font-size:14px;">No data</p>';
+                    return;
+                }
+                const typeCounts = {};
+                filtered.forEach(e => { typeCounts[e.type] = (typeCounts[e.type] || 0) + 1; });
+                const total = filtered.length;
+                const entries = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]);
+
+                const DONUT_COLORS = ['#8b6b4a', '#b8956a', '#d4b896', '#c9a87c', '#a68b6b', '#e8d5c0', '#6b4f35'];
+                let gradientParts = [];
+                let cumPct = 0;
+                entries.forEach(([type, count], i) => {
+                    const pct = (count / total) * 100;
+                    const color = DONUT_COLORS[i % DONUT_COLORS.length];
+                    gradientParts.push(`${color} ${cumPct}% ${cumPct + pct}%`);
+                    cumPct += pct;
+                });
+
+                let legendHtml = '';
+                entries.forEach(([type, count], i) => {
+                    const pct = Math.round((count / total) * 100);
+                    const color = DONUT_COLORS[i % DONUT_COLORS.length];
+                    const emoji = (coffeeTypes.find(t => t.name === type) || {}).emoji || '☕';
+                    legendHtml += `<div class="legend-item"><span class="legend-dot" style="background:${color}"></span>${emoji} ${type}<span class="legend-pct">${pct}%</span></div>`;
+                });
+
+                byTypeChart.innerHTML = `
+                    <div class="donut-chart" style="background:conic-gradient(${gradientParts.join(',')});">
+                        <div class="donut-hole"><span class="donut-total">${total}</span><span class="donut-label">total</span></div>
+                    </div>
+                    <div class="donut-legend">${legendHtml}</div>`;
             }
         }
 
