@@ -10,12 +10,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     supabase.auth.onAuthStateChange((event, session) => {
         if (event === 'SIGNED_IN') {
             currentUser = session.user;
+            updateUserGreeting();
             fetchCoffeeEntries();
         } else if (event === 'SIGNED_OUT') {
             currentUser = null;
             coffeeEntries = [];
             renderTodayCoffee();
             updateCalendarStickers();
+            updateUserGreeting();
             switchView('view-login');
         }
     });
@@ -28,17 +30,64 @@ document.addEventListener('DOMContentLoaded', async () => {
     const navPill = document.getElementById('nav-pill');
     const indicator = document.getElementById('nav-indicator');
 
+    // Build calendar
+    const calendarGrid = document.getElementById('calendar-grid');
+    const calHeaderMonth = document.getElementById('user-greeting'); // Using greeting ID for month name too or separate
+    const calHeaderDate = document.querySelector('#view-calendar .page-header p');
+
+    if (calendarGrid) {
+        const now = new Date();
+        const year = now.getFullYear(), month = now.getMonth(), today = now.getDate();
+        if (calHeaderMonth) calHeaderMonth.textContent = MONTHS_FULL[month];
+        if (calHeaderDate) calHeaderDate.textContent = `${DAYS_SHORT[now.getDay()]}, ${today} ${MONTHS_FULL[month]} ${year}`;
+
+        const firstDay = new Date(year, month, 1).getDay();
+        const totalDays = new Date(year, month + 1, 0).getDate();
+
+        calendarGrid.innerHTML = '';
+        for (let i = 0; i < firstDay; i++) {
+            const el = document.createElement('div');
+            el.classList.add('cal-day', 'empty');
+            calendarGrid.appendChild(el);
+        }
+        for (let d = 1; d <= totalDays; d++) {
+            const el = document.createElement('div');
+            el.classList.add('cal-day');
+            el.dataset.day = d;
+            if (d === today) el.classList.add('today');
+            el.textContent = d;
+            calendarGrid.appendChild(el);
+        }
+    }
+
     // Check for an active session on load
     const { data: { session }, error } = await supabase.auth.getSession();
-    if (error) {
-        console.error('Error fetching session:', error.message);
-        switchView('view-login');
-    } else if (session) {
+    if (session) {
         currentUser = session.user;
+        updateUserGreeting();
         fetchCoffeeEntries();
         switchView('view-calendar');
     } else {
+        if (error) console.error('Error fetching session:', error.message);
         switchView('view-login');
+    }
+
+    function updateUserGreeting() {
+        const greetingEl = document.getElementById('user-greeting');
+        if (!greetingEl) return;
+
+        if (!currentUser) {
+            greetingEl.textContent = 'Mar'; // Fallback
+            return;
+        }
+
+        const hour = new Date().getHours();
+        let timeOfDay = 'Morning';
+        if (hour >= 12 && hour < 17) timeOfDay = 'Afternoon';
+        else if (hour >= 17 || hour < 4) timeOfDay = 'Evening';
+
+        const name = currentUser.user_metadata?.full_name || currentUser.email.split('@')[0];
+        greetingEl.textContent = `${timeOfDay}, ${name}`;
     }
 
     const MONTHS_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -185,6 +234,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 console.error('Google login error:', error.message);
                 alert('Login failed: ' + error.message);
             }
+        });
+    }
+
+    const btnLogout = document.getElementById('btn-logout');
+    if (btnLogout) {
+        btnLogout.addEventListener('click', async () => {
+            const { error } = await supabase.auth.signOut();
+            if (error) console.error('Error logging out:', error.message);
         });
     }
 
@@ -554,34 +611,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Build calendar
-    const calendarGrid = document.getElementById('calendar-grid');
-    const calHeaderMonth = document.querySelector('#view-calendar .page-header h1');
-    const calHeaderDate = document.querySelector('#view-calendar .page-header p');
+    // Build calendar logic moved up
 
-    if (calendarGrid) {
-        const now = new Date();
-        const year = now.getFullYear(), month = now.getMonth(), today = now.getDate();
-        if (calHeaderMonth) calHeaderMonth.textContent = MONTHS_FULL[month];
-        if (calHeaderDate) calHeaderDate.textContent = `${DAYS_SHORT[now.getDay()]}, ${today} ${MONTHS_FULL[month]} ${year}`;
-
-        const firstDay = new Date(year, month, 1).getDay();
-        const totalDays = new Date(year, month + 1, 0).getDate();
-
-        for (let i = 0; i < firstDay; i++) {
-            const el = document.createElement('div');
-            el.classList.add('cal-day', 'empty');
-            calendarGrid.appendChild(el);
-        }
-        for (let d = 1; d <= totalDays; d++) {
-            const el = document.createElement('div');
-            el.classList.add('cal-day');
-            el.dataset.day = d;
-            if (d === today) el.classList.add('today');
-            el.textContent = d;
-            calendarGrid.appendChild(el);
-        }
-    }
 
     // ============================================================
     // STATISTICS
