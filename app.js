@@ -16,12 +16,13 @@ let currentUser = null;
         let userDisplayName = null;
 
         // Setup Auth Listener
-        supabase.auth.onAuthStateChange(async (event, session) => {
+        supabase.auth.onAuthStateChange((event, session) => {
             if (event === 'SIGNED_IN') {
                 currentUser = session.user;
-                await fetchUserProfile();
-                await fetchCoffeeTypes();
-                updateUserGreeting();
+                // Profile & types fetched in getSession block on first load
+                // This handles subsequent sign-ins (e.g., OAuth redirect)
+                fetchUserProfile().then(() => updateUserGreeting());
+                fetchCoffeeTypes();
                 fetchCoffeeEntries();
             } else if (event === 'SIGNED_OUT') {
                 currentUser = null;
