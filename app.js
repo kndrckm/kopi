@@ -3,6 +3,7 @@ import { supabase } from './supabase.js';
 
 let currentUser = null;
 
+// Initialize App
 document.addEventListener('DOMContentLoaded', async () => {
 
     // Setup Auth Listener
@@ -18,6 +19,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             switchView('view-onboarding');
         }
     });
+
+    // --- APP NAVIGATION ---
+    const navItems = document.querySelectorAll('.nav-item');
+    const views = document.querySelectorAll('.view');
+    const bottomNav = document.getElementById('bottom-nav');
+    const btnGetStarted = document.getElementById('btn-get-started');
+    const navPill = document.getElementById('nav-pill');
+    const indicator = document.getElementById('nav-indicator');
 
     // Check for an active session on load
     const { data: { session }, error } = await supabase.auth.getSession();
@@ -44,14 +53,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         { emoji: '☁️', name: 'Cappuccino' },
         { emoji: '🍫', name: 'Mocha' }
     ];
-
-    // --- APP NAVIGATION ---
-    const navItems = document.querySelectorAll('.nav-item');
-    const views = document.querySelectorAll('.view');
-    const bottomNav = document.getElementById('bottom-nav');
-    const btnGetStarted = document.getElementById('btn-get-started');
-    const navPill = document.getElementById('nav-pill');
-    const indicator = document.getElementById('nav-indicator');
 
     // Init indicator position
     setTimeout(() => {
