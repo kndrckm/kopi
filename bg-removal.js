@@ -36,7 +36,7 @@ async function addWhiteOutline(blob, outlineWidth = 8) {
             ctx.drawImage(img, pad / 2, pad / 2);
 
             URL.revokeObjectURL(bmpUrl);
-            resolve(canvas.toDataURL('image/png'));
+            canvas.toBlob((blob) => resolve(blob), 'image/png');
         };
         img.src = bmpUrl;
     });

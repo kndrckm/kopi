@@ -503,9 +503,26 @@ let currentUser = null;
                     btnSaveCoffee.textContent = 'Processing...';
                     btnSaveCoffee.disabled = true;
                     try {
-                        entry.sticker = await removeBackground(uploadedPhotoBlob);
+                        const stickerBlob = await removeBackground(uploadedPhotoBlob);
+                        // Upload to Supabase Storage
+                        const fileName = `${currentUser ? currentUser.id : 'anon'}/${Date.now()}.png`;
+                        const { data: uploadData, error: uploadError } = await supabase.storage
+                            .from('stickers')
+                            .upload(fileName, stickerBlob, {
+                                contentType: 'image/png',
+                                upsert: false
+                            });
+                        if (uploadError) {
+                            console.error('Storage upload error:', uploadError.message);
+                        } else {
+                            // Get public URL
+                            const { data: urlData } = supabase.storage
+                                .from('stickers')
+                                .getPublicUrl(fileName);
+                            entry.sticker = urlData.publicUrl;
+                        }
                     } catch (err) {
-                        console.error('BG removal failed:', err);
+                        console.error('BG removal / upload failed:', err);
                     }
                     btnSaveCoffee.textContent = 'Save';
                     btnSaveCoffee.disabled = false;
