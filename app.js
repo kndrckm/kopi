@@ -136,7 +136,7 @@ let currentUser = null;
                 .from('user_profiles')
                 .select('display_name')
                 .eq('user_id', currentUser.id)
-                .single();
+                .maybeSingle();
             if (data && data.display_name) {
                 userDisplayName = data.display_name;
             }
