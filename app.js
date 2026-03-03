@@ -30,15 +30,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     const navPill = document.getElementById('nav-pill');
     const indicator = document.getElementById('nav-indicator');
 
+    const MONTHS_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    // Coffee types (editable)
+    let coffeeTypes = [
+        { emoji: '☕', name: 'Espresso' },
+        { emoji: '🥛', name: 'Latte' },
+        { emoji: '⚪', name: 'Flat White' },
+        { emoji: '🥃', name: 'Americano' },
+        { emoji: '☁️', name: 'Cappuccino' },
+        { emoji: '🍫', name: 'Mocha' }
+    ];
+
     // Build calendar
     const calendarGrid = document.getElementById('calendar-grid');
-    const calHeaderMonth = document.getElementById('user-greeting'); // Using greeting ID for month name too or separate
     const calHeaderDate = document.querySelector('#view-calendar .page-header p');
 
     if (calendarGrid) {
         const now = new Date();
         const year = now.getFullYear(), month = now.getMonth(), today = now.getDate();
-        if (calHeaderMonth) calHeaderMonth.textContent = MONTHS_FULL[month];
         if (calHeaderDate) calHeaderDate.textContent = `${DAYS_SHORT[now.getDay()]}, ${today} ${MONTHS_FULL[month]} ${year}`;
 
         const firstDay = new Date(year, month, 1).getDay();
@@ -90,18 +101,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         greetingEl.textContent = `${timeOfDay}, ${name}`;
     }
 
-    const MONTHS_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-    // Coffee types (editable)
-    let coffeeTypes = [
-        { emoji: '☕', name: 'Espresso' },
-        { emoji: '🥛', name: 'Latte' },
-        { emoji: '⚪', name: 'Flat White' },
-        { emoji: '🥃', name: 'Americano' },
-        { emoji: '☁️', name: 'Cappuccino' },
-        { emoji: '🍫', name: 'Mocha' }
-    ];
 
     // Init indicator position
     setTimeout(() => {
