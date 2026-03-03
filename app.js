@@ -23,10 +23,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const { data: { session }, error } = await supabase.auth.getSession();
     if (error) {
         console.error('Error fetching session:', error.message);
+        switchView('view-onboarding');
     } else if (session) {
         currentUser = session.user;
         fetchCoffeeEntries();
         switchView('view-calendar');
+    } else {
+        switchView('view-onboarding');
     }
 
     const MONTHS_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];

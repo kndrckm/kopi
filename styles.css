@@ -47,10 +47,13 @@ textarea {
 
 @media (min-width: 431px) {
     #app-container {
-        height: 90vh;
-        border-radius: 40px;
-        border: 8px solid #333;
-        overflow: hidden;
+        height: 100vh;
+        max-height: none;
+        max-width: 600px;
+        border-radius: 0;
+        border: none;
+        overflow-x: hidden;
+        overflow-y: auto;
     }
 }
 
