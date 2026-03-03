@@ -177,6 +177,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         btnGoogleLogin.addEventListener('click', async () => {
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
+                options: {
+                    redirectTo: window.location.origin + window.location.pathname
+                }
             });
             if (error) {
                 console.error('Google login error:', error.message);
