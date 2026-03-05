@@ -19,8 +19,18 @@ let currentUser = null;
         let selectedSize = 'Small';
         let selectedTemp = 'Iced';
         const STICKER_SIZE = 100; // Manual size control
-        const HITBOX_PERC = 0.7; // 70% of the box is the "real" object
-        const WALL_BLEED = 20;   // How many pixels can "leak" out of the visible wall before bounce
+        const HITBOX_PERC = 0.65; // Hitbox radius scalar
+        const MAX_TILT_ANGLE = 20; // 👈 Change this to easily limit how tilted stickers get (in degrees)
+
+        // Fine-tune wall bounding per-side. Higher number means it can bleed further off-screen.
+        // Negative number means it bounces before reaching the wall.
+        const WALL_BLEED = {
+            top: 5,        // Less top bleed so stickers don't get cut
+            bottom: -5,    // Negative prevents drowning at bottom card edge
+            left: 20,      // Higher left/right allows the visual cup edge to touch the wall
+            right: 20
+        };
+
         const stickerPhysics = {
             particles: [],
             gravity: { x: 0, y: 0 },
@@ -59,27 +69,33 @@ let currentUser = null;
                         p.x += p.vx;
                         p.y += p.vy;
 
-                        // Wall collisions (allowing bleed for transparency)
-                        if (p.x < -WALL_BLEED) { p.x = -WALL_BLEED; p.vx *= -0.3; }
-                        if (p.x > cw - p.w + WALL_BLEED) { p.x = cw - p.w + WALL_BLEED; p.vx *= -0.3; }
-                        if (p.y < -WALL_BLEED) { p.y = -WALL_BLEED; p.vy *= -0.3; }
-                        if (p.y > ch - p.h + WALL_BLEED) { p.y = ch - p.h + WALL_BLEED; p.vy *= -0.3; }
+                        // Wall collisions (allowing manual bleed per side)
+                        if (p.x < -WALL_BLEED.left) { p.x = -WALL_BLEED.left; p.vx *= -0.3; }
+                        if (p.x > cw - p.w + WALL_BLEED.right) { p.x = cw - p.w + WALL_BLEED.right; p.vx *= -0.3; }
+                        if (p.y < -WALL_BLEED.top) { p.y = -WALL_BLEED.top; p.vy *= -0.3; }
+                        if (p.y > ch - p.h + WALL_BLEED.bottom) { p.y = ch - p.h + WALL_BLEED.bottom; p.vy *= -0.3; }
 
-                        // Inter-particle collisions (Simple Circle-based)
+                        // Inter-particle collisions (Elliptical Circular)
                         for (let j = i + 1; j < this.particles.length; j++) {
                             const p2 = this.particles[j];
-                            const dx = (p2.x + p2.w / 2) - (p.x + p.w / 2);
-                            const dy = (p2.y + p2.h / 2) - (p.y + p.h / 2);
+                            const rawDx = (p2.x + p2.w / 2) - (p.x + p.w / 2);
+                            const rawDy = (p2.y + p2.h / 2) - (p.y + p.h / 2);
+
+                            // 👈 Multiply horizontal distance slightly to make the "circle" hitbox an oval.
+                            // This allows tall rectangular cups to stand closer together horizontally!
+                            const dx = rawDx * 1.35;
+                            const dy = rawDy * 1.0;
+
                             const dist = Math.sqrt(dx * dx + dy * dy);
-                            const minDist = (p.w + p2.w) / 2 * HITBOX_PERC; // tightened hitbox
+                            const minDist = (p.w + p2.w) / 2 * HITBOX_PERC;
 
                             if (dist < minDist) {
                                 // Resolve overlap
                                 const angle = Math.atan2(dy, dx);
-                                const targetX = p.x + p.w / 2 + Math.cos(angle) * minDist;
-                                const targetY = p.y + p.h / 2 + Math.sin(angle) * minDist;
-                                const ax = (targetX - (p2.x + p2.w / 2)) * 0.1;
-                                const ay = (targetY - (p2.y + p2.h / 2)) * 0.1;
+                                const pushDist = minDist - dist;
+                                // Need to halve the push and un-scale the X axis push for visual accuracy
+                                const ax = Math.cos(angle) * pushDist * 0.1;
+                                const ay = Math.sin(angle) * pushDist * 0.1;
 
                                 p.vx -= ax;
                                 p.vy -= ay;
@@ -1349,7 +1365,8 @@ let currentUser = null;
                         // Random start pos within bounds
                         const startX = Math.random() * (cw - STICKER_SIZE);
                         const startY = Math.random() * (ch - STICKER_SIZE);
-                        const rotate = Math.floor(Math.random() * 60) - 30;
+                        // Tilt angle bounded by MAX_TILT_ANGLE constant instead of hardcoded 30
+                        const rotate = Math.floor(Math.random() * (MAX_TILT_ANGLE * 2)) - MAX_TILT_ANGLE;
 
                         stickerPhysics.add(el, startX, startY, rotate);
                     });

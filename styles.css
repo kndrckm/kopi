@@ -2127,8 +2127,10 @@ input:checked+.slider-toggle:before {
     position: absolute;
     top: 0;
     left: 0;
-    width: 80px;
-    height: 80px;
+    width: 100px;
+    /* Match STICKER_SIZE */
+    height: 100px;
+    /* Match STICKER_SIZE */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2140,6 +2142,9 @@ input:checked+.slider-toggle:before {
     width: 100%;
     height: 100%;
     object-fit: contain;
+    /* Keeps ratio intact */
+    transform: scale(1.1);
+    /* Minor zoom to eliminate container padding gaps */
 }
 
 .sticker-layer .sticker-emoji {
