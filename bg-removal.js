@@ -54,9 +54,9 @@ export function trimCanvas(canvas) {
     const l = pixels.data.length;
     let bound = { top: null, left: null, right: null, bottom: null };
 
-    // Use a small alpha threshold (e.g. 15) to ignore invisible/noise pixels
+    // Use a higher alpha threshold (50) to ignore ghost shadows left by AI bg removal
     for (let i = 0; i < l; i += 4) {
-        if (pixels.data[i + 3] > 15) {
+        if (pixels.data[i + 3] > 50) {
             const x = (i / 4) % width;
             const y = Math.floor((i / 4) / width);
             if (bound.top === null || y < bound.top) bound.top = y;
@@ -83,7 +83,7 @@ export function trimCanvas(canvas) {
 
 // Background removal via @imgly + white outline
 export async function removeBackground(imageBlob) {
-    const module = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.5/+esm');
+    const module = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm');
     const removeBg = module.removeBackground || module.default;
 
     const resultBlob = await removeBg(imageBlob, {
