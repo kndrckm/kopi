@@ -18,6 +18,8 @@ let currentUser = null;
         let selectedType = 'Americano';
         let selectedSize = 'Small';
         let selectedTemp = 'Iced';
+        let editingCoffeeId = null;
+        let editingCoffeeIdx = null;
         const STICKER_SIZE = 100; // Manual size control
         const HITBOX_PERC = 0.65; // Hitbox radius scalar
         const MAX_TILT_ANGLE = 15; // 👈 Change this to easily limit how tilted stickers get (in degrees)
@@ -678,8 +680,18 @@ let currentUser = null;
         const btnCancelAdd = document.getElementById('btn-cancel-add');
         const btnSaveCoffee = document.getElementById('btn-save-coffee');
 
-        if (btnAddCup) btnAddCup.addEventListener('click', () => { updateAddCoffeeDateTime(); rebuildTypeGrid(); openSheet(modalAddCoffee); });
-        if (btnCancelAdd) btnCancelAdd.addEventListener('click', () => closeSheet(modalAddCoffee));
+        if (btnAddCup) btnAddCup.addEventListener('click', () => {
+            editingCoffeeId = null;
+            editingCoffeeIdx = null;
+            updateAddCoffeeDateTime();
+            rebuildTypeGrid();
+            openSheet(modalAddCoffee);
+        });
+        if (btnCancelAdd) btnCancelAdd.addEventListener('click', () => {
+            editingCoffeeId = null;
+            editingCoffeeIdx = null;
+            closeSheet(modalAddCoffee);
+        });
 
         // --- DATE/TIME PICKER ---
         const btnOpenDtPicker = document.getElementById('btn-open-dt-picker');
@@ -917,17 +929,35 @@ let currentUser = null;
                     }
                 }
 
-                // Insert into DB
-                if (currentUser) {
-                    const { data, error } = await supabase.from('coffee_entries').insert([entry]).select();
-                    if (error) {
-                        console.error('Insert error:', error.message);
-                    } else if (data && data[0]) {
-                        coffeeEntries.unshift(data[0]);
+                // Update or Insert into DB
+                if (editingCoffeeId || editingCoffeeIdx !== null) {
+                    if (currentUser && editingCoffeeId) {
+                        const { data, error } = await supabase.from('coffee_entries').update(entry).eq('id', editingCoffeeId).select();
+                        if (error) console.error('Update error:', error.message);
+                        else if (data && data[0]) {
+                            const idx = coffeeEntries.findIndex(e => e.id === editingCoffeeId);
+                            if (idx > -1) coffeeEntries[idx] = data[0];
+                        }
+                    } else if (editingCoffeeIdx !== null) {
+                        // Maintain existing ID if local-only
+                        entry.id = coffeeEntries[editingCoffeeIdx].id;
+                        coffeeEntries[editingCoffeeIdx] = entry;
                     }
                 } else {
-                    coffeeEntries.unshift(entry);
+                    if (currentUser) {
+                        const { data, error } = await supabase.from('coffee_entries').insert([entry]).select();
+                        if (error) {
+                            console.error('Insert error:', error.message);
+                        } else if (data && data[0]) {
+                            coffeeEntries.unshift(data[0]);
+                        }
+                    } else {
+                        coffeeEntries.unshift(entry);
+                    }
                 }
+
+                editingCoffeeId = null;
+                editingCoffeeIdx = null;
 
                 // Remove skeleton and render real data
                 if (skeletonId) {
@@ -996,6 +1026,9 @@ let currentUser = null;
 
             const rowHtml = `
             <div class="swipe-container">
+                <div class="swipe-actions-left">
+                    <button class="action-btn favorite-btn"><i class="ph ph-heart"></i><span>Favorite</span></button>
+                </div>
                 <div class="swipe-content coffee-item-card" data-idx="${idx}">
                     <div class="coffee-item-info">
                         <div class="coffee-item-icon">${stickerHtml}</div>
@@ -1019,6 +1052,55 @@ let currentUser = null;
             // Initialize Swipe
             const content = container.querySelector('.swipe-content');
             initSwipe(content);
+
+            // Edit Event (Tap on card body)
+            content.addEventListener('click', (e) => {
+                // Ignore if currently swiped open
+                const currentX = new DOMMatrix(content.style.transform || 'translateX(0)').m41;
+                if (currentX !== 0) return;
+
+                // Set edit state locally
+                editingCoffeeId = entry.id || null;
+                editingCoffeeIdx = idx;
+
+                // Pre-fill Add modal data
+                selectedType = entry.type;
+                selectedSize = entry.size;
+                selectedTemp = entry.temp;
+
+                // Reconstruct date + time
+                const d = new Date(entry.date_string);
+                const [hh, mm] = entry.time.split('.');
+                d.setHours(parseInt(hh, 10), parseInt(mm, 10), 0);
+                selectedDateTime = d;
+
+                updateAddCoffeeDateTimeDisplay();
+                rebuildTypeGrid();
+
+                // Set price
+                const priceInput = modalAddCoffee.querySelector('input[type="number"]');
+                if (priceInput) priceInput.value = entry.price || '';
+
+                // Set Photo/Sticker preview if exists
+                if (entry.sticker) {
+                    uploadedPhotoDataUrl = entry.sticker;
+                    // Mock a blob so the save logic knows a custom image exists, without needing to re-upload identical
+                    uploadedPhotoBlob = new Blob(['mock'], { type: 'image/png' });
+                    if (photoBox) {
+                        photoBox.innerHTML = `<img src="${entry.sticker}" alt="coffee photo" crossorigin="anonymous"><button class="remove-photo-btn" id="btn-remove-photo"><i class="ph ph-x"></i></button>`;
+                        document.getElementById('btn-remove-photo').addEventListener('click', (evt) => { evt.stopPropagation(); resetPhotoBox(); });
+                    }
+                } else {
+                    resetPhotoBox();
+                }
+
+                // Update size/temp buttons visually
+                document.querySelectorAll('.size-btn').forEach(btn => btn.classList.toggle('active', btn.textContent.toLowerCase() === selectedSize.toLowerCase()));
+                document.querySelectorAll('.temp-btn').forEach(btn => btn.classList.toggle('active', btn.textContent.includes(selectedTemp)));
+
+                // Prevent Add Cup from automatically reverting to current time when opened via generic click
+                openSheet(modalAddCoffee, { noStack: false });
+            });
 
             // Delete Event
             container.querySelector('.delete-btn').addEventListener('click', () => {
@@ -1344,20 +1426,39 @@ let currentUser = null;
 
         function initSwipe(el) {
             let startX = 0, currentTranslate = 0, isDragging = false;
-            const limit = -150;
-            el.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; isDragging = true; el.style.transition = 'none'; }, { passive: true });
+            const limitLeft = -150; // Share & Delete limit
+            const limitRight = 75;  // Favorite limit
+
+            el.addEventListener('touchstart', (e) => {
+                startX = e.touches[0].clientX;
+                isDragging = true;
+                el.style.transition = 'none';
+            }, { passive: true });
+
             el.addEventListener('touchmove', (e) => {
                 if (!isDragging) return;
                 let val = currentTranslate + (e.touches[0].clientX - startX);
-                if (val > 0) val = 0;
-                if (val < limit - 20) val = limit - 20;
+
+                // Spring resistance past limits
+                if (val > limitRight + 20) val = limitRight + 20;
+                if (val < limitLeft - 20) val = limitLeft - 20;
+
                 el.style.transform = `translateX(${val}px)`;
             }, { passive: true });
+
             el.addEventListener('touchend', () => {
                 isDragging = false;
                 el.style.transition = 'transform 0.3s cubic-bezier(0.1, 0.7, 0.1, 1)';
                 const currentX = new DOMMatrix(el.style.transform).m41;
-                currentTranslate = currentX < limit / 2 ? limit : 0;
+
+                if (currentX < limitLeft / 2) {
+                    currentTranslate = limitLeft;
+                } else if (currentX > limitRight / 2) {
+                    currentTranslate = limitRight;
+                } else {
+                    currentTranslate = 0;
+                }
+
                 el.style.transform = `translateX(${currentTranslate}px)`;
             });
         }
