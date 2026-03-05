@@ -392,91 +392,90 @@
                     </div>
                 </div>
             </div>
-
-            <!-- DATE/TIME PICKER OVERLAY -->
-            <div id="dt-picker-overlay" class="modal-view">
-                <div class="picker-card sheet-content">
-                    <div class="picker-handle"></div>
-                    <div class="picker-header">
-                        <div></div>
-                        <button class="btn-text highlight" id="btn-dt-picker-done">Done</button>
-                    </div>
-                    <div class="picker-columns">
-                        <div class="picker-column" id="picker-dt-date"></div>
-                        <div class="picker-column" id="picker-dt-hour"></div>
-                        <div class="picker-column" id="picker-dt-minute"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- MONTH/YEAR PICKER OVERLAY -->
-            <div id="picker-overlay" class="modal-view">
-                <div class="picker-card sheet-content">
-                    <div class="picker-handle"></div>
-                    <div class="picker-header">
-                        <div></div>
-                        <button class="btn-text highlight" id="btn-picker-done">Done</button>
-                    </div>
-                    <div class="picker-columns">
-                        <div class="picker-column" id="picker-year">
-                            <!-- JS populates -->
-                        </div>
-                        <div class="picker-column" id="picker-month">
-                            <!-- JS populates -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- SAVE SUCCESS TOAST -->
-            <div class="save-toast" id="save-toast">✅ Save Success</div>
-
-            <!-- DAY DETAIL OVERLAY (BOTTOM SHEET) -->
-            <div class="modal-view" id="day-overlay-wrapper">
-                <div class="day-overlay sheet-content" id="day-overlay">
-                    <div class="day-overlay-handle" id="day-overlay-handle"><span></span></div>
-                    <div class="day-overlay-header">
-                        <h2 id="day-overlay-title">3 Mar</h2>
-                        <p id="day-overlay-subtitle">Tue</p>
-                    </div>
-                    <div class="day-overlay-body">
-                        <button class="btn-primary icon-btn" id="btn-add-cup-overlay"><i class="ph ph-plus"></i> Add a
-                            Cup</button>
-                        <div class="day-records-header">
-                            <h3>Coffee Records</h3>
-                            <span id="day-overlay-cup-count">0 Cups</span>
-                        </div>
-                        <div id="day-overlay-records"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- FLOATING BOTTOM NAVIGATION -->
-            <div id="bottom-nav" class="bottom-nav">
-                <div class="nav-pill" id="nav-pill">
-                    <div class="nav-indicator" id="nav-indicator"></div>
-                    <button class="nav-item active" data-target="view-calendar"><i
-                            class="ph-fill ph-coffee"></i></button>
-                    <button class="nav-item" data-target="view-statistics"><i
-                            class="ph-bold ph-chart-line-up"></i></button>
-                    <button class="nav-item" data-target="view-settings"><i class="ph-bold ph-gear"></i></button>
-                </div>
-            </div>
-
         </div>
 
-        <!-- Supabase CDN -->
-        <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-        <script type="module" src="app.js"></script>
+        <!-- DATE/TIME PICKER OVERLAY -->
+        <div id="dt-picker-overlay" class="modal-view">
+            <div class="picker-card sheet-content">
+                <div class="picker-handle"></div>
+                <div class="picker-header">
+                    <div></div>
+                    <button class="btn-text highlight" id="btn-dt-picker-done">Done</button>
+                </div>
+                <div class="picker-columns">
+                    <div class="picker-column" id="picker-dt-date"></div>
+                    <div class="picker-column" id="picker-dt-hour"></div>
+                    <div class="picker-column" id="picker-dt-minute"></div>
+                </div>
+            </div>
+        </div>
 
-        <!-- Register Service Worker -->
-        <script>
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('sw.js').catch(err => {
-                    console.warn('SW registration failed:', err);
-                });
-            }
-        </script>
+        <!-- MONTH/YEAR PICKER OVERLAY -->
+        <div id="picker-overlay" class="modal-view">
+            <div class="picker-card sheet-content">
+                <div class="picker-handle"></div>
+                <div class="picker-header">
+                    <div></div>
+                    <button class="btn-text highlight" id="btn-picker-done">Done</button>
+                </div>
+                <div class="picker-columns">
+                    <div class="picker-column" id="picker-year">
+                        <!-- JS populates -->
+                    </div>
+                    <div class="picker-column" id="picker-month">
+                        <!-- JS populates -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SAVE SUCCESS TOAST -->
+        <div class="save-toast" id="save-toast">✅ Save Success</div>
+
+        <!-- DAY DETAIL OVERLAY (BOTTOM SHEET) -->
+        <div class="modal-view" id="day-overlay-wrapper">
+            <div class="day-overlay sheet-content" id="day-overlay">
+                <div class="day-overlay-handle" id="day-overlay-handle"><span></span></div>
+                <div class="day-overlay-header">
+                    <h2 id="day-overlay-title">3 Mar</h2>
+                    <p id="day-overlay-subtitle">Tue</p>
+                </div>
+                <div class="day-overlay-body">
+                    <button class="btn-primary icon-btn" id="btn-add-cup-overlay"><i class="ph ph-plus"></i> Add a
+                        Cup</button>
+                    <div class="day-records-header">
+                        <h3>Coffee Records</h3>
+                        <span id="day-overlay-cup-count">0 Cups</span>
+                    </div>
+                    <div id="day-overlay-records"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FLOATING BOTTOM NAVIGATION -->
+        <div id="bottom-nav" class="bottom-nav">
+            <div class="nav-pill" id="nav-pill">
+                <div class="nav-indicator" id="nav-indicator"></div>
+                <button class="nav-item active" data-target="view-calendar"><i class="ph-fill ph-coffee"></i></button>
+                <button class="nav-item" data-target="view-statistics"><i class="ph-bold ph-chart-line-up"></i></button>
+                <button class="nav-item" data-target="view-settings"><i class="ph-bold ph-gear"></i></button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Supabase CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module" src="app.js"></script>
+
+    <!-- Register Service Worker -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(err => {
+                console.warn('SW registration failed:', err);
+            });
+        }
+    </script>
 </body>
 
 </html>

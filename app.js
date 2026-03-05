@@ -372,6 +372,13 @@ let currentUser = null;
 
         function closeSheet(el) {
             if (!el) return;
+            // Reset inline styles left by swipe gesture
+            const sc = el.querySelector('.sheet-content');
+            if (sc) {
+                sc.style.transform = '';
+                sc.style.transition = '';
+            }
+            el.style.background = '';
             el.classList.remove('active');
             // Remove from stack
             const idx = sheetStack.indexOf(el);
@@ -393,6 +400,7 @@ let currentUser = null;
         // Swipe-to-dismiss on sheet-content
         document.querySelectorAll('.modal-view .sheet-content').forEach(sc => {
             let startY = 0, currentY = 0, isDragging = false;
+            let lastTouchY = 0, lastTouchTime = 0;
 
             sc.addEventListener('touchstart', (e) => {
                 // Only start drag if not on a button/input/scrollable area that has scroll
@@ -401,12 +409,17 @@ let currentUser = null;
                 const scrollable = target.closest('.modal-body');
                 if (scrollable && scrollable.scrollTop > 0) return;
                 startY = e.touches[0].clientY;
+                currentY = startY;
+                lastTouchY = startY;
+                lastTouchTime = Date.now();
                 isDragging = true;
                 sc.style.transition = 'none';
             }, { passive: true });
 
             sc.addEventListener('touchmove', (e) => {
                 if (!isDragging) return;
+                lastTouchY = currentY;
+                lastTouchTime = Date.now();
                 currentY = e.touches[0].clientY;
                 const diff = currentY - startY;
                 if (diff > 0) {
@@ -422,16 +435,39 @@ let currentUser = null;
                 if (!isDragging) return;
                 isDragging = false;
                 const diff = currentY - startY;
-                sc.style.transition = '';
                 const mv = sc.closest('.modal-view');
+
+                // Calculate velocity (px/ms) for fast-swipe dismiss
+                const timeDelta = Date.now() - lastTouchTime;
+                const velocity = timeDelta > 0 ? (currentY - lastTouchY) / timeDelta : 0;
+
+                sc.style.transition = '';
                 mv.style.background = '';
-                if (diff > 100) {
+
+                // Dismiss if threshold reached OR fast downward swipe
+                if (diff > 100 || (diff > 20 && velocity > 0.5)) {
                     closeSheet(mv);
                 } else {
                     sc.style.transform = '';
                 }
                 currentY = 0;
                 startY = 0;
+                lastTouchY = 0;
+                lastTouchTime = 0;
+            });
+
+            // Handle interrupted gestures (e.g., system notification overlay)
+            sc.addEventListener('touchcancel', () => {
+                if (!isDragging) return;
+                isDragging = false;
+                sc.style.transition = '';
+                sc.style.transform = '';
+                const mv = sc.closest('.modal-view');
+                mv.style.background = '';
+                currentY = 0;
+                startY = 0;
+                lastTouchY = 0;
+                lastTouchTime = 0;
             });
         });
 
@@ -646,7 +682,7 @@ let currentUser = null;
                 };
 
                 // Close modal + show toast immediately
-                modalAddCoffee.classList.remove('active');
+                closeSheet(modalAddCoffee);
                 resetPhotoBox();
                 showSaveToast();
 
