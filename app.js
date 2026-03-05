@@ -30,9 +30,9 @@ let currentUser = null;
             add(el, x, y, rotation) {
                 this.particles.push({
                     el, x, y, rotation,
-                    vx: (Math.random() - 0.5) * 2,
-                    vy: (Math.random() - 0.5) * 2,
-                    w: 64, h: 64
+                    vx: (Math.random() - 0.5) * 4,
+                    vy: (Math.random() - 0.5) * 4,
+                    w: 80, h: 80
                 });
             },
             clear() {
@@ -48,17 +48,43 @@ let currentUser = null;
                     const ch = this.container.clientHeight;
                     const friction = 0.97;
                     const sensitivity = 0.2;
-                    this.particles.forEach(p => {
+                    this.particles.forEach((p, i) => {
                         p.vx += this.gravity.x * sensitivity;
                         p.vy += this.gravity.y * sensitivity;
                         p.vx *= friction;
                         p.vy *= friction;
                         p.x += p.vx;
                         p.y += p.vy;
+
+                        // Wall collisions
                         if (p.x < 0) { p.x = 0; p.vx *= -0.5; }
                         if (p.x > cw - p.w) { p.x = cw - p.w; p.vx *= -0.5; }
                         if (p.y < 0) { p.y = 0; p.vy *= -0.5; }
                         if (p.y > ch - p.h) { p.y = ch - p.h; p.vy *= -0.5; }
+
+                        // Inter-particle collisions (Simple Circle-based)
+                        for (let j = i + 1; j < this.particles.length; j++) {
+                            const p2 = this.particles[j];
+                            const dx = (p2.x + p2.w / 2) - (p.x + p.w / 2);
+                            const dy = (p2.y + p2.h / 2) - (p.y + p.h / 2);
+                            const dist = Math.sqrt(dx * dx + dy * dy);
+                            const minDist = (p.w + p2.w) / 2 * 0.8; // some overlap allowed for aesthetics
+
+                            if (dist < minDist) {
+                                // Resolve overlap
+                                const angle = Math.atan2(dy, dx);
+                                const targetX = p.x + p.w / 2 + Math.cos(angle) * minDist;
+                                const targetY = p.y + p.h / 2 + Math.sin(angle) * minDist;
+                                const ax = (targetX - (p2.x + p2.w / 2)) * 0.1;
+                                const ay = (targetY - (p2.y + p2.h / 2)) * 0.1;
+
+                                p.vx -= ax;
+                                p.vy -= ay;
+                                p2.vx += ax;
+                                p2.vy += ay;
+                            }
+                        }
+
                         p.el.style.transform = `translate(${p.x}px, ${p.y}px) rotate(${p.rotation}deg)`;
                     });
                 }
@@ -1205,8 +1231,8 @@ let currentUser = null;
                         container.appendChild(el);
 
                         // Random start pos
-                        const startX = Math.random() * (cw - 64);
-                        const startY = Math.random() * (ch - 64);
+                        const startX = Math.random() * (cw - 80);
+                        const startY = Math.random() * (ch - 80);
                         const rotate = Math.floor(Math.random() * 40) - 20;
 
                         stickerPhysics.add(el, startX, startY, rotate);

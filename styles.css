@@ -679,8 +679,8 @@ p {
 
 .sticker-layer {
     position: absolute !important;
-    width: 64px;
-    height: 64px;
+    width: 80px;
+    height: 80px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -692,8 +692,8 @@ p {
 }
 
 .sticker-img {
-    width: 64px;
-    height: 64px;
+    width: 80px;
+    height: 80px;
     object-fit: contain;
     filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
 }
