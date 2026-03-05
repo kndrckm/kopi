@@ -2223,7 +2223,7 @@ input:checked+.slider-toggle:before {
     padding: 24px;
     width: 100%;
     max-width: 320px;
-    min-height: 420px;
+    height: 420px;
     display: flex;
     flex-direction: column;
     align-items: center;

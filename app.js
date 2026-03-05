@@ -1160,23 +1160,26 @@ let currentUser = null;
             const statsY = dividerY + 28;
 
             const stickerY = 110; // Start below the name
-            const stickerSize = (dividerY - 24) - stickerY; // Fill available gap
+            const maxStickerH = (dividerY - 24) - stickerY; // Fill available gap vertically
+            const maxStickerW = cardW - 48; // Max width with 24px padding sides
 
             if (stickerImg && stickerImg.complete && stickerImg.naturalWidth > 0) {
                 const imgRatio = stickerImg.naturalWidth / stickerImg.naturalHeight;
                 let drawW, drawH;
-                if (imgRatio > 1) {
-                    drawW = stickerSize; // Constrain width
-                    drawH = stickerSize / imgRatio;
+
+                // Constrain by both width and height
+                if ((maxStickerW / maxStickerH) > imgRatio) {
+                    drawH = maxStickerH;
+                    drawW = maxStickerH * imgRatio;
                 } else {
-                    drawH = stickerSize; // Constrain height
-                    drawW = stickerSize * imgRatio;
+                    drawW = maxStickerW;
+                    drawH = maxStickerW / imgRatio;
                 }
-                ctx.drawImage(stickerImg, (cardW - drawW) / 2, stickerY + (stickerSize - drawH) / 2, drawW, drawH);
+                ctx.drawImage(stickerImg, (cardW - drawW) / 2, stickerY + (maxStickerH - drawH) / 2, drawW, drawH);
             } else if (stickerEmoji) {
-                ctx.font = `${Math.min(stickerSize * 0.6, 120)}px serif`;
+                ctx.font = `${Math.min(maxStickerH * 0.6, 120)}px serif`;
                 ctx.textAlign = 'center';
-                ctx.fillText(stickerEmoji.textContent, cardW / 2, stickerY + stickerSize * 0.7);
+                ctx.fillText(stickerEmoji.textContent, cardW / 2, stickerY + maxStickerH * 0.7);
             }
 
             // Bottom Divider line
