@@ -1,4 +1,4 @@
-import { removeBackground } from './bg-removal.js';
+import { removeBackground, trimCanvas } from './bg-removal.js';
 import { supabase } from './supabase.js';
 
 let currentUser = null;
@@ -107,7 +107,10 @@ let currentUser = null;
                 currentUser = session.user;
                 // Profile & types fetched in getSession block on first load
                 // This handles subsequent sign-ins (e.g., OAuth redirect)
-                fetchUserProfile().then(() => updateUserGreeting());
+                fetchUserProfile().then(() => {
+                    updateUserGreeting();
+                    checkAdminFeatures();
+                });
                 fetchCoffeeTypes();
                 fetchCoffeeEntries();
             } else if (event === 'SIGNED_OUT') {
@@ -204,6 +207,7 @@ let currentUser = null;
             await fetchUserProfile();
             await fetchCoffeeTypes();
             updateUserGreeting();
+            checkAdminFeatures();
             fetchCoffeeEntries();
             switchView('view-calendar');
         } else {
@@ -242,6 +246,89 @@ let currentUser = null;
                 || currentUser.user_metadata?.full_name
                 || currentUser.email.split('@')[0];
             greetingEl.textContent = `${timeOfDay}, ${name}`;
+        }
+
+        function checkAdminFeatures() {
+            const adminSection = document.getElementById('admin-section');
+            if (adminSection) {
+                if (currentUser && currentUser.id === '83835a94-cbf8-4433-8dec-925978139cef') {
+                    adminSection.style.display = 'block';
+                } else {
+                    adminSection.style.display = 'none';
+                }
+            }
+        }
+
+        const btnCleanupStickers = document.getElementById('btn-cleanup-stickers');
+        if (btnCleanupStickers) {
+            btnCleanupStickers.addEventListener('click', async () => {
+                if (!currentUser || currentUser.id !== '83835a94-cbf8-4433-8dec-925978139cef') return;
+
+                const statusEl = document.getElementById('cleanup-status');
+                statusEl.style.display = 'block';
+                statusEl.textContent = 'Fetching entries...';
+                btnCleanupStickers.disabled = true;
+
+                try {
+                    const { data: entries, error } = await supabase
+                        .from('coffee_entries')
+                        .select('*')
+                        .not('sticker', 'is', null);
+
+                    if (error) throw error;
+
+                    statusEl.textContent = `Found ${entries.length} stickers. Starting crop...`;
+
+                    let count = 0;
+                    for (const entry of entries) {
+                        try {
+                            const url = new URL(entry.sticker);
+                            const pathParts = url.pathname.split('/');
+                            const fileName = pathParts[pathParts.length - 1]; // e.g. UUID.png
+
+                            // Load image
+                            const img = new Image();
+                            img.crossOrigin = "anonymous";
+                            img.src = entry.sticker;
+                            await new Promise(resolve => { img.onload = resolve; img.onerror = resolve; });
+
+                            // Draw to canvas
+                            const cvs = document.createElement('canvas');
+                            cvs.width = img.width;
+                            cvs.height = img.height;
+                            const ctx = cvs.getContext('2d');
+                            ctx.drawImage(img, 0, 0);
+
+                            // Trim it to bounds
+                            const trimmed = trimCanvas(cvs);
+
+                            // Convert to Blob
+                            const blob = await new Promise(resolve => trimmed.toBlob(resolve, 'image/png'));
+
+                            // Upload & Overwrite
+                            const { error: uploadErr } = await supabase.storage
+                                .from('stickers')
+                                .upload(`public/${fileName}`, blob, { upsert: true, cacheControl: '3600', contentType: 'image/png' });
+
+                            if (uploadErr) console.error("Upload Error for", fileName, uploadErr.message);
+
+                        } catch (e) {
+                            console.error("Error processing entry", entry.id, e);
+                        }
+
+                        count++;
+                        statusEl.textContent = `Trimming ${count} / ${entries.length}...`;
+                    }
+
+                    statusEl.textContent = 'Cleanup Complete!';
+                    fetchCoffeeEntries(); // force refresh
+                } catch (e) {
+                    console.error("Cleanup error:", e);
+                    statusEl.textContent = 'Error: ' + e.message;
+                } finally {
+                    btnCleanupStickers.disabled = false;
+                }
+            });
         }
 
 

@@ -46,7 +46,7 @@ async function addWhiteOutline(blob, outlineWidth = 8) {
 }
 
 // Helper to remove empty transparent pixels around the content
-function trimCanvas(canvas) {
+export function trimCanvas(canvas) {
     const ctx = canvas.getContext('2d');
     const width = canvas.width;
     const height = canvas.height;
@@ -54,8 +54,9 @@ function trimCanvas(canvas) {
     const l = pixels.data.length;
     let bound = { top: null, left: null, right: null, bottom: null };
 
+    // Use a small alpha threshold (e.g. 15) to ignore invisible/noise pixels
     for (let i = 0; i < l; i += 4) {
-        if (pixels.data[i + 3] !== 0) {
+        if (pixels.data[i + 3] > 15) {
             const x = (i / 4) % width;
             const y = Math.floor((i / 4) / width);
             if (bound.top === null || y < bound.top) bound.top = y;

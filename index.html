@@ -197,6 +197,20 @@
                     <i class="ph ph-sign-out" style="color: #ff3b30; font-size: 20px;"></i>
                 </div>
             </div>
+
+            <!-- Admin Maintenance (Only visible to admin UID) -->
+            <div class="card" id="admin-section"
+                style="display: none; margin-top: 24px; border: 1px dashed var(--border-color);">
+                <h3>Admin Maintenance</h3>
+                <p class="setting-hint">One-time tools to optimize app data.</p>
+                <button class="btn-primary icon-btn" id="btn-cleanup-stickers"
+                    style="margin-top: 12px; background: #2c3e50;">
+                    <i class="ph ph-magic-wand"></i> Trim Existing Stickers
+                </button>
+                <div id="cleanup-status"
+                    style="margin-top: 12px; font-size: 13px; color: var(--text-muted); line-height: 1.4; display: none;">
+                </div>
+            </div>
         </div>
 
         <!-- ======================= -->
