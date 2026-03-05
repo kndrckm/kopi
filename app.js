@@ -1108,8 +1108,15 @@ let currentUser = null;
                 // Set Photo/Sticker preview if exists
                 if (entry.sticker) {
                     uploadedPhotoDataUrl = entry.sticker;
-                    // Mock a blob so the save logic knows a custom image exists, without needing to re-upload identical
-                    uploadedPhotoBlob = new Blob(['mock'], { type: 'image/png' });
+
+                    // Fetch the image and mock a proper blob so background removal doesn't fail with DOMException
+                    fetch(entry.sticker)
+                        .then(res => res.blob())
+                        .then(blob => {
+                            uploadedPhotoBlob = blob;
+                        })
+                        .catch(err => console.error("Could not fetch sticker blob for edit:", err));
+
                     if (photoBox) {
                         photoBox.innerHTML = `<img src="${entry.sticker}" alt="coffee photo" crossorigin="anonymous"><button class="remove-photo-btn" id="btn-remove-photo"><i class="ph ph-x"></i></button>`;
                         document.getElementById('btn-remove-photo').addEventListener('click', (evt) => { evt.stopPropagation(); resetPhotoBox(); });
@@ -1471,16 +1478,23 @@ let currentUser = null;
                 let val = currentTranslate + (e.touches[0].clientX - startX);
 
                 // Spring resistance past limits
-                if (val > limitRight + 45) val = limitRight + 45; // Max drag ~120px
+                if (val > limitRight + 45) { // Max drag ~120px
+                    val = limitRight + 45 + ((val - (limitRight + 45)) * 0.2); // Add heavy friction past max drag
+                }
                 if (val < limitLeft - 20) val = limitLeft - 20;
 
                 el.style.transform = `translateX(${val}px)`;
             }, { passive: true });
 
             el.addEventListener('touchend', () => {
+                if (!isDragging) return;
                 isDragging = false;
                 el.style.transition = 'transform 0.3s cubic-bezier(0.1, 0.7, 0.1, 1)';
-                const currentX = new DOMMatrix(el.style.transform).m41;
+
+                // Get absolute current translation, not matrix, for better reliability during fast swipes
+                const transformStr = el.style.transform || 'translateX(0px)';
+                const currentXMatch = transformStr.match(/translateX\(([-0-9.]+)px\)/);
+                const currentX = currentXMatch ? parseFloat(currentXMatch[1]) : 0;
 
                 if (currentX > triggerRight) {
                     // Auto-trigger Favorite!
