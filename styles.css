@@ -2218,11 +2218,12 @@ input:checked+.slider-toggle:before {
 }
 
 .share-card-preview {
-    background: var(--md-sys-color-surface-container-low, #f6efe8);
+    background: var(--card-bg, #ffffff);
     border-radius: 20px;
     padding: 24px;
     width: 100%;
     max-width: 320px;
+    min-height: 420px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -2274,8 +2275,9 @@ input:checked+.slider-toggle:before {
 }
 
 .share-card-sticker {
-    width: 180px;
-    height: 180px;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2299,6 +2301,7 @@ input:checked+.slider-toggle:before {
     gap: 24px;
     width: 100%;
     padding-top: 16px;
+    margin-top: auto;
     border-top: 1px solid rgba(0, 0, 0, 0.06);
 }
 

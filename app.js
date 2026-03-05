@@ -1053,12 +1053,7 @@ let currentUser = null;
 
             // Populate the card
             document.getElementById('share-card-date').textContent = dateStr;
-            document.getElementById('share-card-day').textContent = dayStr;
             document.getElementById('share-card-name').textContent = entry.type || 'Coffee';
-
-            // Temp icon
-            const tempIcon = entry.temp === 'Hot' ? '♨️' : '🧊';
-            document.getElementById('share-card-temp').textContent = `${tempIcon} ${entry.temp || 'Iced'}`;
 
             // Sticker or emoji
             const stickerEl = document.getElementById('share-card-sticker');
@@ -1133,7 +1128,7 @@ let currentUser = null;
             ctx.scale(scale, scale);
 
             // Background
-            ctx.fillStyle = '#f6efe8';
+            ctx.fillStyle = '#ffffff'; // Match CSS --card-bg
             roundRect(ctx, 0, 0, cardW, cardH, 20);
             ctx.fill();
 
@@ -1148,13 +1143,6 @@ let currentUser = null;
             ctx.font = '400 12px -apple-system, BlinkMacSystemFont, sans-serif';
             ctx.fillText(dayText, 24, 52);
 
-            // Temperature (right side)
-            const tempText = document.getElementById('share-card-temp').textContent;
-            ctx.fillStyle = '#8B8680';
-            ctx.font = '400 13px -apple-system, BlinkMacSystemFont, sans-serif';
-            ctx.textAlign = 'right';
-            ctx.fillText(tempText, cardW - 24, 36);
-
             // Coffee Name
             const nameText = document.getElementById('share-card-name').textContent;
             ctx.fillStyle = '#8B7355';
@@ -1162,33 +1150,36 @@ let currentUser = null;
             ctx.textAlign = 'center';
             ctx.fillText(nameText.toUpperCase(), cardW / 2, 90);
 
-            // Sticker image
+            // Sticker image sizing (maximized between name and bottom stats)
             const stickerEl = document.getElementById('share-card-sticker');
             const stickerImg = stickerEl.querySelector('img');
             const stickerEmoji = stickerEl.querySelector('.share-sticker-emoji');
 
-            const stickerY = 105;
-            const stickerSize = 170;
+            // Align bottom stats dynamically relative to true card height
+            const dividerY = cardH - 85;
+            const statsY = dividerY + 28;
+
+            const stickerY = 110; // Start below the name
+            const stickerSize = (dividerY - 24) - stickerY; // Fill available gap
 
             if (stickerImg && stickerImg.complete && stickerImg.naturalWidth > 0) {
                 const imgRatio = stickerImg.naturalWidth / stickerImg.naturalHeight;
                 let drawW, drawH;
                 if (imgRatio > 1) {
-                    drawW = stickerSize;
+                    drawW = stickerSize; // Constrain width
                     drawH = stickerSize / imgRatio;
                 } else {
-                    drawH = stickerSize;
+                    drawH = stickerSize; // Constrain height
                     drawW = stickerSize * imgRatio;
                 }
                 ctx.drawImage(stickerImg, (cardW - drawW) / 2, stickerY + (stickerSize - drawH) / 2, drawW, drawH);
             } else if (stickerEmoji) {
-                ctx.font = '100px serif';
+                ctx.font = `${Math.min(stickerSize * 0.6, 120)}px serif`;
                 ctx.textAlign = 'center';
-                ctx.fillText(stickerEmoji.textContent, cardW / 2, stickerY + stickerSize * 0.75);
+                ctx.fillText(stickerEmoji.textContent, cardW / 2, stickerY + stickerSize * 0.7);
             }
 
-            // Divider line
-            const dividerY = stickerY + stickerSize + 24;
+            // Bottom Divider line
             ctx.strokeStyle = 'rgba(0, 0, 0, 0.06)';
             ctx.lineWidth = 1;
             ctx.beginPath();
@@ -1199,7 +1190,6 @@ let currentUser = null;
             // Stats: Size
             const sizeText = document.getElementById('share-card-size').textContent;
             const tempStatText = document.getElementById('share-card-temperature').textContent;
-            const statsY = dividerY + 28;
 
             // Left stat: Size
             ctx.fillStyle = '#8B7355';
@@ -1218,14 +1208,14 @@ let currentUser = null;
             ctx.lineTo(cardW / 2, statsY + 16);
             ctx.stroke();
 
-            // Right stat: Temp
+            // Right stat: Coffee Temp
             ctx.fillStyle = '#8B7355';
             ctx.font = '700 15px -apple-system, BlinkMacSystemFont, sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText(tempStatText.toLowerCase(), cardW * 0.7, statsY);
             ctx.fillStyle = '#8B8680';
             ctx.font = '600 9px -apple-system, BlinkMacSystemFont, sans-serif';
-            ctx.fillText('TEMPERATURE', cardW * 0.7, statsY + 16);
+            ctx.fillText('COFFEE', cardW * 0.7, statsY + 16);
 
             return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92));
         }
