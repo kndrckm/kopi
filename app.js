@@ -18,7 +18,59 @@ let currentUser = null;
         let selectedType = 'Americano';
         let selectedSize = 'Small';
         let selectedTemp = 'Iced';
-        let parallaxInstance = null;
+        const stickerPhysics = {
+            particles: [],
+            gravity: { x: 0, y: 0 },
+            animReq: null,
+            container: null,
+            init(containerEl) {
+                this.container = containerEl;
+                if (!this.animReq) this.loop();
+            },
+            add(el, x, y, rotation) {
+                this.particles.push({
+                    el, x, y, rotation,
+                    vx: (Math.random() - 0.5) * 2,
+                    vy: (Math.random() - 0.5) * 2,
+                    w: 64, h: 64
+                });
+            },
+            clear() {
+                this.particles = [];
+                if (this.animReq) {
+                    cancelAnimationFrame(this.animReq);
+                    this.animReq = null;
+                }
+            },
+            loop() {
+                if (this.particles.length > 0 && this.container) {
+                    const cw = this.container.clientWidth;
+                    const ch = this.container.clientHeight;
+                    const friction = 0.97;
+                    const sensitivity = 0.2;
+                    this.particles.forEach(p => {
+                        p.vx += this.gravity.x * sensitivity;
+                        p.vy += this.gravity.y * sensitivity;
+                        p.vx *= friction;
+                        p.vy *= friction;
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        if (p.x < 0) { p.x = 0; p.vx *= -0.5; }
+                        if (p.x > cw - p.w) { p.x = cw - p.w; p.vx *= -0.5; }
+                        if (p.y < 0) { p.y = 0; p.vy *= -0.5; }
+                        if (p.y > ch - p.h) { p.y = ch - p.h; p.vy *= -0.5; }
+                        p.el.style.transform = `translate(${p.x}px, ${p.y}px) rotate(${p.rotation}deg)`;
+                    });
+                }
+                this.animReq = requestAnimationFrame(() => this.loop());
+            }
+        };
+
+        window.addEventListener('deviceorientation', (e) => {
+            // Gamma is left-to-right tilt (-90 to 90), Beta is front-to-back tilt (-180 to 180)
+            stickerPhysics.gravity.x = (e.gamma || 0) / 45;
+            stickerPhysics.gravity.y = (e.beta || 0) / 45;
+        });
 
         // Setup Auth Listener
         supabase.auth.onAuthStateChange((event, session) => {
@@ -188,6 +240,7 @@ let currentUser = null;
                         statTabIndicator.style.width = `${activeTab.offsetWidth}px`;
                     }
                 }, 10);
+                requestDeviceOrientation();
             }
 
             navItems.forEach(btn => {
@@ -1124,50 +1177,40 @@ let currentUser = null;
                 });
             }
 
-            // Stickers display — Gyroscope Parallax Scene
+            // Stickers display — Fluid Physics Scene
             const chartArea = document.getElementById('stats-chart-area');
             if (chartArea) {
-                // Destroy previous instance
-                if (parallaxInstance) {
-                    parallaxInstance.destroy();
-                    parallaxInstance = null;
-                }
+                stickerPhysics.clear();
 
                 if (filtered.length === 0) {
                     chartArea.innerHTML = '<div class="stickers-display"><p style="color:var(--text-muted);font-size:14px;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);">No coffee yet</p></div>';
                 } else {
-                    let html = '<div class="stickers-display" id="parallax-scene">';
-                    filtered.forEach((e, idx) => {
-                        // Randomize position and depth
-                        const depth = (0.1 + Math.random() * 0.9).toFixed(1);
-                        const top = Math.floor(Math.random() * 60) + 10; // 10% - 70%
-                        const left = Math.floor(Math.random() * 70) + 5; // 5% - 75%
-                        const rotate = Math.floor(Math.random() * 40) - 20; // -20deg to 20deg
+                    chartArea.innerHTML = '<div class="stickers-display" id="physics-container"></div>';
+                    const container = document.getElementById('physics-container');
+                    stickerPhysics.init(container);
 
-                        html += `<div class="sticker-layer" data-depth="${depth}" style="top:${top}%; left:${left}%; transform: rotate(${rotate}deg);">`;
+                    const cw = chartArea.clientWidth || 300;
+                    const ch = chartArea.clientHeight || 200;
+
+                    filtered.forEach((e) => {
+                        const el = document.createElement('div');
+                        el.className = 'sticker-layer';
+
                         if (e.sticker) {
-                            html += `<img src="${e.sticker}" alt="" class="sticker-img">`;
+                            el.innerHTML = `<img src="${e.sticker}" alt="" class="sticker-img">`;
                         } else {
-                            html += `<span class="sticker-emoji">${e.emoji || '☕'}</span>`;
+                            el.innerHTML = `<span class="sticker-emoji">${e.emoji || '☕'}</span>`;
                         }
-                        html += `</div>`;
-                    });
-                    html += '</div>';
-                    chartArea.innerHTML = html;
 
-                    // Initialize Parallax
-                    const scene = document.getElementById('parallax-scene');
-                    if (scene && typeof Parallax !== 'undefined') {
-                        parallaxInstance = new Parallax(scene, {
-                            relativeInput: true,
-                            clipRelativeInput: false,
-                            hoverOnly: false,
-                            frictionX: 0.1,
-                            frictionY: 0.1,
-                            scalarX: 10.0,
-                            scalarY: 10.0
-                        });
-                    }
+                        container.appendChild(el);
+
+                        // Random start pos
+                        const startX = Math.random() * (cw - 64);
+                        const startY = Math.random() * (ch - 64);
+                        const rotate = Math.floor(Math.random() * 40) - 20;
+
+                        stickerPhysics.add(el, startX, startY, rotate);
+                    });
                 }
             }
 
