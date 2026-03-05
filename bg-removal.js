@@ -35,11 +35,49 @@ async function addWhiteOutline(blob, outlineWidth = 8) {
             ctx.globalCompositeOperation = 'source-over';
             ctx.drawImage(img, pad / 2, pad / 2);
 
+            // Step 4: Trim transparent margins (Autocrop)
+            const trimmedCanvas = trimCanvas(canvas);
+
             URL.revokeObjectURL(bmpUrl);
-            canvas.toBlob((blob) => resolve(blob), 'image/png');
+            trimmedCanvas.toBlob((blob) => resolve(blob), 'image/png');
         };
         img.src = bmpUrl;
     });
+}
+
+// Helper to remove empty transparent pixels around the content
+function trimCanvas(canvas) {
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+    const pixels = ctx.getImageData(0, 0, width, height);
+    const l = pixels.data.length;
+    let bound = { top: null, left: null, right: null, bottom: null };
+
+    for (let i = 0; i < l; i += 4) {
+        if (pixels.data[i + 3] !== 0) {
+            const x = (i / 4) % width;
+            const y = Math.floor((i / 4) / width);
+            if (bound.top === null || y < bound.top) bound.top = y;
+            if (bound.left === null || x < bound.left) bound.left = x;
+            if (bound.right === null || x > bound.right) bound.right = x;
+            if (bound.bottom === null || y > bound.bottom) bound.bottom = y;
+        }
+    }
+
+    if (bound.top === null) return canvas;
+
+    const trimWidth = bound.right - bound.left + 1;
+    const trimHeight = bound.bottom - bound.top + 1;
+    const trimmed = document.createElement('canvas');
+    trimmed.width = trimWidth;
+    trimmed.height = trimHeight;
+
+    trimmed.getContext('2d').drawImage(canvas,
+        bound.left, bound.top, trimWidth, trimHeight,
+        0, 0, trimWidth, trimHeight
+    );
+    return trimmed;
 }
 
 // Background removal via @imgly + white outline
@@ -55,3 +93,4 @@ export async function removeBackground(imageBlob) {
 
     return await addWhiteOutline(resultBlob);
 }
+

@@ -18,7 +18,9 @@ let currentUser = null;
         let selectedType = 'Americano';
         let selectedSize = 'Small';
         let selectedTemp = 'Iced';
-        const STICKER_SIZE = 80; // Manual size control
+        const STICKER_SIZE = 100; // Manual size control
+        const HITBOX_PERC = 0.7; // 70% of the box is the "real" object
+        const WALL_BLEED = 20;   // How many pixels can "leak" out of the visible wall before bounce
         const stickerPhysics = {
             particles: [],
             gravity: { x: 0, y: 0 },
@@ -47,8 +49,8 @@ let currentUser = null;
                 if (this.particles.length > 0 && this.container) {
                     const cw = this.container.clientWidth;
                     const ch = this.container.clientHeight;
-                    const friction = 0.97;
-                    const sensitivity = 0.2;
+                    const friction = 0.98; // Smoother slide
+                    const sensitivity = 0.15; // More gradual response
                     this.particles.forEach((p, i) => {
                         p.vx += this.gravity.x * sensitivity;
                         p.vy += this.gravity.y * sensitivity;
@@ -57,11 +59,11 @@ let currentUser = null;
                         p.x += p.vx;
                         p.y += p.vy;
 
-                        // Wall collisions (using container bounds)
-                        if (p.x < 0) { p.x = 0; p.vx *= -0.4; }
-                        if (p.x > cw - p.w) { p.x = cw - p.w; p.vx *= -0.4; }
-                        if (p.y < 0) { p.y = 0; p.vy *= -0.4; }
-                        if (p.y > ch - p.h) { p.y = ch - p.h; p.vy *= -0.4; }
+                        // Wall collisions (allowing bleed for transparency)
+                        if (p.x < -WALL_BLEED) { p.x = -WALL_BLEED; p.vx *= -0.3; }
+                        if (p.x > cw - p.w + WALL_BLEED) { p.x = cw - p.w + WALL_BLEED; p.vx *= -0.3; }
+                        if (p.y < -WALL_BLEED) { p.y = -WALL_BLEED; p.vy *= -0.3; }
+                        if (p.y > ch - p.h + WALL_BLEED) { p.y = ch - p.h + WALL_BLEED; p.vy *= -0.3; }
 
                         // Inter-particle collisions (Simple Circle-based)
                         for (let j = i + 1; j < this.particles.length; j++) {
@@ -69,7 +71,7 @@ let currentUser = null;
                             const dx = (p2.x + p2.w / 2) - (p.x + p.w / 2);
                             const dy = (p2.y + p2.h / 2) - (p.y + p.h / 2);
                             const dist = Math.sqrt(dx * dx + dy * dy);
-                            const minDist = (p.w + p2.w) / 2 * 0.8; // some overlap allowed for aesthetics
+                            const minDist = (p.w + p2.w) / 2 * HITBOX_PERC; // tightened hitbox
 
                             if (dist < minDist) {
                                 // Resolve overlap
