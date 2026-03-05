@@ -1018,11 +1018,35 @@ let currentUser = null;
             updateStatistics();
         }
 
+        async function toggleFavorite(entry) {
+            const newState = !entry.is_favorite;
+            entry.is_favorite = newState;
+
+            // Optimistic UI update
+            renderTodayCoffee();
+            updateCalendarStickers();
+            updateStatistics();
+
+            if (currentUser && entry.id && typeof entry.id === 'string' && entry.id.length > 5) {
+                const { error } = await supabase.from('coffee_entries').update({ is_favorite: newState }).eq('id', entry.id);
+                if (error) {
+                    console.error('Favorite update error:', error.message);
+                    // Revert if error
+                    entry.is_favorite = !newState;
+                    renderTodayCoffee();
+                    updateCalendarStickers();
+                    updateStatistics();
+                }
+            }
+        }
+
         function createCoffeeItemRow(entry, idx) {
             const tempIcon = entry.temp === 'Hot' ? '♨️' : '🧊';
             const stickerHtml = entry.sticker
                 ? `<img src="${entry.sticker}" alt="sticker" class="coffee-item-sticker">`
                 : `<span class="coffee-item-emoji">${entry.emoji || '☕'}</span>`;
+
+            const favHtml = entry.is_favorite ? `<i class="ph-fill ph-heart favorite-icon"></i>` : '';
 
             const rowHtml = `
             <div class="swipe-container">
@@ -1033,7 +1057,7 @@ let currentUser = null;
                     <div class="coffee-item-info">
                         <div class="coffee-item-icon">${stickerHtml}</div>
                         <div class="coffee-item-text">
-                            <h3>${entry.type} ${tempIcon}</h3>
+                            <h3>${entry.type} ${tempIcon} ${favHtml}</h3>
                             <p>${entry.size} • ${entry.time}</p>
                         </div>
                     </div>
@@ -1110,6 +1134,12 @@ let currentUser = null;
             // Share Event
             container.querySelector('.share-btn').addEventListener('click', () => {
                 openShareCard(entry);
+            });
+
+            // Favorite Event
+            container.querySelector('.favorite-btn').addEventListener('click', () => {
+                closeSheet(content); // snap shut if it was open
+                toggleFavorite(entry);
             });
 
             return container;
@@ -1428,6 +1458,7 @@ let currentUser = null;
             let startX = 0, currentTranslate = 0, isDragging = false;
             const limitLeft = -150; // Share & Delete limit
             const limitRight = 75;  // Favorite limit
+            const triggerRight = 100; // Auto-trigger Favorite threshold
 
             el.addEventListener('touchstart', (e) => {
                 startX = e.touches[0].clientX;
@@ -1440,7 +1471,7 @@ let currentUser = null;
                 let val = currentTranslate + (e.touches[0].clientX - startX);
 
                 // Spring resistance past limits
-                if (val > limitRight + 20) val = limitRight + 20;
+                if (val > limitRight + 45) val = limitRight + 45; // Max drag ~120px
                 if (val < limitLeft - 20) val = limitLeft - 20;
 
                 el.style.transform = `translateX(${val}px)`;
@@ -1451,12 +1482,17 @@ let currentUser = null;
                 el.style.transition = 'transform 0.3s cubic-bezier(0.1, 0.7, 0.1, 1)';
                 const currentX = new DOMMatrix(el.style.transform).m41;
 
-                if (currentX < limitLeft / 2) {
-                    currentTranslate = limitLeft;
-                } else if (currentX > limitRight / 2) {
-                    currentTranslate = limitRight;
-                } else {
+                if (currentX > triggerRight) {
+                    // Auto-trigger Favorite!
                     currentTranslate = 0;
+                    const favBtn = el.parentElement.querySelector('.favorite-btn');
+                    if (favBtn) setTimeout(() => favBtn.click(), 150); // slight delay for visual snap
+                } else if (currentX > limitRight / 2) {
+                    currentTranslate = limitRight; // Snap open
+                } else if (currentX < limitLeft / 2) {
+                    currentTranslate = limitLeft;  // Snap open
+                } else {
+                    currentTranslate = 0;          // Snap closed
                 }
 
                 el.style.transform = `translateX(${currentTranslate}px)`;

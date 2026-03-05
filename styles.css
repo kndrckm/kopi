@@ -576,8 +576,13 @@ p {
 }
 
 .favorite-btn {
-    background-color: #7E5C41;
-    /* Chocolate */
+    background-color: var(--primary-color);
+}
+
+.favorite-icon {
+    color: var(--primary-color);
+    font-size: 14px;
+    margin-left: 6px;
 }
 
 .coffee-item-info {
