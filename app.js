@@ -20,15 +20,15 @@ let currentUser = null;
         let selectedTemp = 'Iced';
         const STICKER_SIZE = 100; // Manual size control
         const HITBOX_PERC = 0.65; // Hitbox radius scalar
-        const MAX_TILT_ANGLE = 20; // 👈 Change this to easily limit how tilted stickers get (in degrees)
+        const MAX_TILT_ANGLE = 15; // 👈 Change this to easily limit how tilted stickers get (in degrees)
 
         // Fine-tune wall bounding per-side. Higher number means it can bleed further off-screen.
         // Negative number means it bounces before reaching the wall.
         const WALL_BLEED = {
-            top: 5,        // Less top bleed so stickers don't get cut
-            bottom: -5,    // Negative prevents drowning at bottom card edge
-            left: 20,      // Higher left/right allows the visual cup edge to touch the wall
-            right: 20
+            top: 50,        // Less top bleed so stickers don't get cut
+            bottom: -20,    // Negative prevents drowning at bottom card edge
+            left: 100,      // Higher left/right allows the visual cup edge to touch the wall
+            right: 100
         };
 
         const stickerPhysics = {
