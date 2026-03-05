@@ -40,12 +40,13 @@ let currentUser = null;
                 this.container = containerEl;
                 if (!this.animReq) this.loop();
             },
-            add(el, x, y, rotation) {
+            add(el, x, y, rotation, pSize = STICKER_SIZE, pPerc = HITBOX_PERC) {
                 this.particles.push({
                     el, x, y, rotation,
                     vx: (Math.random() - 0.5) * 6, // Slightly faster scatter
                     vy: (Math.random() - 0.5) * 6,
-                    w: STICKER_SIZE, h: STICKER_SIZE
+                    w: pSize, h: pSize,
+                    perc: pPerc
                 });
             },
             clear() {
@@ -87,7 +88,8 @@ let currentUser = null;
                             const dy = rawDy * 1.0;
 
                             const dist = Math.sqrt(dx * dx + dy * dy);
-                            const minDist = (p.w + p2.w) / 2 * HITBOX_PERC;
+                            const avgPerc = (p.perc + p2.perc) / 2;
+                            const minDist = (p.w + p2.w) / 2 * avgPerc;
 
                             if (dist < minDist) {
                                 // Resolve overlap
@@ -1350,9 +1352,24 @@ let currentUser = null;
                     const cw = chartArea.clientWidth || 300;
                     const ch = chartArea.clientHeight || 200;
 
+                    // Dynamic scaling rules based on density
+                    let currentSize = STICKER_SIZE;
+                    let currentPerc = HITBOX_PERC;
+                    if (filtered.length > 10) {
+                        currentSize = STICKER_SIZE * 0.8; // 80% size
+                        currentPerc = HITBOX_PERC * 0.85; // Less collision distance = Higher overlap
+                    } else if (filtered.length > 5) {
+                        currentSize = STICKER_SIZE * 0.9; // 90% size
+                        currentPerc = HITBOX_PERC * 1.0;
+                    }
+
                     filtered.forEach((e) => {
                         const el = document.createElement('div');
                         el.className = 'sticker-layer';
+
+                        // Override css default with dynamic size
+                        el.style.width = currentSize + 'px';
+                        el.style.height = currentSize + 'px';
 
                         if (e.sticker) {
                             el.innerHTML = `<img src="${e.sticker}" alt="" class="sticker-img">`;
@@ -1363,12 +1380,12 @@ let currentUser = null;
                         container.appendChild(el);
 
                         // Random start pos within bounds
-                        const startX = Math.random() * (cw - STICKER_SIZE);
-                        const startY = Math.random() * (ch - STICKER_SIZE);
+                        const startX = Math.random() * (cw - currentSize);
+                        const startY = Math.random() * (ch - currentSize);
                         // Tilt angle bounded by MAX_TILT_ANGLE constant instead of hardcoded 30
                         const rotate = Math.floor(Math.random() * (MAX_TILT_ANGLE * 2)) - MAX_TILT_ANGLE;
 
-                        stickerPhysics.add(el, startX, startY, rotate);
+                        stickerPhysics.add(el, startX, startY, rotate, currentSize, currentPerc);
                     });
                 }
             }
