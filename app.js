@@ -833,6 +833,91 @@ let currentUser = null;
             setTimeout(() => toast.classList.remove('show'), 1500);
         }
 
+        // ============================================================
+        // COFFEE LIST RENDERING & SWIPE ACTIONS
+        // ============================================================
+        let deleteTargetId = null;
+        let deleteTargetIdx = null;
+        const modalConfirmDelete = document.getElementById('modal-confirm-delete');
+        const btnCancelDelete = document.getElementById('btn-cancel-delete');
+        const btnConfirmDelete = document.getElementById('btn-confirm-delete');
+
+        if (btnCancelDelete) btnCancelDelete.addEventListener('click', () => closeSheet(modalConfirmDelete));
+        if (btnConfirmDelete) btnConfirmDelete.addEventListener('click', async () => {
+            if (deleteTargetId || deleteTargetIdx !== null) {
+                await executeDelete(deleteTargetId, deleteTargetIdx);
+                closeSheet(modalConfirmDelete);
+            }
+        });
+
+        function openDeleteConfirm(id, idx) {
+            deleteTargetId = id;
+            deleteTargetIdx = idx;
+            openSheet(modalConfirmDelete);
+        }
+
+        async function executeDelete(id, idx) {
+            if (currentUser && id && typeof id === 'string' && id.length > 5) {
+                const { error } = await supabase.from('coffee_entries').delete().eq('id', id);
+                if (!error) {
+                    const findIdx = coffeeEntries.findIndex(e => e.id === id);
+                    if (findIdx !== -1) coffeeEntries.splice(findIdx, 1);
+                } else {
+                    console.error('Delete error', error.message);
+                }
+            } else if (idx !== null) {
+                coffeeEntries.splice(idx, 1);
+            }
+            renderTodayCoffee();
+            updateCalendarStickers();
+            updateStatistics();
+        }
+
+        function createCoffeeItemRow(entry, idx) {
+            const tempIcon = entry.temp === 'Hot' ? '♨️' : '🧊';
+            const stickerHtml = entry.sticker
+                ? `<img src="${entry.sticker}" alt="sticker" class="coffee-item-sticker">`
+                : `<span class="coffee-item-emoji">${entry.emoji || '☕'}</span>`;
+
+            const rowHtml = `
+            <div class="swipe-container">
+                <div class="swipe-content coffee-item-card" data-idx="${idx}">
+                    <div class="coffee-item-info">
+                        <div class="coffee-item-icon">${stickerHtml}</div>
+                        <div class="coffee-item-text">
+                            <h3>${entry.type} ${tempIcon}</h3>
+                            <p>${entry.size} • ${entry.time}</p>
+                        </div>
+                    </div>
+                    ${entry.price ? `<div class="coffee-item-price">${entry.price}</div>` : ''}
+                </div>
+                <div class="swipe-actions">
+                    <button class="action-btn share-btn"><i class="ph ph-export"></i><span>Share</span></button>
+                    <button class="action-btn delete-btn" data-id="${entry.id || ''}" data-idx="${idx}"><i class="ph ph-trash"></i><span>Delete</span></button>
+                </div>
+            </div>`;
+
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = rowHtml.trim();
+            const container = tempDiv.firstChild;
+
+            // Initialize Swipe
+            const content = container.querySelector('.swipe-content');
+            initSwipe(content);
+
+            // Delete Event
+            container.querySelector('.delete-btn').addEventListener('click', () => {
+                openDeleteConfirm(entry.id, idx);
+            });
+
+            // Share Event (Placeholder)
+            container.querySelector('.share-btn').addEventListener('click', () => {
+                alert('Share functionality coming soon!');
+            });
+
+            return container;
+        }
+
         function renderTodayCoffee() {
             if (!todayCoffeeList) return;
             const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -843,52 +928,12 @@ let currentUser = null;
             const pastCoffees = allWithIdx.filter(e => e.date_string && e.date_string !== todayStr);
 
             // --- TODAY ---
+            todayCoffeeList.innerHTML = '';
             if (todaysCoffees.length === 0) {
                 todayCoffeeList.innerHTML = `<div class="card empty-state-card"><div class="empty-state-icon">☕</div><p class="empty-state-text">None, take a sip!</p></div>`;
             } else {
-                todayCoffeeList.innerHTML = '';
                 todaysCoffees.forEach((entry) => {
-                    const tempIcon = entry.temp === 'Hot' ? '♨️' : '🧊';
-                    const stickerHtml = entry.sticker
-                        ? `<img src="${entry.sticker}" alt="sticker" class="coffee-item-sticker">`
-                        : `<span class="coffee-item-emoji">${entry.emoji || '☕'}</span>`;
-
-                    todayCoffeeList.insertAdjacentHTML('beforeend', `
-                    <div class="swipe-container">
-                        <div class="swipe-content coffee-item-card" data-idx="${entry.originalIdx}">
-                            <div class="coffee-item-info">
-                                <div class="coffee-item-icon">${stickerHtml}</div>
-                                <div class="coffee-item-text">
-                                    <h3>${entry.type} ${tempIcon}</h3>
-                                    <p>${entry.size} • ${entry.time}</p>
-                                </div>
-                            </div>
-                            ${entry.price ? `<div class="coffee-item-price">${entry.price}</div>` : ''}
-                        </div>
-                        <div class="swipe-actions">
-                            <button class="action-btn share-btn"><i class="ph ph-export"></i><span>Share</span></button>
-                            <button class="action-btn delete-btn" data-del="${entry.id || entry.originalIdx}"><i class="ph ph-trash"></i><span>Delete</span></button>
-                        </div>
-                    </div>`);
-                });
-                todayCoffeeList.querySelectorAll('.swipe-content').forEach(initSwipe);
-                todayCoffeeList.querySelectorAll('.delete-btn').forEach(btn => {
-                    btn.addEventListener('click', async () => {
-                        const delId = btn.dataset.del;
-                        if (currentUser && typeof delId === 'string' && delId.length > 5) {
-                            const { error } = await supabase.from('coffee_entries').delete().eq('id', delId);
-                            if (!error) {
-                                const idx = coffeeEntries.findIndex(e => e.id === delId);
-                                if (idx !== -1) coffeeEntries.splice(idx, 1);
-                            } else {
-                                console.error('Delete error', error.message);
-                            }
-                        } else {
-                            coffeeEntries.splice(parseInt(delId), 1);
-                        }
-                        renderTodayCoffee();
-                        updateCalendarStickers();
-                    });
+                    todayCoffeeList.appendChild(createCoffeeItemRow(entry, entry.originalIdx));
                 });
             }
 
@@ -914,21 +959,7 @@ let currentUser = null;
                 pastCoffeeList.insertAdjacentHTML('beforeend', `<div class="past-date-header">${header}</div>`);
 
                 grouped[dateStr].forEach(entry => {
-                    const tempIcon = entry.temp === 'Hot' ? '♨️' : '🧊';
-                    const stickerHtml = entry.sticker
-                        ? `<img src="${entry.sticker}" alt="sticker" class="coffee-item-sticker">`
-                        : `<span class="coffee-item-emoji">${entry.emoji || '☕'}</span>`;
-                    pastCoffeeList.insertAdjacentHTML('beforeend', `
-                        <div class="card coffee-item-card" style="margin-bottom:10px;">
-                            <div class="coffee-item-info">
-                                <div class="coffee-item-icon">${stickerHtml}</div>
-                                <div class="coffee-item-text">
-                                    <h3>${entry.type} ${tempIcon}</h3>
-                                    <p>${entry.size} • ${entry.time}</p>
-                                </div>
-                            </div>
-                            ${entry.price ? `<div class="coffee-item-price">${entry.price}</div>` : ''}
-                        </div>`);
+                    pastCoffeeList.appendChild(createCoffeeItemRow(entry, entry.originalIdx));
                 });
             });
         }
@@ -1030,7 +1061,9 @@ let currentUser = null;
             dayOverlaySub.textContent = dayNames[date.getDay()];
 
             const dateStr = date.toDateString();
-            const dayCoffees = coffeeEntries.filter(e => e.date_string === dateStr);
+            const dayCoffees = coffeeEntries
+                .map((e, idx) => ({ ...e, originalIdx: idx }))
+                .filter(e => e.date_string === dateStr);
             dayOverlayCupCount.textContent = `${dayCoffees.length} Cup${dayCoffees.length !== 1 ? 's' : ''}`;
 
             dayOverlayRecords.innerHTML = '';
@@ -1038,21 +1071,7 @@ let currentUser = null;
                 dayOverlayRecords.innerHTML = '<div class="card empty-state-card"><div class="empty-state-icon">☕</div><p class="empty-state-text">No records yet</p></div>';
             } else {
                 dayCoffees.forEach(entry => {
-                    const tempIcon = entry.temp === 'Hot' ? '♨️' : '🧊';
-                    const stickerHtml = entry.sticker
-                        ? `<img src="${entry.sticker}" alt="sticker" class="coffee-item-sticker">`
-                        : `<span class="coffee-item-emoji">${entry.emoji || '☕'}</span>`;
-                    dayOverlayRecords.insertAdjacentHTML('beforeend', `
-                        <div class="card coffee-item-card" style="margin-bottom:10px;">
-                            <div class="coffee-item-info">
-                                <div class="coffee-item-icon">${stickerHtml}</div>
-                                <div class="coffee-item-text">
-                                    <h3>${entry.type} ${tempIcon}</h3>
-                                    <p>${entry.size} • ${entry.time}</p>
-                                </div>
-                            </div>
-                            ${entry.price ? `<div class="coffee-item-price">${entry.price}</div>` : ''}
-                        </div>`);
+                    dayOverlayRecords.appendChild(createCoffeeItemRow(entry, entry.originalIdx));
                 });
             }
 
