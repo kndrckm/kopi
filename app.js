@@ -25,10 +25,10 @@ let currentUser = null;
         // Fine-tune wall bounding per-side. Higher number means it can bleed further off-screen.
         // Negative number means it bounces before reaching the wall.
         const WALL_BLEED = {
-            top: 50,        // Less top bleed so stickers don't get cut
-            bottom: -20,    // Negative prevents drowning at bottom card edge
-            left: 100,      // Higher left/right allows the visual cup edge to touch the wall
-            right: 100
+            top: 10,        // Less top bleed so stickers don't get cut
+            bottom: -5,    // Negative prevents drowning at bottom card edge
+            left: 20,      // Higher left/right allows the visual cup edge to touch the wall
+            right: 20
         };
 
         const stickerPhysics = {
