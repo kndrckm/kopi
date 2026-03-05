@@ -18,6 +18,7 @@ let currentUser = null;
         let selectedType = 'Americano';
         let selectedSize = 'Small';
         let selectedTemp = 'Iced';
+        let parallaxInstance = null;
 
         // Setup Auth Listener
         supabase.auth.onAuthStateChange((event, session) => {
@@ -1064,6 +1065,7 @@ let currentUser = null;
                 }
                 updateStatsSubtitle();
                 updateStatistics();
+                requestDeviceOrientation();
             });
         });
 
@@ -1122,22 +1124,50 @@ let currentUser = null;
                 });
             }
 
-            // Stickers display
+            // Stickers display — Gyroscope Parallax Scene
             const chartArea = document.getElementById('stats-chart-area');
             if (chartArea) {
+                // Destroy previous instance
+                if (parallaxInstance) {
+                    parallaxInstance.destroy();
+                    parallaxInstance = null;
+                }
+
                 if (filtered.length === 0) {
-                    chartArea.innerHTML = '<div class="stickers-display"><p style="color:var(--text-muted);font-size:14px;">No coffee yet</p></div>';
+                    chartArea.innerHTML = '<div class="stickers-display"><p style="color:var(--text-muted);font-size:14px;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);">No coffee yet</p></div>';
                 } else {
-                    let html = '<div class="stickers-display">';
-                    filtered.forEach(e => {
+                    let html = '<div class="stickers-display" id="parallax-scene">';
+                    filtered.forEach((e, idx) => {
+                        // Randomize position and depth
+                        const depth = (0.1 + Math.random() * 0.9).toFixed(1);
+                        const top = Math.floor(Math.random() * 60) + 10; // 10% - 70%
+                        const left = Math.floor(Math.random() * 70) + 5; // 5% - 75%
+                        const rotate = Math.floor(Math.random() * 40) - 20; // -20deg to 20deg
+
+                        html += `<div class="sticker-layer" data-depth="${depth}" style="top:${top}%; left:${left}%; transform: rotate(${rotate}deg);">`;
                         if (e.sticker) {
-                            html += `<img src="${e.sticker}" alt="">`;
+                            html += `<img src="${e.sticker}" alt="" class="sticker-img">`;
                         } else {
                             html += `<span class="sticker-emoji">${e.emoji || '☕'}</span>`;
                         }
+                        html += `</div>`;
                     });
                     html += '</div>';
                     chartArea.innerHTML = html;
+
+                    // Initialize Parallax
+                    const scene = document.getElementById('parallax-scene');
+                    if (scene && typeof Parallax !== 'undefined') {
+                        parallaxInstance = new Parallax(scene, {
+                            relativeInput: true,
+                            clipRelativeInput: false,
+                            hoverOnly: false,
+                            frictionX: 0.1,
+                            frictionY: 0.1,
+                            scalarX: 10.0,
+                            scalarY: 10.0
+                        });
+                    }
                 }
             }
 
@@ -1546,6 +1576,18 @@ let currentUser = null;
                 document.getElementById('current-lang').textContent = lang;
             });
         });
+        async function requestDeviceOrientation() {
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                try {
+                    const permission = await DeviceOrientationEvent.requestPermission();
+                    if (permission === 'granted') {
+                        console.log('DeviceOrientation permission granted');
+                    }
+                } catch (error) {
+                    console.error('DeviceOrientation permission error:', error);
+                }
+            }
+        }
     } catch (err) {
         console.error('App initialization error:', err);
     }

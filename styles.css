@@ -664,6 +664,38 @@ p {
 .chart-placeholder-card {
     height: 200px;
     position: relative;
+    overflow: hidden;
+    background: var(--md-sys-color-surface-container-low, #f6efe8);
+}
+
+.stickers-display {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.sticker-layer {
+    position: absolute !important;
+    width: 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sticker-emoji {
+    font-size: 48px;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+}
+
+.sticker-img {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
 }
 
 .floating-coffee-img {
@@ -769,6 +801,7 @@ p {
 
 .slider {
     -webkit-appearance: none;
+    appearance: none;
     width: 100%;
     height: 6px;
     border-radius: 3px;
