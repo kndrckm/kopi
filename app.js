@@ -1058,9 +1058,10 @@ let currentUser = null;
                     <div class="coffee-item-info">
                         <div class="coffee-item-icon">${stickerHtml}</div>
                         <div class="coffee-item-text">
-                            <h3>${entry.type} ${tempIcon} ${favHtml}</h3>
+                            <h3>${entry.type} ${tempIcon}</h3>
                             <p>${entry.size} • ${entry.time}</p>
                         </div>
+                        ${favHtml}
                     </div>
                     ${entry.price ? `<div class="coffee-item-price">${entry.price}</div>` : ''}
                 </div>
