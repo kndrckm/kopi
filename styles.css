@@ -581,23 +581,20 @@ p {
 
 .favorite-icon {
     color: var(--primary-color);
-    font-size: 24px;
-    /* Enlarged to roughly match the height of both lines combined */
+    font-size: 36px;
     position: absolute;
-    right: 16px;
-    /* Align to the right edge */
+    right: 0;
     top: 50%;
     transform: translateY(-50%);
-    /* Perfectly vertically centered */
 }
 
-/* Ensure the info container allows absolute positioning inside the card */
 .coffee-item-info {
     display: flex;
     align-items: center;
     width: 100%;
-    padding-right: 32px;
-    /* Prevent text from overlapping the heart */
+    position: relative;
+    padding-right: 42px;
+    /* Prevent text from overlapping the enlarged heart */
 }
 
 .coffee-item-icon {
