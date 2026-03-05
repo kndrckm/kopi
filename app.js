@@ -20,6 +20,7 @@ let currentUser = null;
         let selectedTemp = 'Iced';
         let editingCoffeeId = null;
         let editingCoffeeIdx = null;
+        let currentPeriod = 'week';
         const STICKER_SIZE = 100; // Manual size control
         const HITBOX_PERC = 0.65; // Hitbox radius scalar
         const MAX_TILT_ANGLE = 15; // 👈 Change this to easily limit how tilted stickers get (in degrees)
@@ -1593,8 +1594,6 @@ let currentUser = null;
                 statTabIndicator.style.width = `${activeTab.offsetWidth}px`;
             }
         }, 50);
-
-        let currentPeriod = 'week';
 
         tabBtns.forEach(btn => {
             btn.addEventListener('click', () => {
