@@ -3,7 +3,7 @@
 // ============================================================
 
 // Add white sticker outline around a transparent-bg image
-async function addWhiteOutline(blob, outlineWidth = 8) {
+async function addWhiteOutline(blob, outlineWidth = 15) {
     const bmpUrl = URL.createObjectURL(blob);
     return new Promise((resolve) => {
         const img = new Image();

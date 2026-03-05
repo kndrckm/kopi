@@ -340,7 +340,7 @@ p {
 
 .calendar-days-header span.weekend {
     color: var(--primary-color);
-    font-weight: 700;
+    font-weight: 800;
 }
 
 .calendar-grid {
@@ -665,6 +665,8 @@ p {
     height: 200px;
     position: relative;
     overflow: hidden;
+    padding: 0;
+    /* Override .card padding so physics container fills the entire visible card */
     background: var(--md-sys-color-surface-container-low, #f6efe8);
 }
 
@@ -674,16 +676,30 @@ p {
     left: 0;
     width: 100%;
     height: 100%;
+    overflow: hidden;
     pointer-events: none;
 }
 
 .sticker-layer {
-    position: absolute !important;
-    width: 80px;
-    height: 80px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100px;
+    /* Match STICKER_SIZE in JS */
+    height: 100px;
     display: flex;
     align-items: center;
     justify-content: center;
+    pointer-events: none;
+    will-change: transform;
+}
+
+.sticker-layer img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    transform: scale(1.1);
+    /* Minor zoom to fill gaps from trimmed transparency */
 }
 
 .sticker-emoji {
@@ -691,9 +707,14 @@ p {
     filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
 }
 
+.sticker-layer .sticker-emoji {
+    font-size: 50px;
+    user-select: none;
+}
+
 .sticker-img {
-    width: 80px;
-    height: 80px;
+    width: 100%;
+    height: 100%;
     object-fit: contain;
     filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
 }
@@ -887,7 +908,7 @@ input:checked+.slider-toggle:before {
 
 /* ========== BOTTOM SHEET SYSTEM ========== */
 .modal-view {
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
     width: 100%;
@@ -2115,42 +2136,7 @@ input:checked+.slider-toggle:before {
     margin-left: auto;
 }
 
-.stickers-display {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    min-height: 200px;
-    overflow: hidden;
-}
-
-.sticker-layer {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100px;
-    /* Match STICKER_SIZE */
-    height: 100px;
-    /* Match STICKER_SIZE */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none;
-    will-change: transform;
-}
-
-.sticker-layer img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    /* Keeps ratio intact */
-    transform: scale(1.1);
-    /* Minor zoom to eliminate container padding gaps */
-}
-
-.sticker-layer .sticker-emoji {
-    font-size: 50px;
-    user-select: none;
-}
+/* Sticker layer styles consolidated above in .chart-placeholder-card section */
 
 /* DELETE CONFIRMATION */
 .confirm-delete-card {
@@ -2209,6 +2195,168 @@ input:checked+.slider-toggle:before {
     padding: 14px;
     border-radius: 12px;
     font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* ========== SHARE CARD ========== */
+.share-sheet-content {
+    align-items: center;
+    justify-content: center;
+    max-height: 100%;
+    height: 100%;
+    padding: 40px 24px 32px;
+    gap: 24px;
+}
+
+.share-card-wrapper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+.share-card-preview {
+    background: var(--md-sys-color-surface-container-low, #f6efe8);
+    border-radius: 20px;
+    padding: 24px;
+    width: 100%;
+    max-width: 320px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+}
+
+.share-card-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    width: 100%;
+    margin-bottom: 8px;
+}
+
+.share-card-date {
+    display: flex;
+    flex-direction: column;
+}
+
+#share-card-date {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-main);
+    letter-spacing: 0.5px;
+}
+
+.share-card-day {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.share-card-temp {
+    font-size: 13px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.share-card-name {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--primary-color);
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin: 8px 0 12px;
+}
+
+.share-card-sticker {
+    width: 180px;
+    height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 8px 0 16px;
+}
+
+.share-card-sticker img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.share-card-sticker .share-sticker-emoji {
+    font-size: 100px;
+}
+
+.share-card-stats {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    width: 100%;
+    padding-top: 16px;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.share-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.share-stat-value {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--primary-color);
+    text-transform: lowercase;
+}
+
+.share-stat-label {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+}
+
+.share-stat-divider {
+    width: 1px;
+    height: 32px;
+    background: rgba(0, 0, 0, 0.08);
+}
+
+.share-card-actions {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+    max-width: 320px;
+}
+
+.btn-share-cancel {
+    flex: 1;
+    background: #E8E4E0;
+    color: var(--text-main);
+    border: none;
+    padding: 16px;
+    border-radius: 16px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-share-submit {
+    flex: 1.5;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 16px;
+    border-radius: 16px;
+    font-size: 15px;
     font-weight: 600;
     cursor: pointer;
 }

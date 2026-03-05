@@ -1025,12 +1025,223 @@ let currentUser = null;
                 openDeleteConfirm(entry.id, idx);
             });
 
-            // Share Event (Placeholder)
+            // Share Event
             container.querySelector('.share-btn').addEventListener('click', () => {
-                alert('Share functionality coming soon!');
+                openShareCard(entry);
             });
 
             return container;
+        }
+
+        // ============================================================
+        // SHARE CARD
+        // ============================================================
+        const modalShareCard = document.getElementById('modal-share-card');
+        const btnShareCancel = document.getElementById('btn-share-cancel');
+        const btnShareSubmit = document.getElementById('btn-share-submit');
+
+        function openShareCard(entry) {
+            if (!modalShareCard) return;
+
+            const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+            // Parse the date
+            const d = entry.date_string ? new Date(entry.date_string) : new Date();
+            const dateStr = `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear()}`;
+            const dayStr = DAYS[d.getDay()];
+
+            // Populate the card
+            document.getElementById('share-card-date').textContent = dateStr;
+            document.getElementById('share-card-day').textContent = dayStr;
+            document.getElementById('share-card-name').textContent = entry.type || 'Coffee';
+
+            // Temp icon
+            const tempIcon = entry.temp === 'Hot' ? '♨️' : '🧊';
+            document.getElementById('share-card-temp').textContent = `${tempIcon} ${entry.temp || 'Iced'}`;
+
+            // Sticker or emoji
+            const stickerEl = document.getElementById('share-card-sticker');
+            if (entry.sticker) {
+                stickerEl.innerHTML = `<img src="${entry.sticker}" alt="sticker" crossorigin="anonymous">`;
+            } else {
+                stickerEl.innerHTML = `<span class="share-sticker-emoji">${entry.emoji || '☕'}</span>`;
+            }
+
+            // Stats
+            document.getElementById('share-card-size').textContent = entry.size || 'Medium';
+            document.getElementById('share-card-temperature').textContent = entry.temp || 'Iced';
+
+            openSheet(modalShareCard);
+        }
+
+        if (btnShareCancel) {
+            btnShareCancel.addEventListener('click', () => {
+                closeSheet(modalShareCard);
+                switchView('view-calendar');
+            });
+        }
+
+        if (btnShareSubmit) {
+            btnShareSubmit.addEventListener('click', async () => {
+                try {
+                    btnShareSubmit.disabled = true;
+                    btnShareSubmit.textContent = 'Generating...';
+
+                    const preview = document.getElementById('share-card-preview');
+                    const blob = await renderShareCardToBlob(preview);
+
+                    if (navigator.share && navigator.canShare) {
+                        const file = new File([blob], 'coffee-share.jpg', { type: 'image/jpeg' });
+                        if (navigator.canShare({ files: [file] })) {
+                            await navigator.share({
+                                files: [file],
+                                title: 'My Coffee',
+                            });
+                        } else {
+                            downloadBlob(blob, 'coffee-share.jpg');
+                        }
+                    } else {
+                        downloadBlob(blob, 'coffee-share.jpg');
+                    }
+                } catch (err) {
+                    if (err.name !== 'AbortError') console.error('Share error:', err);
+                } finally {
+                    btnShareSubmit.disabled = false;
+                    btnShareSubmit.textContent = 'Share';
+                }
+            });
+        }
+
+        function downloadBlob(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        async function renderShareCardToBlob(previewEl) {
+            const scale = 2; // retina quality
+            const cardW = previewEl.offsetWidth;
+            const cardH = previewEl.offsetHeight;
+            const canvas = document.createElement('canvas');
+            canvas.width = cardW * scale;
+            canvas.height = cardH * scale;
+            const ctx = canvas.getContext('2d');
+            ctx.scale(scale, scale);
+
+            // Background
+            ctx.fillStyle = '#f6efe8';
+            roundRect(ctx, 0, 0, cardW, cardH, 20);
+            ctx.fill();
+
+            // Date
+            const dateText = document.getElementById('share-card-date').textContent;
+            const dayText = document.getElementById('share-card-day').textContent;
+            ctx.fillStyle = '#1C1B1E';
+            ctx.font = '700 14px -apple-system, BlinkMacSystemFont, sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText(dateText, 24, 36);
+            ctx.fillStyle = '#8B8680';
+            ctx.font = '400 12px -apple-system, BlinkMacSystemFont, sans-serif';
+            ctx.fillText(dayText, 24, 52);
+
+            // Temperature (right side)
+            const tempText = document.getElementById('share-card-temp').textContent;
+            ctx.fillStyle = '#8B8680';
+            ctx.font = '400 13px -apple-system, BlinkMacSystemFont, sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText(tempText, cardW - 24, 36);
+
+            // Coffee Name
+            const nameText = document.getElementById('share-card-name').textContent;
+            ctx.fillStyle = '#8B7355';
+            ctx.font = '800 28px -apple-system, BlinkMacSystemFont, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(nameText.toUpperCase(), cardW / 2, 90);
+
+            // Sticker image
+            const stickerEl = document.getElementById('share-card-sticker');
+            const stickerImg = stickerEl.querySelector('img');
+            const stickerEmoji = stickerEl.querySelector('.share-sticker-emoji');
+
+            const stickerY = 105;
+            const stickerSize = 170;
+
+            if (stickerImg && stickerImg.complete && stickerImg.naturalWidth > 0) {
+                const imgRatio = stickerImg.naturalWidth / stickerImg.naturalHeight;
+                let drawW, drawH;
+                if (imgRatio > 1) {
+                    drawW = stickerSize;
+                    drawH = stickerSize / imgRatio;
+                } else {
+                    drawH = stickerSize;
+                    drawW = stickerSize * imgRatio;
+                }
+                ctx.drawImage(stickerImg, (cardW - drawW) / 2, stickerY + (stickerSize - drawH) / 2, drawW, drawH);
+            } else if (stickerEmoji) {
+                ctx.font = '100px serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(stickerEmoji.textContent, cardW / 2, stickerY + stickerSize * 0.75);
+            }
+
+            // Divider line
+            const dividerY = stickerY + stickerSize + 24;
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.06)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(24, dividerY);
+            ctx.lineTo(cardW - 24, dividerY);
+            ctx.stroke();
+
+            // Stats: Size
+            const sizeText = document.getElementById('share-card-size').textContent;
+            const tempStatText = document.getElementById('share-card-temperature').textContent;
+            const statsY = dividerY + 28;
+
+            // Left stat: Size
+            ctx.fillStyle = '#8B7355';
+            ctx.font = '700 15px -apple-system, BlinkMacSystemFont, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(sizeText.toLowerCase(), cardW * 0.3, statsY);
+            ctx.fillStyle = '#8B8680';
+            ctx.font = '600 9px -apple-system, BlinkMacSystemFont, sans-serif';
+            ctx.fillText('SIZE', cardW * 0.3, statsY + 16);
+
+            // Center divider
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(cardW / 2, statsY - 16);
+            ctx.lineTo(cardW / 2, statsY + 16);
+            ctx.stroke();
+
+            // Right stat: Temp
+            ctx.fillStyle = '#8B7355';
+            ctx.font = '700 15px -apple-system, BlinkMacSystemFont, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(tempStatText.toLowerCase(), cardW * 0.7, statsY);
+            ctx.fillStyle = '#8B8680';
+            ctx.font = '600 9px -apple-system, BlinkMacSystemFont, sans-serif';
+            ctx.fillText('TEMPERATURE', cardW * 0.7, statsY + 16);
+
+            return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+        }
+
+        function roundRect(ctx, x, y, w, h, r) {
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + w - r, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+            ctx.lineTo(x + w, y + h - r);
+            ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            ctx.lineTo(x + r, y + h);
+            ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
+            ctx.closePath();
         }
 
         function renderTodayCoffee() {
