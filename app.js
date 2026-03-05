@@ -357,12 +357,16 @@ let currentUser = null;
         // ============================================================
         const sheetStack = []; // tracks open sheets for stacking
 
-        function openSheet(el) {
+        function openSheet(el, options = {}) {
             if (!el) return;
             // Stack: mark previous top sheet as stacked
             if (sheetStack.length > 0) {
                 const prev = sheetStack[sheetStack.length - 1];
                 prev.classList.add('stacked');
+                // If noStack, prevent the parent from visually scaling down
+                if (options.noStack) {
+                    prev.classList.add('no-stack');
+                }
             }
             sheetStack.push(el);
             // Update z-index so newer sheets are on top
@@ -385,7 +389,9 @@ let currentUser = null;
             if (idx > -1) sheetStack.splice(idx, 1);
             // Unstack the new top sheet
             if (sheetStack.length > 0) {
-                sheetStack[sheetStack.length - 1].classList.remove('stacked');
+                const top = sheetStack[sheetStack.length - 1];
+                top.classList.remove('stacked');
+                top.classList.remove('no-stack');
             }
             el.style.zIndex = '';
         }
@@ -541,7 +547,7 @@ let currentUser = null;
             pickerSelectedDtHour = selectedDateTime.getHours();
             pickerSelectedDtMinute = selectedDateTime.getMinutes();
             buildDtPicker();
-            openSheet(dtPickerOverlay);
+            openSheet(dtPickerOverlay, { noStack: true });
         });
 
         if (btnDtPickerDone) btnDtPickerDone.addEventListener('click', () => {
@@ -568,12 +574,6 @@ let currentUser = null;
             const grid = document.querySelector('.coffee-type-grid');
             if (!grid) return;
             grid.innerHTML = '';
-            // Make scrollable if >6 types (including +Others)
-            if (coffeeTypes.length >= 6) {
-                grid.classList.add('scrollable');
-            } else {
-                grid.classList.remove('scrollable');
-            }
             coffeeTypes.forEach((t, i) => {
                 const div = document.createElement('div');
                 div.className = 'type-card-lg' + (t.name === selectedType ? ' active' : '');
@@ -976,14 +976,28 @@ let currentUser = null;
                 });
             }
 
-            // Set selected date for Add a Cup
-            btnAddCupOverlay.onclick = () => {
-                selectedDateTime = date;
-                closeSheet(dayOverlayWrapper);
-                updateAddCoffeeDateTime();
-                rebuildTypeGrid();
-                openSheet(modalAddCoffee);
-            };
+            // Hide Add a Cup for future dates
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const compareDate = new Date(date);
+            compareDate.setHours(0, 0, 0, 0);
+            const isFuture = compareDate > today;
+
+            if (btnAddCupOverlay) {
+                btnAddCupOverlay.style.display = isFuture ? 'none' : '';
+            }
+
+            // Set selected date for Add a Cup (use selected date with current time)
+            if (!isFuture) {
+                btnAddCupOverlay.onclick = () => {
+                    const now = new Date();
+                    selectedDateTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), now.getHours(), now.getMinutes());
+                    closeSheet(dayOverlayWrapper);
+                    updateAddCoffeeDateTimeDisplay();
+                    rebuildTypeGrid();
+                    openSheet(modalAddCoffee);
+                };
+            }
 
             // Show overlay
             openSheet(dayOverlayWrapper);
@@ -1011,7 +1025,7 @@ let currentUser = null;
             }
         }, 50);
 
-        let currentPeriod = 'month';
+        let currentPeriod = 'week';
 
         tabBtns.forEach(btn => {
             btn.addEventListener('click', () => {
@@ -1151,31 +1165,36 @@ let currentUser = null;
             // Daily Cups bar chart
             const dailyChart = document.getElementById('daily-cups-chart');
             if (dailyChart) {
-                const dayLabels = currentPeriod === 'week'
-                    ? ['S', 'M', 'T', 'W', 'T', 'F', 'S']
-                    : currentPeriod === 'month'
-                        ? Array.from({ length: new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() }, (_, i) => i + 1)
-                        : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-                const dayCounts = new Array(dayLabels.length).fill(0);
+                let dayLabels, dayCounts;
 
                 if (currentPeriod === 'week') {
-                    const dayOfWeek = now.getDay();
-                    const weekStart = new Date(now);
-                    weekStart.setDate(now.getDate() - dayOfWeek);
-                    weekStart.setHours(0, 0, 0, 0);
+                    // Week: 7 daily bars (S M T W T F S)
+                    dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+                    dayCounts = new Array(7).fill(0);
                     filtered.forEach(e => {
                         const d = new Date(e.date_string);
                         const idx = d.getDay();
                         if (idx >= 0 && idx < 7) dayCounts[idx]++;
                     });
                 } else if (currentPeriod === 'month') {
+                    // Month: group by weeks (W1, W2, ... W4-6)
+                    const selMonth = typeof pickerSelectedMonth !== 'undefined' ? pickerSelectedMonth : now.getMonth();
+                    const selYear = typeof pickerSelectedYear !== 'undefined' ? pickerSelectedYear : now.getFullYear();
+                    const firstDayOfMonth = new Date(selYear, selMonth, 1).getDay();
+                    const totalDaysInMonth = new Date(selYear, selMonth + 1, 0).getDate();
+                    const totalWeeks = Math.ceil((firstDayOfMonth + totalDaysInMonth) / 7);
+                    dayLabels = Array.from({ length: totalWeeks }, (_, i) => `W${i + 1}`);
+                    dayCounts = new Array(totalWeeks).fill(0);
                     filtered.forEach(e => {
                         const d = new Date(e.date_string);
-                        const dayIdx = d.getDate() - 1;
-                        if (dayIdx >= 0 && dayIdx < dayCounts.length) dayCounts[dayIdx]++;
+                        const dayOfMonth = d.getDate();
+                        const weekIdx = Math.floor((firstDayOfMonth + dayOfMonth - 1) / 7);
+                        if (weekIdx >= 0 && weekIdx < totalWeeks) dayCounts[weekIdx]++;
                     });
                 } else {
+                    // Year: 12 monthly bars
+                    dayLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                    dayCounts = new Array(12).fill(0);
                     filtered.forEach(e => {
                         const d = new Date(e.date_string);
                         dayCounts[d.getMonth()]++;
@@ -1382,7 +1401,7 @@ let currentUser = null;
             if (newTypeTitle) newTypeTitle.textContent = 'New Coffee Type';
             if (newTypeIconEmoji) newTypeIconEmoji.textContent = newTypeEmoji;
             if (inputNewTypeName) inputNewTypeName.value = '';
-            if (modalNewType) openSheet(modalNewType);
+            if (modalNewType) openSheet(modalNewType, { noStack: true });
         }
 
         function openEditTypeModal(typeObj, fromEditor = false) {
@@ -1391,7 +1410,7 @@ let currentUser = null;
             if (newTypeTitle) newTypeTitle.textContent = 'Edit Coffee Type';
             if (newTypeIconEmoji) newTypeIconEmoji.textContent = typeObj.emoji;
             if (inputNewTypeName) inputNewTypeName.value = typeObj.name;
-            if (modalNewType) openSheet(modalNewType);
+            if (modalNewType) openSheet(modalNewType, { noStack: true });
         }
 
         if (btnCancelNewType) btnCancelNewType.addEventListener('click', () => {
