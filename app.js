@@ -18,6 +18,7 @@ let currentUser = null;
         let selectedType = 'Americano';
         let selectedSize = 'Small';
         let selectedTemp = 'Iced';
+        const STICKER_SIZE = 80; // Manual size control
         const stickerPhysics = {
             particles: [],
             gravity: { x: 0, y: 0 },
@@ -30,9 +31,9 @@ let currentUser = null;
             add(el, x, y, rotation) {
                 this.particles.push({
                     el, x, y, rotation,
-                    vx: (Math.random() - 0.5) * 4,
-                    vy: (Math.random() - 0.5) * 4,
-                    w: 80, h: 80
+                    vx: (Math.random() - 0.5) * 6, // Slightly faster scatter
+                    vy: (Math.random() - 0.5) * 6,
+                    w: STICKER_SIZE, h: STICKER_SIZE
                 });
             },
             clear() {
@@ -56,11 +57,11 @@ let currentUser = null;
                         p.x += p.vx;
                         p.y += p.vy;
 
-                        // Wall collisions
-                        if (p.x < 0) { p.x = 0; p.vx *= -0.5; }
-                        if (p.x > cw - p.w) { p.x = cw - p.w; p.vx *= -0.5; }
-                        if (p.y < 0) { p.y = 0; p.vy *= -0.5; }
-                        if (p.y > ch - p.h) { p.y = ch - p.h; p.vy *= -0.5; }
+                        // Wall collisions (using container bounds)
+                        if (p.x < 0) { p.x = 0; p.vx *= -0.4; }
+                        if (p.x > cw - p.w) { p.x = cw - p.w; p.vx *= -0.4; }
+                        if (p.y < 0) { p.y = 0; p.vy *= -0.4; }
+                        if (p.y > ch - p.h) { p.y = ch - p.h; p.vy *= -0.4; }
 
                         // Inter-particle collisions (Simple Circle-based)
                         for (let j = i + 1; j < this.particles.length; j++) {
@@ -366,7 +367,7 @@ let currentUser = null;
                 const { error } = await supabase.auth.signInWithOAuth({
                     provider: 'google',
                     options: {
-                        redirectTo: window.location.origin + window.location.pathname
+                        redirectTo: window.location.origin + (window.location.pathname.endsWith('/') ? window.location.pathname : window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1))
                     }
                 });
                 if (error) {
@@ -1249,10 +1250,10 @@ let currentUser = null;
 
                         container.appendChild(el);
 
-                        // Random start pos
-                        const startX = Math.random() * (cw - 80);
-                        const startY = Math.random() * (ch - 80);
-                        const rotate = Math.floor(Math.random() * 40) - 20;
+                        // Random start pos within bounds
+                        const startX = Math.random() * (cw - STICKER_SIZE);
+                        const startY = Math.random() * (ch - STICKER_SIZE);
+                        const rotate = Math.floor(Math.random() * 60) - 30;
 
                         stickerPhysics.add(el, startX, startY, rotate);
                     });
