@@ -47,15 +47,10 @@ textarea {
 }
 
 @media (min-width: 431px) {
-    body {
-        background-color: #e5e5e5;
-    }
-
     #app-container {
         max-width: 430px;
         max-height: 932px;
         margin: auto;
-        box-shadow: 0 0 40px rgba(0, 0, 0, 0.1);
     }
 }
 
