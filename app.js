@@ -282,9 +282,16 @@ let currentUser = null;
                     let count = 0;
                     for (const entry of entries) {
                         try {
-                            const url = new URL(entry.sticker);
-                            const pathParts = url.pathname.split('/');
-                            const fileName = pathParts[pathParts.length - 1]; // e.g. UUID.png
+                            // Extract the correct path inside the bucket (e.g., "uid/timestamp.png")
+                            const urlStr = entry.sticker;
+                            const splitKey = 'stickers/';
+                            const splitIndex = urlStr.indexOf(splitKey);
+
+                            if (splitIndex === -1) {
+                                console.warn("Invalid sticker URL:", urlStr);
+                                continue;
+                            }
+                            const relativePath = urlStr.substring(splitIndex + splitKey.length);
 
                             // Load image
                             const img = new Image();
@@ -305,12 +312,12 @@ let currentUser = null;
                             // Convert to Blob
                             const blob = await new Promise(resolve => trimmed.toBlob(resolve, 'image/png'));
 
-                            // Upload & Overwrite
+                            // Upload & Overwrite EXACT path (uid/filename.png)
                             const { error: uploadErr } = await supabase.storage
                                 .from('stickers')
-                                .upload(`public/${fileName}`, blob, { upsert: true, cacheControl: '3600', contentType: 'image/png' });
+                                .upload(relativePath, blob, { upsert: true, cacheControl: '3600', contentType: 'image/png' });
 
-                            if (uploadErr) console.error("Upload Error for", fileName, uploadErr.message);
+                            if (uploadErr) console.error("Upload Error for", relativePath, uploadErr.message);
 
                         } catch (e) {
                             console.error("Error processing entry", entry.id, e);
