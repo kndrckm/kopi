@@ -444,33 +444,38 @@ let currentUser = null;
                 const isActive = btn.dataset.target === viewId;
                 btn.classList.toggle('active', isActive);
                 if (isActive && indicator && !isDraggingNav) {
-                    // Gooey elastic effect
+                    // Gooey elastic effect - Liquid Bubble style
                     const currentLeft = indicator.offsetLeft;
                     const targetLeft = btn.offsetLeft;
                     const distance = Math.abs(targetLeft - currentLeft);
 
                     if (distance > 0) {
-                        // stretch width based on distance
-                        const stretchWidth = 48 + (distance * 0.5);
-                        indicator.style.transition = 'left 0.4s cubic-bezier(0.25, 1, 0.5, 1), width 0.2s ease-in, transform 0.2s';
+                        // stretch width based on distance - more exaggerated for "bubble" feel
+                        const stretchWidth = 52 + (distance * 0.6);
+                        indicator.style.transition = 'left 0.4s cubic-bezier(0.25, 1, 0.5, 1), width 0.2s ease-in, transform 0.2s, border-radius 0.2s';
 
                         // IF moving right, keep left same temporarily and stretch width
                         if (targetLeft > currentLeft) {
                             indicator.style.width = `${stretchWidth}px`;
+                            indicator.style.borderRadius = '26px 40px 40px 26px'; // stretch right
                         } else {
                             // IF moving left, move left immediately but stretch width rightwards
                             indicator.style.left = `${targetLeft}px`;
                             indicator.style.width = `${stretchWidth}px`;
+                            indicator.style.borderRadius = '40px 26px 26px 40px'; // stretch left
                         }
 
                         // Then snap back to original size and target pos
                         setTimeout(() => {
-                            indicator.style.transition = 'left 0.4s cubic-bezier(0.25, 1, 0.5, 1), width 0.3s cubic-bezier(0.25, 1, 0.5, 1), transform 0.2s';
-                            indicator.style.width = '48px';
+                            indicator.style.transition = 'left 0.4s cubic-bezier(0.25, 1, 0.5, 1), width 0.3s cubic-bezier(0.25, 1, 0.5, 1), transform 0.2s, border-radius 0.3s';
+                            indicator.style.width = '52px';
                             indicator.style.left = `${targetLeft}px`;
+                            indicator.style.borderRadius = '26px';
                         }, 150);
                     } else {
                         indicator.style.left = `${targetLeft}px`;
+                        indicator.style.width = '52px';
+                        indicator.style.borderRadius = '26px';
                     }
                 }
             });
@@ -1804,12 +1809,13 @@ let currentUser = null;
                 todayCoffeeList.innerHTML = `
                 <div class="card empty-state-card">
                     <div class="empty-state-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.6; color: var(--text-muted);">
-                            <path d="M17 8h1a4 4 0 1 1 0 8h-1"/>
-                            <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/>
-                            <line x1="6" y1="2" x2="6" y2="4"/>
-                            <line x1="10" y1="2" x2="10" y2="4"/>
-                            <line x1="14" y1="2" x2="14" y2="4"/>
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-muted); opacity: 0.8;">
+                            <path class="steam-path" d="M8 2c0 1 1 1 1 2s-1 1-1 2" style="animation-delay: 0s;"/>
+                            <path class="steam-path" d="M12 1c0 1 1 1 1 2s-1 1-1 2" style="animation-delay: 0.5s;"/>
+                            <path class="steam-path" d="M16 2c0 1 1 1 1 2s-1 1-1 2" style="animation-delay: 1s;"/>
+                            <path d="M5 11h14v8a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3v-8Z"/>
+                            <path d="M19 11h1a3 3 0 0 1 0 6h-1"/>
+                            <path d="M3 11h18"/>
                         </svg>
                     </div>
                     <p class="empty-state-text">No coffee today. Time for a break?</p>

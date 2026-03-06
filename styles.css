@@ -258,7 +258,7 @@ h2 {
 
 h3 {
     font-size: 16px;
-    font-weight: 600;
+    font-weight: 400;
     color: var(--text-main);
     margin-bottom: 2px;
 }
@@ -533,7 +533,7 @@ p {
 .cal-day.today {
     background-color: #e0d5c8;
     color: var(--text-main);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .cal-day.has-coffee {
@@ -631,8 +631,31 @@ p {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--skeleton-bg);
     border-radius: 12px;
+}
+
+.steam-path {
+    stroke-dasharray: 10;
+    stroke-dashoffset: 10;
+    animation: steam 2s infinite linear;
+}
+
+@keyframes steam {
+    0% {
+        stroke-dashoffset: 10;
+        opacity: 0;
+        transform: translateY(0);
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        stroke-dashoffset: -10;
+        opacity: 0;
+        transform: translateY(-4px);
+    }
 }
 
 .empty-state-text {
@@ -723,7 +746,7 @@ p {
 .coffee-item-card .coffee-item-size {
     font-size: 13px;
     color: var(--primary-color);
-    font-weight: 600;
+    font-weight: 400;
 }
 
 .coffee-item-sticker {
@@ -740,7 +763,7 @@ p {
 .method-badge {
     display: inline-block;
     font-size: 10px;
-    font-weight: 700;
+    font-weight: 600;
     padding: 2px 8px;
     border-radius: 8px;
     background: #f0e6dd;
@@ -751,9 +774,16 @@ p {
     letter-spacing: 0.5px;
 }
 
+.history-item-price {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--primary-color);
+    white-space: nowrap;
+}
+
 .coffee-item-price {
     font-size: 16px;
-    font-weight: 700;
+    font-weight: 600;
     color: var(--primary-color);
     white-space: nowrap;
 }
@@ -1707,51 +1737,86 @@ input:checked+.slider-toggle:before {
 
 .nav-pill {
     background: var(--nav-bg);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border-radius: 30px;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 40px;
     display: flex;
-    padding: 8px 16px;
-    gap: 16px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    padding: 6px 12px;
+    gap: 8px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
     align-items: center;
     position: relative;
     touch-action: pan-y;
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .nav-indicator {
     position: absolute;
-    top: 8px;
-    left: 16px;
-    width: 48px;
-    height: 48px;
-    border-radius: 24px;
+    top: 6px;
+    left: 12px;
+    width: 52px;
+    height: 52px;
+    border-radius: 26px;
     background: #f2ede7;
     z-index: 1;
-    transition: left 0.4s cubic-bezier(0.25, 1, 0.5, 1), transform 0.2s;
+    transition: left 0.4s cubic-bezier(0.25, 1, 0.5, 1),
+        width 0.4s cubic-bezier(0.25, 1, 0.5, 1),
+        border-radius 0.4s cubic-bezier(0.25, 1, 0.5, 1),
+        transform 0.2s;
     pointer-events: none;
+    box-shadow: inset 0 0 12px rgba(255, 255, 255, 0.5), 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+:root.dark-mode .nav-indicator {
+    background: rgba(255, 255, 255, 0.12);
+    box-shadow: inset 0 0 8px rgba(255, 255, 255, 0.1);
 }
 
 .nav-indicator.dragging {
-    transition: transform 0.2s;
-    transform: scale(1.15);
+    transition: transform 0.2s, border-radius 0.3s;
+    transform: scale(1.1);
+    border-radius: 40% 60% 50% 50% / 50% 50% 60% 40%;
+    animation: bubbleWobble 3s infinite ease-in-out;
+}
+
+@keyframes bubbleWobble {
+
+    0%,
+    100% {
+        border-radius: 40% 60% 50% 50% / 50% 50% 60% 40%;
+        transform: scale(1.1) rotate(0deg);
+    }
+
+    33% {
+        border-radius: 50% 50% 60% 40% / 40% 60% 50% 50%;
+        transform: scale(1.12) rotate(2deg);
+    }
+
+    66% {
+        border-radius: 60% 40% 50% 50% / 50% 50% 40% 60%;
+        transform: scale(1.08) rotate(-2deg);
+    }
 }
 
 .nav-item {
     background: transparent;
     border: none;
-    width: 48px;
-    height: 48px;
-    border-radius: 24px;
+    width: 52px;
+    height: 52px;
+    border-radius: 26px;
     color: #d1d1d6;
     font-size: 24px;
     display: flex;
     justify-content: center;
     align-items: center;
     cursor: pointer;
-    transition: color 0.3s;
+    transition: color 0.3s, transform 0.2s;
     position: relative;
     z-index: 2;
+}
+
+.nav-item:active {
+    transform: scale(0.9);
 }
 
 .nav-item.active {
@@ -2264,7 +2329,7 @@ input:checked+.slider-toggle:before {
 /* ========== PAST RECORDS SECTION ========== */
 .past-date-header {
     font-size: 16px;
-    font-weight: 700;
+    font-weight: 600;
     color: var(--text-main);
     margin-top: 24px;
     margin-bottom: 12px;
@@ -2279,7 +2344,7 @@ input:checked+.slider-toggle:before {
 
 .section-title h2 {
     font-size: 18px;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 /* ========== SAVE SUCCESS TOAST ========== */
