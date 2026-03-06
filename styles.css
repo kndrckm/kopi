@@ -1245,7 +1245,8 @@ input:checked+.slider-toggle:before {
     position: sticky;
     top: 0;
     z-index: 10;
-    background: rgba(255, 255, 255, 0.75);
+    /* Adjust these rgba values to change the transparency. 0.9 = 90% opaque. 0.0 = fully transparent */
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.9) 60%, rgba(255, 255, 255, 0) 100%);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     padding: 20px 24px;

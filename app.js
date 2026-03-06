@@ -2603,6 +2603,12 @@ let currentUser = null;
         // ============================================================
         // PWA VERSION UPDATER
         // ============================================================
+        const settingsVersionSpan = document.getElementById('settings-app-version');
+        const storedVersion = localStorage.getItem('kopi_app_version');
+        if (settingsVersionSpan && storedVersion) {
+            settingsVersionSpan.textContent = `Version ${storedVersion}`;
+        }
+
         async function checkAppVersion() {
             try {
                 // Fetch directly from network, ignoring Service Worker cache
@@ -2615,6 +2621,11 @@ let currentUser = null;
 
                 const currentVersionVal = localStorage.getItem('kopi_app_version');
                 const newVersionVal = data.version;
+
+                // Update the settings UI dynamically if it's the first time
+                if (settingsVersionSpan) {
+                    settingsVersionSpan.textContent = `Version ${newVersionVal}`;
+                }
 
                 // If no version is stored yet, just set it and return quietly
                 if (!currentVersionVal) {
