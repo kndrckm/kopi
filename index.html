@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Monicoffee">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="styles.css?v=11">
+    <link rel="stylesheet" href="styles.css?v=12">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 </head>
@@ -358,9 +358,9 @@
                     </div>
 
                     <div class="split-row" style="display: flex; gap: 12px; margin-bottom: 24px;">
-                        <!-- Left Maps (60%) -->
+                        <!-- Left Maps (50%) -->
                         <div class="card list-input selectable compact-list-input" id="btn-open-maps"
-                            style="flex: 6; margin-bottom: 0; padding: 16px;">
+                            style="flex: 1; margin-bottom: 0; padding: 16px;">
                             <div class="list-input-left" style="gap: 12px;">
                                 <i class="ph ph-map-pin" style="font-size: 22px; color: var(--primary-color);"></i>
                                 <div>
@@ -371,9 +371,9 @@
                             </div>
                         </div>
 
-                        <!-- Right Date (40%) -->
+                        <!-- Right Date (50%) -->
                         <div class="card list-input selectable compact-list-input" id="btn-open-dt-picker"
-                            style="flex: 4; margin-bottom: 0; padding: 16px;">
+                            style="flex: 1; margin-bottom: 0; padding: 16px;">
                             <div class="list-input-left" style="gap: 12px;">
                                 <i class="ph ph-calendar-blank"
                                     style="font-size: 22px; color: var(--primary-color);"></i>
@@ -599,7 +599,24 @@
         <div id="bottom-nav" class="bottom-nav">
             <div class="nav-pill" id="nav-pill">
                 <div class="nav-indicator" id="nav-indicator"></div>
-                <button class="nav-item active" data-target="view-calendar"><i class="ph-fill ph-coffee"></i></button>
+                <button class="nav-item active" data-target="view-calendar">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <!-- Steam -->
+                        <path class="steam-path" d="M9 2c0 1 1.5 1.5 1.5 2.5s-1.5 1.5-1.5 2.5"
+                            style="animation-delay: 0s;" />
+                        <path class="steam-path" d="M12 1c0 1 1.5 1.5 1.5 2.5s-1.5 1.5-1.5 2.5"
+                            style="animation-delay: 0.5s;" />
+                        <path class="steam-path" d="M15 2c0 1 1.5 1.5 1.5 2.5s-1.5 1.5-1.5 2.5"
+                            style="animation-delay: 1s;" />
+                        <!-- Filled Cup touching saucer at y=19 -->
+                        <path d="M17 8H4v7a4 4 0 0 0 4 4h5a4 4 0 0 0 4-4V8z" fill="currentColor" />
+                        <!-- Handle -->
+                        <path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17" />
+                        <!-- Saucer touching cup -->
+                        <path d="M2 19h17" />
+                    </svg>
+                </button>
                 <button class="nav-item" data-target="view-statistics"><i class="ph-bold ph-chart-line-up"></i></button>
                 <button class="nav-item" data-target="view-settings"><i class="ph-bold ph-gear"></i></button>
             </div>

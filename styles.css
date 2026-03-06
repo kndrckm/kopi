@@ -1739,10 +1739,10 @@ input:checked+.slider-toggle:before {
     background: var(--nav-bg);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border-radius: 40px;
+    border-radius: 46px;
     display: flex;
-    padding: 6px 12px;
-    gap: 8px;
+    padding: 8px 16px;
+    gap: 12px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
     align-items: center;
     position: relative;
@@ -1752,11 +1752,11 @@ input:checked+.slider-toggle:before {
 
 .nav-indicator {
     position: absolute;
-    top: 6px;
-    left: 12px;
-    width: 52px;
-    height: 52px;
-    border-radius: 26px;
+    top: 8px;
+    left: 16px;
+    width: 60px;
+    height: 60px;
+    border-radius: 30px;
     background: #f2ede7;
     z-index: 1;
     transition: left 0.4s cubic-bezier(0.25, 1, 0.5, 1),
@@ -1801,11 +1801,11 @@ input:checked+.slider-toggle:before {
 .nav-item {
     background: transparent;
     border: none;
-    width: 52px;
-    height: 52px;
-    border-radius: 26px;
+    width: 60px;
+    height: 60px;
+    border-radius: 30px;
     color: #d1d1d6;
-    font-size: 24px;
+    font-size: 26px;
     display: flex;
     justify-content: center;
     align-items: center;

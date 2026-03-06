@@ -451,31 +451,31 @@ let currentUser = null;
 
                     if (distance > 0) {
                         // stretch width based on distance - more exaggerated for "bubble" feel
-                        const stretchWidth = 52 + (distance * 0.6);
+                        const stretchWidth = 60 + (distance * 0.6);
                         indicator.style.transition = 'left 0.4s cubic-bezier(0.25, 1, 0.5, 1), width 0.2s ease-in, transform 0.2s, border-radius 0.2s';
 
                         // IF moving right, keep left same temporarily and stretch width
                         if (targetLeft > currentLeft) {
                             indicator.style.width = `${stretchWidth}px`;
-                            indicator.style.borderRadius = '26px 40px 40px 26px'; // stretch right
+                            indicator.style.borderRadius = '30px 46px 46px 30px'; // stretch right
                         } else {
                             // IF moving left, move left immediately but stretch width rightwards
                             indicator.style.left = `${targetLeft}px`;
                             indicator.style.width = `${stretchWidth}px`;
-                            indicator.style.borderRadius = '40px 26px 26px 40px'; // stretch left
+                            indicator.style.borderRadius = '46px 30px 30px 46px'; // stretch left
                         }
 
                         // Then snap back to original size and target pos
                         setTimeout(() => {
                             indicator.style.transition = 'left 0.4s cubic-bezier(0.25, 1, 0.5, 1), width 0.3s cubic-bezier(0.25, 1, 0.5, 1), transform 0.2s, border-radius 0.3s';
-                            indicator.style.width = '52px';
+                            indicator.style.width = '60px';
                             indicator.style.left = `${targetLeft}px`;
-                            indicator.style.borderRadius = '26px';
+                            indicator.style.borderRadius = '30px';
                         }, 150);
                     } else {
                         indicator.style.left = `${targetLeft}px`;
-                        indicator.style.width = '52px';
-                        indicator.style.borderRadius = '26px';
+                        indicator.style.width = '60px';
+                        indicator.style.borderRadius = '30px';
                     }
                 }
             });
