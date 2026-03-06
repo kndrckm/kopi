@@ -28,11 +28,22 @@ let currentUser = null;
         // Fine-tune wall bounding per-side. Higher number means it can bleed further off-screen.
         // Negative number means it bounces before reaching the wall.
         const WALL_BLEED = {
-            top: 10,        // Less top bleed so stickers don't get cut
-            bottom: -5,    // Negative prevents drowning at bottom card edge
-            left: 20,      // Higher left/right allows the visual cup edge to touch the wall
+            top: 10,
+            bottom: -5,
+            left: 20,
             right: 20
         };
+
+        // --- HAPTIC FEEDBACK ---
+        function haptic(type = 'light') {
+            if (!navigator.vibrate) return;
+            switch (type) {
+                case 'light': navigator.vibrate(10); break;
+                case 'medium': navigator.vibrate(15); break;
+                case 'heavy': navigator.vibrate(20); break;
+                case 'success': navigator.vibrate([10, 50, 10]); break;
+            }
+        }
 
         const stickerPhysics = {
             particles: [],
@@ -126,14 +137,15 @@ let currentUser = null;
         supabase.auth.onAuthStateChange((event, session) => {
             if (event === 'SIGNED_IN') {
                 currentUser = session.user;
-                // Profile & types fetched in getSession block on first load
-                // This handles subsequent sign-ins (e.g., OAuth redirect)
-                fetchUserProfile().then(() => {
+                // Fire all queries in parallel on sign-in
+                Promise.all([
+                    fetchUserProfile(),
+                    fetchCoffeeTypes(),
+                    fetchCoffeeEntries()
+                ]).then(() => {
                     updateUserGreeting();
                     checkAdminFeatures();
                 });
-                fetchCoffeeTypes();
-                fetchCoffeeEntries();
             } else if (event === 'SIGNED_OUT') {
                 currentUser = null;
                 coffeeEntries = [];
@@ -225,12 +237,15 @@ let currentUser = null;
         const { data: { session }, error } = await supabase.auth.getSession();
         if (session) {
             currentUser = session.user;
-            await fetchUserProfile();
-            await fetchCoffeeTypes();
+            switchView('view-calendar'); // Show UI skeleton immediately
+            // Fire all 3 queries in parallel instead of sequentially
+            await Promise.all([
+                fetchUserProfile(),
+                fetchCoffeeTypes(),
+                fetchCoffeeEntries()
+            ]);
             updateUserGreeting();
             checkAdminFeatures();
-            fetchCoffeeEntries();
-            switchView('view-calendar');
         } else {
             if (error) console.error('Error fetching session:', error.message);
             switchView('view-login');
@@ -370,9 +385,15 @@ let currentUser = null;
         // isDraggingNav, navStartX, indInitialLeft moved to top of IIFE
 
         function switchView(viewId) {
+            haptic('light');
             views.forEach(v => v.classList.remove('active'));
             document.getElementById(viewId).classList.add('active');
             if (bottomNav) bottomNav.classList.toggle('hidden', ['view-onboarding', 'view-login', 'view-nickname'].includes(viewId));
+
+            // Stop physics loop when leaving Statistics tab (saves battery)
+            if (viewId !== 'view-statistics') {
+                stickerPhysics.clear();
+            }
 
             // Refresh stats tab indicator position if opening statistics
             if (viewId === 'view-statistics') {
@@ -532,6 +553,38 @@ let currentUser = null;
             });
         }
 
+        // --- THEME TOGGLE ---
+        const btnToggleTheme = document.getElementById('btn-toggle-theme');
+        const themeLabel = document.getElementById('current-theme-label');
+
+        let currentTheme = localStorage.getItem('kopi_theme') || 'system';
+
+        function applyTheme(theme) {
+            document.documentElement.classList.remove('dark-mode', 'light-mode');
+            if (theme === 'dark') document.documentElement.classList.add('dark-mode');
+            if (theme === 'light') document.documentElement.classList.add('light-mode');
+
+            if (themeLabel) {
+                if (theme === 'dark') themeLabel.textContent = 'Dark';
+                else if (theme === 'light') themeLabel.textContent = 'Light';
+                else themeLabel.textContent = 'System';
+            }
+        }
+
+        applyTheme(currentTheme);
+
+        if (btnToggleTheme) {
+            btnToggleTheme.addEventListener('click', () => {
+                haptic('light');
+                if (currentTheme === 'system') currentTheme = 'dark';
+                else if (currentTheme === 'dark') currentTheme = 'light';
+                else currentTheme = 'system';
+
+                localStorage.setItem('kopi_theme', currentTheme);
+                applyTheme(currentTheme);
+            });
+        }
+
         if (btnLoginSkip) {
             btnLoginSkip.addEventListener('click', () => {
                 switchView('view-calendar');
@@ -555,35 +608,37 @@ let currentUser = null;
         // ============================================================
         const sheetStack = []; // tracks open sheets for stacking
 
-        function openSheet(el, options = {}) {
-            if (!el) return;
+        function openSheet(sheet, { noStack = false } = {}) {
+            if (!sheet) return;
+            haptic('light');
             // Stack: mark previous top sheet as stacked
             if (sheetStack.length > 0) {
                 const prev = sheetStack[sheetStack.length - 1];
                 prev.classList.add('stacked');
                 // If noStack, prevent the parent from visually scaling down
-                if (options.noStack) {
+                if (noStack) {
                     prev.classList.add('no-stack');
                 }
             }
-            sheetStack.push(el);
+            sheetStack.push(sheet);
             // Update z-index so newer sheets are on top
-            el.style.zIndex = 200 + sheetStack.length * 10;
-            el.classList.add('active');
+            sheet.style.zIndex = 200 + sheetStack.length * 10;
+            sheet.classList.add('active');
         }
 
-        function closeSheet(el) {
-            if (!el) return;
+        function closeSheet(sheet) {
+            haptic('light');
+            if (!sheet) return;
             // Reset inline styles left by swipe gesture
-            const sc = el.querySelector('.sheet-content');
+            const sc = sheet.querySelector('.sheet-content');
             if (sc) {
                 sc.style.transform = '';
                 sc.style.transition = '';
             }
-            el.style.background = '';
-            el.classList.remove('active');
+            sheet.style.background = '';
+            sheet.classList.remove('active');
             // Remove from stack
-            const idx = sheetStack.indexOf(el);
+            const idx = sheetStack.indexOf(sheet);
             if (idx > -1) sheetStack.splice(idx, 1);
             // Unstack the new top sheet
             if (sheetStack.length > 0) {
@@ -591,7 +646,7 @@ let currentUser = null;
                 top.classList.remove('stacked');
                 top.classList.remove('no-stack');
             }
-            el.style.zIndex = '';
+            sheet.style.zIndex = '';
         }
 
         // Click-to-dismiss on backdrop (the dark area)
@@ -681,11 +736,59 @@ let currentUser = null;
         const btnCancelAdd = document.getElementById('btn-cancel-add');
         const btnSaveCoffee = document.getElementById('btn-save-coffee');
 
+        // --- PREDICTIVE DEFAULTS ---
+        function guessAddCoffeeDefaults() {
+            if (!coffeeEntries || coffeeEntries.length === 0) return;
+
+            const currentHour = new Date().getHours();
+            let timeOfDay = 'morning';
+            if (currentHour >= 12 && currentHour < 17) timeOfDay = 'afternoon';
+            else if (currentHour >= 17) timeOfDay = 'evening';
+
+            // Filter past coffees by time of day
+            const relevantEntries = coffeeEntries.filter(entry => {
+                if (!entry.time) return false;
+                const hh = parseInt(entry.time.split('.')[0], 10);
+                if (timeOfDay === 'morning' && hh < 12) return true;
+                if (timeOfDay === 'afternoon' && hh >= 12 && hh < 17) return true;
+                if (timeOfDay === 'evening' && hh >= 17) return true;
+                return false;
+            });
+
+            if (relevantEntries.length === 0) return;
+
+            // Find most frequent attributes
+            const typeCounts = {}, sizeCounts = {}, tempCounts = {};
+            relevantEntries.forEach(e => {
+                if (e.type) typeCounts[e.type] = (typeCounts[e.type] || 0) + 1;
+                if (e.size) sizeCounts[e.size] = (sizeCounts[e.size] || 0) + 1;
+                if (e.temp) tempCounts[e.temp] = (tempCounts[e.temp] || 0) + 1;
+            });
+
+            const bestType = Object.keys(typeCounts).sort((a, b) => typeCounts[b] - typeCounts[a])[0];
+            const bestSize = Object.keys(sizeCounts).sort((a, b) => sizeCounts[b] - sizeCounts[a])[0];
+            const bestTemp = Object.keys(tempCounts).sort((a, b) => tempCounts[b] - tempCounts[a])[0];
+
+            // Only apply bestType if it still exists in the user's active types array
+            if (bestType && coffeeTypes.some(t => t.name === bestType)) selectedType = bestType;
+            if (bestSize) selectedSize = bestSize;
+            if (bestTemp) selectedTemp = bestTemp;
+        }
+
         if (btnAddCup) btnAddCup.addEventListener('click', () => {
             editingCoffeeId = null;
             editingCoffeeIdx = null;
             updateAddCoffeeDateTime();
+
+            // Guess what the user wants to drink right now
+            guessAddCoffeeDefaults();
+
             rebuildTypeGrid();
+
+            // Apply guessed size and temp to UI buttons
+            document.querySelectorAll('.size-btn').forEach(btn => btn.classList.toggle('active', btn.textContent === selectedSize));
+            document.querySelectorAll('.temp-btn').forEach(btn => btn.classList.toggle('active', btn.textContent.includes(selectedTemp)));
+
             openSheet(modalAddCoffee);
         });
         if (btnCancelAdd) btnCancelAdd.addEventListener('click', () => {
@@ -828,6 +931,23 @@ let currentUser = null;
             photoInput.addEventListener('change', (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
+
+                // Validate File Size (10MB Max)
+                if (file.size > 10 * 1024 * 1024) {
+                    alert("Photo is too large. Max size is 10MB.");
+                    resetPhotoBox();
+                    return;
+                }
+
+                // Validate File Type (HEIC, JPG, JPEG, PNG)
+                const validTypes = ['image/jpeg', 'image/png', 'image/heic'];
+                const extension = file.name.split('.').pop().toLowerCase();
+                if (!validTypes.includes(file.type) && !['jpg', 'jpeg', 'png', 'heic'].includes(extension)) {
+                    alert("Invalid file format. Please upload JPG, PNG, or HEIC.");
+                    resetPhotoBox();
+                    return;
+                }
+
                 uploadedPhotoBlob = file;
                 const reader = new FileReader();
                 reader.onload = (ev) => {
@@ -852,10 +972,28 @@ let currentUser = null;
 
         async function fetchCoffeeEntries() {
             if (!currentUser) return;
+
+            // Inject animated shimmer skeletons before fetching
+            if (todayCoffeeList) {
+                todayCoffeeList.innerHTML = Array(4).fill(`
+                <div class="skeleton-card">
+                    <div class="skeleton-icon"><i class="ph ph-coffee"></i></div>
+                    <div style="flex:1">
+                        <div class="skeleton-line long"></div>
+                        <div class="skeleton-line short"></div>
+                    </div>
+                </div>`).join('');
+            }
+
             const { data, error } = await supabase
                 .from('coffee_entries')
-                .select('*')
-                .order('created_at', { ascending: false });
+                .select('id, type, size, temp, time, price, sticker, emoji, date_string, is_favorite, created_at')
+                // .eq('user_id', currentUser.id) AND .eq('is_deleted', false) is now handled automatically 
+                // by the Supabase RLS policies (see SQL migration), but keeping it here for speed/cache.
+                .eq('user_id', currentUser.id)
+                .eq('is_deleted', false)
+                .order('created_at', { ascending: false })
+                .limit(200);
 
             if (error) {
                 console.error('Error fetching entries:', error.message);
@@ -1003,13 +1141,15 @@ let currentUser = null;
         }
 
         async function executeDelete(id, idx) {
+            haptic('heavy');
             if (currentUser && id && typeof id === 'string' && id.length > 5) {
-                const { error } = await supabase.from('coffee_entries').delete().eq('id', id);
+                // SOFT DELETE: Update is_deleted instead of actually removing the row
+                const { error } = await supabase.from('coffee_entries').update({ is_deleted: true }).eq('id', id);
                 if (!error) {
                     const findIdx = coffeeEntries.findIndex(e => e.id === id);
                     if (findIdx !== -1) coffeeEntries.splice(findIdx, 1);
                 } else {
-                    console.error('Delete error', error.message);
+                    console.error('Soft delete error', error.message);
                 }
             } else if (idx !== null) {
                 coffeeEntries.splice(idx, 1);
@@ -1023,10 +1163,8 @@ let currentUser = null;
             const newState = !entry.is_favorite;
             entry.is_favorite = newState;
 
-            // Optimistic UI update
+            // Targeted UI update — only re-render the coffee list, skip heavy calendar/stats rebuild
             renderTodayCoffee();
-            updateCalendarStickers();
-            updateStatistics();
 
             if (currentUser && entry.id && typeof entry.id === 'string' && entry.id.length > 5) {
                 const { error } = await supabase.from('coffee_entries').update({ is_favorite: newState }).eq('id', entry.id);
@@ -1035,8 +1173,6 @@ let currentUser = null;
                     // Revert if error
                     entry.is_favorite = !newState;
                     renderTodayCoffee();
-                    updateCalendarStickers();
-                    updateStatistics();
                 }
             }
         }
@@ -1044,7 +1180,7 @@ let currentUser = null;
         function createCoffeeItemRow(entry, idx) {
             const tempIcon = entry.temp === 'Hot' ? '♨️' : '🧊';
             const stickerHtml = entry.sticker
-                ? `<img src="${entry.sticker}" alt="sticker" class="coffee-item-sticker">`
+                ? `<img src="${entry.sticker}" alt="sticker" class="coffee-item-sticker" loading="lazy">`
                 : `<span class="coffee-item-emoji">${entry.emoji || '☕'}</span>`;
 
             const favHtml = entry.is_favorite ? `<i class="ph-fill ph-heart favorite-icon"></i>` : '';
@@ -1147,7 +1283,25 @@ let currentUser = null;
 
             // Favorite Event
             container.querySelector('.favorite-btn').addEventListener('click', () => {
-                closeSheet(content); // snap shut if it was open
+                // Snap the card closed immediately
+                content.style.transition = 'transform 0.3s cubic-bezier(0.1, 0.7, 0.1, 1)';
+                content.style.transform = 'translateX(0px)';
+
+                // Show the heart icon instantly on the card for responsive feel
+                const infoEl = content.querySelector('.coffee-item-info');
+                if (infoEl) {
+                    const existingHeart = infoEl.querySelector('.favorite-icon');
+                    if (entry.is_favorite) {
+                        // Will unfavorite — remove heart instantly
+                        if (existingHeart) existingHeart.remove();
+                    } else {
+                        // Will favorite — add heart instantly
+                        if (!existingHeart) {
+                            infoEl.insertAdjacentHTML('beforeend', '<i class="ph-fill ph-heart favorite-icon"></i>');
+                        }
+                    }
+                }
+
                 toggleFavorite(entry);
             });
 
@@ -1179,7 +1333,7 @@ let currentUser = null;
             // Sticker or emoji
             const stickerEl = document.getElementById('share-card-sticker');
             if (entry.sticker) {
-                stickerEl.innerHTML = `<img src="${entry.sticker}" alt="sticker" crossorigin="anonymous">`;
+                stickerEl.innerHTML = `<img src="${entry.sticker}" alt="sticker" crossorigin="anonymous" loading="lazy">`;
             } else {
                 stickerEl.innerHTML = `<span class="share-sticker-emoji">${entry.emoji || '☕'}</span>`;
             }
@@ -1370,7 +1524,13 @@ let currentUser = null;
             // --- TODAY ---
             todayCoffeeList.innerHTML = '';
             if (todaysCoffees.length === 0) {
-                todayCoffeeList.innerHTML = `<div class="card empty-state-card"><div class="empty-state-icon">☕</div><p class="empty-state-text">None, take a sip!</p></div>`;
+                todayCoffeeList.innerHTML = `
+                <div class="card empty-state-card" style="margin-top:20px;">
+                    <div class="empty-state-svg">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 3H4v10c0 2.21 1.79 4 4 4h6c2.21 0 4-1.79 4-4v-3h2c1.11 0 2-.89 2-2V5c0-1.11-.89-2-2-2zm-2 5h-2V5h2v3zm-4 7H8c-1.1 0-2-.9-2-2V5h12v6c0 1.1-.9 2-2 2z" opacity="0.6"/><path d="M4 19h16v2H4z"/></svg>
+                    </div>
+                    <p class="empty-state-text">No coffee today. Time for a break?</p>
+                </div>`;
             } else {
                 todaysCoffees.forEach((entry) => {
                     todayCoffeeList.appendChild(createCoffeeItemRow(entry, entry.originalIdx));
@@ -1382,7 +1542,15 @@ let currentUser = null;
             if (!pastCoffeeList) return;
             pastCoffeeList.innerHTML = '';
 
-            if (pastCoffees.length === 0) return;
+            if (pastCoffees.length === 0 && todaysCoffees.length === 0) {
+                pastCoffeeList.innerHTML = `
+                <div class="card empty-state-card" style="margin-top:20px;">
+                    <p class="empty-state-text">Your past coffee records will appear here.</p>
+                </div>`;
+                return;
+            } else if (pastCoffees.length === 0) {
+                return;
+            }
 
             // Group by date_string, sorted newest first
             const grouped = {};
@@ -1441,6 +1609,7 @@ let currentUser = null;
                             const img = document.createElement('img');
                             img.src = c.sticker;
                             img.alt = '';
+                            img.loading = 'lazy';
                             gridDiv.appendChild(img);
                         } else {
                             const span = document.createElement('span');
@@ -1467,7 +1636,6 @@ let currentUser = null;
             let startX = 0, currentTranslate = 0, isDragging = false;
             const limitLeft = -150; // Share & Delete limit
             const limitRight = 75;  // Favorite limit
-            const triggerRight = 100; // Auto-trigger Favorite threshold
 
             el.addEventListener('touchstart', (e) => {
                 startX = e.touches[0].clientX;
@@ -1479,10 +1647,11 @@ let currentUser = null;
                 if (!isDragging) return;
                 let val = currentTranslate + (e.touches[0].clientX - startX);
 
-                // Spring resistance past limits
-                if (val > limitRight + 45) { // Max drag ~120px
-                    val = limitRight + 45 + ((val - (limitRight + 45)) * 0.2); // Add heavy friction past max drag
+                // Spring resistance past right limit (rubber band effect)
+                if (val > limitRight) {
+                    val = limitRight + ((val - limitRight) * 0.25);
                 }
+                // Spring resistance past left limit
                 if (val < limitLeft - 20) val = limitLeft - 20;
 
                 el.style.transform = `translateX(${val}px)`;
@@ -1493,22 +1662,19 @@ let currentUser = null;
                 isDragging = false;
                 el.style.transition = 'transform 0.3s cubic-bezier(0.1, 0.7, 0.1, 1)';
 
-                // Get absolute current translation, not matrix, for better reliability during fast swipes
                 const transformStr = el.style.transform || 'translateX(0px)';
                 const currentXMatch = transformStr.match(/translateX\(([-0-9.]+)px\)/);
                 const currentX = currentXMatch ? parseFloat(currentXMatch[1]) : 0;
 
-                if (currentX > triggerRight) {
-                    // Auto-trigger Favorite!
-                    currentTranslate = 0;
-                    const favBtn = el.parentElement.querySelector('.favorite-btn');
-                    if (favBtn) setTimeout(() => favBtn.click(), 150); // slight delay for visual snap
-                } else if (currentX > limitRight / 2) {
-                    currentTranslate = limitRight; // Snap open
+                // Snap right (reveal favorite): low threshold so gentle swipes work
+                if (currentX > 25) {
+                    currentTranslate = limitRight;
+                    // Snap left (reveal share/delete)
                 } else if (currentX < limitLeft / 2) {
-                    currentTranslate = limitLeft;  // Snap open
+                    currentTranslate = limitLeft;
+                    // Snap closed
                 } else {
-                    currentTranslate = 0;          // Snap closed
+                    currentTranslate = 0;
                 }
 
                 el.style.transform = `translateX(${currentTranslate}px)`;
@@ -1727,7 +1893,7 @@ let currentUser = null;
                         el.style.height = currentSize + 'px';
 
                         if (e.sticker) {
-                            el.innerHTML = `<img src="${e.sticker}" alt="" class="sticker-img">`;
+                            el.innerHTML = `<img src="${e.sticker}" alt="" class="sticker-img" loading="lazy">`;
                         } else {
                             el.innerHTML = `<span class="sticker-emoji">${e.emoji || '☕'}</span>`;
                         }
