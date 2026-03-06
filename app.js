@@ -553,6 +553,38 @@ let currentUser = null;
             });
         }
 
+        // --- THEME TOGGLE ---
+        const btnToggleTheme = document.getElementById('btn-toggle-theme');
+        const themeLabel = document.getElementById('current-theme-label');
+
+        let currentTheme = localStorage.getItem('kopi_theme') || 'system';
+
+        function applyTheme(theme) {
+            document.documentElement.classList.remove('dark-mode', 'light-mode');
+            if (theme === 'dark') document.documentElement.classList.add('dark-mode');
+            if (theme === 'light') document.documentElement.classList.add('light-mode');
+
+            if (themeLabel) {
+                if (theme === 'dark') themeLabel.textContent = 'Dark';
+                else if (theme === 'light') themeLabel.textContent = 'Light';
+                else themeLabel.textContent = 'System';
+            }
+        }
+
+        applyTheme(currentTheme);
+
+        if (btnToggleTheme) {
+            btnToggleTheme.addEventListener('click', () => {
+                haptic('light');
+                if (currentTheme === 'system') currentTheme = 'dark';
+                else if (currentTheme === 'dark') currentTheme = 'light';
+                else currentTheme = 'system';
+
+                localStorage.setItem('kopi_theme', currentTheme);
+                applyTheme(currentTheme);
+            });
+        }
+
         if (btnLoginSkip) {
             btnLoginSkip.addEventListener('click', () => {
                 switchView('view-calendar');
@@ -899,6 +931,23 @@ let currentUser = null;
             photoInput.addEventListener('change', (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
+
+                // Validate File Size (10MB Max)
+                if (file.size > 10 * 1024 * 1024) {
+                    alert("Photo is too large. Max size is 10MB.");
+                    resetPhotoBox();
+                    return;
+                }
+
+                // Validate File Type (HEIC, JPG, JPEG, PNG)
+                const validTypes = ['image/jpeg', 'image/png', 'image/heic'];
+                const extension = file.name.split('.').pop().toLowerCase();
+                if (!validTypes.includes(file.type) && !['jpg', 'jpeg', 'png', 'heic'].includes(extension)) {
+                    alert("Invalid file format. Please upload JPG, PNG, or HEIC.");
+                    resetPhotoBox();
+                    return;
+                }
+
                 uploadedPhotoBlob = file;
                 const reader = new FileReader();
                 reader.onload = (ev) => {
@@ -939,7 +988,10 @@ let currentUser = null;
             const { data, error } = await supabase
                 .from('coffee_entries')
                 .select('id, type, size, temp, time, price, sticker, emoji, date_string, is_favorite, created_at')
+                // .eq('user_id', currentUser.id) AND .eq('is_deleted', false) is now handled automatically 
+                // by the Supabase RLS policies (see SQL migration), but keeping it here for speed/cache.
                 .eq('user_id', currentUser.id)
+                .eq('is_deleted', false)
                 .order('created_at', { ascending: false })
                 .limit(200);
 
@@ -1089,13 +1141,15 @@ let currentUser = null;
         }
 
         async function executeDelete(id, idx) {
+            haptic('heavy');
             if (currentUser && id && typeof id === 'string' && id.length > 5) {
-                const { error } = await supabase.from('coffee_entries').delete().eq('id', id);
+                // SOFT DELETE: Update is_deleted instead of actually removing the row
+                const { error } = await supabase.from('coffee_entries').update({ is_deleted: true }).eq('id', id);
                 if (!error) {
                     const findIdx = coffeeEntries.findIndex(e => e.id === id);
                     if (findIdx !== -1) coffeeEntries.splice(findIdx, 1);
                 } else {
-                    console.error('Delete error', error.message);
+                    console.error('Soft delete error', error.message);
                 }
             } else if (idx !== null) {
                 coffeeEntries.splice(idx, 1);
