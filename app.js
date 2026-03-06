@@ -964,6 +964,7 @@ let currentUser = null;
         let uploadedPhotoDataUrl = null;
         let uploadedPhotoBlob = null;
         let userChangedPhoto = false;
+        let selectedLocation = null;
 
         document.querySelectorAll('.size-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -1066,6 +1067,7 @@ let currentUser = null;
                 reader.readAsDataURL(file);
             });
         }
+
         function resetPhotoBox() {
             uploadedPhotoDataUrl = null;
             uploadedPhotoBlob = null;
@@ -1074,6 +1076,85 @@ let currentUser = null;
             const photoInput = document.getElementById('photo-input');
             if (photoBox) photoBox.innerHTML = `<i class="ph ph-camera"></i><span class="photo-upload-title">Add Photo</span><span class="photo-upload-hint">Capture your coffee moment</span>`;
             if (photoInput) photoInput.value = '';
+        }
+
+        // ==========================================
+        // LOCATION PICKER LOGIC
+        // ==========================================
+        const btnOpenMaps = document.getElementById('btn-open-maps');
+        const modalLocation = document.getElementById('modal-location');
+        const btnLocationDone = document.getElementById('btn-location-done');
+        const inputLocationSearch = document.getElementById('input-location-search');
+        const btnClearLocation = document.getElementById('btn-clear-location');
+        const recentLocationsList = document.getElementById('recent-locations-list');
+        const labelLocation = document.getElementById('add-coffee-location');
+        const labelAddress = document.getElementById('add-coffee-address');
+
+        function updateLocationDisplay() {
+            if (selectedLocation) {
+                if (labelLocation) labelLocation.textContent = selectedLocation;
+                if (labelAddress) labelAddress.textContent = "Selected";
+            } else {
+                if (labelLocation) labelLocation.textContent = "Add Location";
+                if (labelAddress) labelAddress.textContent = "Optional";
+            }
+        }
+
+        if (btnOpenMaps && modalLocation) {
+            btnOpenMaps.addEventListener('click', () => {
+                inputLocationSearch.value = selectedLocation || '';
+                btnClearLocation.style.display = selectedLocation ? 'block' : 'none';
+                populateRecentLocations();
+                openSheet(modalLocation);
+            });
+        }
+
+        if (inputLocationSearch && btnClearLocation) {
+            inputLocationSearch.addEventListener('input', (e) => {
+                btnClearLocation.style.display = e.target.value.trim() ? 'block' : 'none';
+            });
+            btnClearLocation.addEventListener('click', () => {
+                inputLocationSearch.value = '';
+                btnClearLocation.style.display = 'none';
+                inputLocationSearch.focus();
+            });
+        }
+
+        if (btnLocationDone) {
+            btnLocationDone.addEventListener('click', () => {
+                const val = inputLocationSearch.value.trim();
+                selectedLocation = val || null;
+                updateLocationDisplay();
+                closeSheet(modalLocation);
+            });
+        }
+
+        function populateRecentLocations() {
+            if (!recentLocationsList) return;
+            const locations = new Set();
+            coffeeEntries.forEach(e => {
+                if (e.location) locations.add(e.location);
+            });
+
+            recentLocationsList.innerHTML = '';
+            if (locations.size === 0) {
+                recentLocationsList.innerHTML = '<p style="font-size: 13px; color: var(--text-muted);">No locations found</p>';
+                return;
+            }
+
+            Array.from(locations).slice(0, 10).forEach(loc => {
+                const div = document.createElement('div');
+                div.className = 'card list-input selectable';
+                div.style.padding = '12px 16px';
+                div.style.marginBottom = '0';
+                div.innerHTML = `<div class="list-input-left" style="gap: 12px;"><i class="ph ph-clock-counter-clockwise" style="font-size: 20px; color: var(--text-muted);"></i><span style="font-size: 15px; font-weight: 500;">${loc}</span></div>`;
+                div.addEventListener('click', () => {
+                    selectedLocation = loc;
+                    updateLocationDisplay();
+                    closeSheet(modalLocation);
+                });
+                recentLocationsList.appendChild(div);
+            });
         }
 
         // ============================================================
@@ -1101,7 +1182,7 @@ let currentUser = null;
 
             const { data, error } = await supabase
                 .from('coffee_entries')
-                .select('id, type, size, temp, time, price, sticker, emoji, date_string, is_favorite, created_at')
+                .select('id, name, type, size, temp, time, price, sticker, emoji, date_string, is_favorite, created_at')
                 .eq('user_id', currentUser.id)
                 .order('created_at', { ascending: false })
                 .limit(200);
@@ -1156,6 +1237,7 @@ let currentUser = null;
                 const entry = {
                     user_id: currentUser ? currentUser.id : null,
                     name: coffeeName,
+                    location: selectedLocation,
                     type: selectedType, size: selectedSize, temp: selectedTemp,
                     time: timeStr, price,
                     sticker: newStickerVal,
@@ -1350,7 +1432,15 @@ let currentUser = null;
             const favHtml = entry.is_favorite ? `<i class="ph-fill ph-heart favorite-icon"></i>` : '';
 
             let primaryName = entry.name ? entry.name : entry.type;
-            let subtitleText = entry.price ? `${entry.time} • ${entry.size} • ${entry.price}` : `${entry.time} • ${entry.size}`;
+            let formattedPrice = '';
+            if (entry.price) {
+                if (Number(entry.price) >= 1000) {
+                    formattedPrice = Math.round(Number(entry.price) / 1000) + 'K';
+                } else {
+                    formattedPrice = entry.price;
+                }
+            }
+            let subtitleText = entry.price ? `${entry.time} • ${entry.size} • ${formattedPrice}` : `${entry.time} • ${entry.size}`;
 
             const rowHtml = `
             <div class="swipe-container">
@@ -1413,6 +1503,10 @@ let currentUser = null;
                 const priceInput = document.getElementById('input-price');
                 if (priceInput) priceInput.value = entry.price ? Number(entry.price).toLocaleString('en-US') : '';
 
+                // Set location
+                selectedLocation = entry.location || null;
+                updateLocationDisplay();
+
                 // Set Photo/Sticker preview if exists
                 if (entry.sticker) {
                     uploadedPhotoDataUrl = entry.sticker;
@@ -1427,7 +1521,13 @@ let currentUser = null;
 
                     if (photoBox) {
                         photoBox.innerHTML = `<img src="${entry.sticker}" alt="coffee photo" crossorigin="anonymous"><button class="remove-photo-btn" id="btn-remove-photo"><i class="ph ph-x"></i></button>`;
-                        document.getElementById('btn-remove-photo').addEventListener('click', (evt) => { evt.stopPropagation(); resetPhotoBox(); });
+                        document.getElementById('btn-remove-photo').addEventListener('click', (evt) => {
+                            evt.stopPropagation();
+                            if (window.confirm("Are you sure you want to permanently delete this photo?")) {
+                                resetPhotoBox();
+                                userChangedPhoto = true;
+                            }
+                        });
                     }
                 } else {
                     resetPhotoBox();
