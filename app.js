@@ -1308,6 +1308,9 @@ let currentUser = null;
 
             const favHtml = entry.is_favorite ? `<i class="ph-fill ph-heart favorite-icon"></i>` : '';
 
+            let primaryName = entry.name ? entry.name : entry.type;
+            let subtitleText = entry.price ? `${entry.time} • ${entry.size} • ${entry.price}` : `${entry.time} • ${entry.size}`;
+
             const rowHtml = `
             <div class="swipe-container">
                 <div class="swipe-actions-left">
@@ -1317,12 +1320,11 @@ let currentUser = null;
                     <div class="coffee-item-info">
                         <div class="coffee-item-icon">${stickerHtml}</div>
                         <div class="coffee-item-text">
-                            <h3>${entry.type} ${tempIcon}</h3>
-                            <p>${entry.size} • ${entry.time}</p>
+                            <h3>${primaryName} ${tempIcon}</h3>
+                            <p>${subtitleText}</p>
                         </div>
                         ${favHtml}
                     </div>
-                    ${entry.price ? `<div class="coffee-item-price">${entry.price}</div>` : ''}
                 </div>
                 <div class="swipe-actions">
                     <button class="action-btn share-btn"><i class="ph ph-export"></i><span>Share</span></button>

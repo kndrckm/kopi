@@ -811,6 +811,23 @@ p {
     background-color: var(--primary-color);
 }
 
+@keyframes heartPop {
+    0% {
+        transform: translateY(-50%) scale(0);
+        opacity: 0;
+    }
+
+    50% {
+        transform: translateY(-50%) scale(1.2);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(-50%) scale(1);
+        opacity: 1;
+    }
+}
+
 .favorite-icon {
     color: var(--primary-color);
     font-size: 36px;
@@ -818,6 +835,7 @@ p {
     right: 0;
     top: 50%;
     transform: translateY(-50%);
+    animation: heartPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 
 .coffee-item-info {
