@@ -637,24 +637,24 @@ p {
 .steam-path {
     stroke-dasharray: 10;
     stroke-dashoffset: 10;
-    animation: steam 2s infinite linear;
+    animation: steam 3.5s infinite ease-out;
 }
 
 @keyframes steam {
     0% {
         stroke-dashoffset: 10;
         opacity: 0;
-        transform: translateY(0);
+        transform: translateY(2px) scaleY(0.8);
     }
 
-    50% {
+    30% {
         opacity: 1;
     }
 
     100% {
         stroke-dashoffset: -10;
         opacity: 0;
-        transform: translateY(-4px);
+        transform: translateY(-8px) scaleY(1.2);
     }
 }
 

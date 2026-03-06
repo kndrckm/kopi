@@ -1809,13 +1809,19 @@ let currentUser = null;
                 todayCoffeeList.innerHTML = `
                 <div class="card empty-state-card">
                     <div class="empty-state-icon">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-muted); opacity: 0.8;">
-                            <path class="steam-path" d="M8 2c0 1 1 1 1 2s-1 1-1 2" style="animation-delay: 0s;"/>
-                            <path class="steam-path" d="M12 1c0 1 1 1 1 2s-1 1-1 2" style="animation-delay: 0.5s;"/>
-                            <path class="steam-path" d="M16 2c0 1 1 1 1 2s-1 1-1 2" style="animation-delay: 1s;"/>
-                            <path d="M5 11h14v8a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3v-8Z"/>
-                            <path d="M19 11h1a3 3 0 0 1 0 6h-1"/>
-                            <path d="M3 11h18"/>
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-muted); opacity: 0.8;">
+                            <!-- Steam -->
+                            <path class="steam-path" d="M9 2c0 1 1.5 1.5 1.5 2.5s-1.5 1.5-1.5 2.5" style="animation-delay: 0s;"/>
+                            <path class="steam-path" d="M12 1c0 1 1.5 1.5 1.5 2.5s-1.5 1.5-1.5 2.5" style="animation-delay: 0.5s;"/>
+                            <path class="steam-path" d="M15 2c0 1 1.5 1.5 1.5 2.5s-1.5 1.5-1.5 2.5" style="animation-delay: 1s;"/>
+                            <!-- Cup -->
+                            <path d="M17 8H4v7a4 4 0 0 0 4 4h5a4 4 0 0 0 4-4V8z"/>
+                            <!-- Handle -->
+                            <path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17"/>
+                            <!-- Saucer -->
+                            <path d="M2 21h17"/>
+                            <!-- Coffee line -->
+                            <path d="M4 8h13"/>
                         </svg>
                     </div>
                     <p class="empty-state-text">No coffee today. Time for a break?</p>
@@ -1995,7 +2001,26 @@ let currentUser = null;
 
             dayOverlayRecords.innerHTML = '';
             if (dayCoffees.length === 0) {
-                dayOverlayRecords.innerHTML = '<div class="card empty-state-card"><div class="empty-state-icon">☕</div><p class="empty-state-text">No records yet</p></div>';
+                dayOverlayRecords.innerHTML = `
+                <div class="card empty-state-card">
+                    <div class="empty-state-icon">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-muted); opacity: 0.8;">
+                            <!-- Steam -->
+                            <path class="steam-path" d="M9 2c0 1 1.5 1.5 1.5 2.5s-1.5 1.5-1.5 2.5" style="animation-delay: 0s;"/>
+                            <path class="steam-path" d="M12 1c0 1 1.5 1.5 1.5 2.5s-1.5 1.5-1.5 2.5" style="animation-delay: 0.5s;"/>
+                            <path class="steam-path" d="M15 2c0 1 1.5 1.5 1.5 2.5s-1.5 1.5-1.5 2.5" style="animation-delay: 1s;"/>
+                            <!-- Cup -->
+                            <path d="M17 8H4v7a4 4 0 0 0 4 4h5a4 4 0 0 0 4-4V8z"/>
+                            <!-- Handle -->
+                            <path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17"/>
+                            <!-- Saucer -->
+                            <path d="M2 21h17"/>
+                            <!-- Coffee line -->
+                            <path d="M4 8h13"/>
+                        </svg>
+                    </div>
+                    <p class="empty-state-text">No records yet</p>
+                </div>`;
             } else {
                 dayCoffees.forEach(entry => {
                     dayOverlayRecords.appendChild(createCoffeeItemRow(entry, entry.originalIdx));
