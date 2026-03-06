@@ -835,6 +835,7 @@ let currentUser = null;
         if (btnAddCup) btnAddCup.addEventListener('click', () => {
             editingCoffeeId = null;
             editingCoffeeIdx = null;
+            resetPhotoBox(); // Fix: Clear previous photo data
             updateAddCoffeeDateTime();
 
             // Guess what the user wants to drink right now
