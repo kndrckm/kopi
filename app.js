@@ -25,6 +25,38 @@ let currentUser = null;
         const HITBOX_PERC = 0.65; // Hitbox radius scalar
         const MAX_TILT_ANGLE = 15; // 👈 Change this to easily limit how tilted stickers get (in degrees)
 
+        // --- STICKER CACHE ---
+        const stickerCache = new Map();
+
+        // Helper to instantly return an object URL if cached, or a loading image that swaps when fetched
+        function getCachedStickerImgTag(url, cssClass = '', extraAttrs = 'loading="lazy"') {
+            if (!url) return '';
+
+            if (stickerCache.has(url)) {
+                return `<img src="${stickerCache.get(url)}" alt="sticker" class="${cssClass}" ${extraAttrs}>`;
+            }
+
+            // Generate a unique ID to find this specific <img> instance in the DOM later
+            const imgId = 'img_' + Math.random().toString(36).substr(2, 9);
+
+            // Kick off an async fetch to download the blob, cache it, and update the img src
+            fetch(url, { cache: 'force-cache' })
+                .then(res => res.blob())
+                .then(blob => {
+                    const objectUrl = URL.createObjectURL(blob);
+                    stickerCache.set(url, objectUrl);
+                    // Update all images that are waiting for this URL (in case multiple rendered simultaneously)
+                    document.querySelectorAll(`img[data-pending-url="${url}"]`).forEach(img => {
+                        img.src = objectUrl;
+                        img.removeAttribute('data-pending-url');
+                    });
+                })
+                .catch(err => console.error("Failed to cache sticker:", err));
+
+            // Return an empty transparent image placeholder immediately to maintain layout while fetching
+            return `<img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" data-pending-url="${url}" alt="sticker" class="${cssClass}" id="${imgId}" ${extraAttrs}>`;
+        }
+
         // Fine-tune wall bounding per-side. Higher number means it can bleed further off-screen.
         // Negative number means it bounces before reaching the wall.
         const WALL_BLEED = {
@@ -601,6 +633,30 @@ let currentUser = null;
                 }
             });
         }
+
+        // --- HARD REFRESH CACHE ---
+        const btnHardRefresh = document.getElementById('btn-hard-refresh');
+        if (btnHardRefresh) {
+            btnHardRefresh.addEventListener('click', () => {
+                haptic('heavy');
+                const btnIcon = btnHardRefresh.querySelector('i');
+                if (btnIcon) btnIcon.classList.add('ph-spin');
+
+                // Clear Object URLs from memory
+                stickerCache.forEach(objectUrl => URL.revokeObjectURL(objectUrl));
+                stickerCache.clear();
+
+                // Clear cached entries and refetch
+                coffeeEntries = [];
+                renderTodayCoffee();
+
+                fetchCoffeeEntries().then(() => {
+                    if (btnIcon) btnIcon.classList.remove('ph-spin');
+                    alert('Cache cleared and data refreshed successfully.');
+                });
+            });
+        }
+
         navItems.forEach(btn => btn.addEventListener('click', () => { if (btn.dataset.target) switchView(btn.dataset.target); }));
 
         // ============================================================
@@ -975,14 +1031,17 @@ let currentUser = null;
 
             // Inject animated shimmer skeletons before fetching
             if (todayCoffeeList) {
-                todayCoffeeList.innerHTML = Array(4).fill(`
-                <div class="skeleton-card">
-                    <div class="skeleton-icon"><i class="ph ph-coffee"></i></div>
-                    <div style="flex:1">
-                        <div class="skeleton-line long"></div>
-                        <div class="skeleton-line short"></div>
-                    </div>
-                </div>`).join('');
+                todayCoffeeList.innerHTML = '';
+                for (let i = 0; i < 4; i++) {
+                    todayCoffeeList.insertAdjacentHTML('beforeend', `
+                    <div class="skeleton-card">
+                        <div class="skeleton-icon"><div class="btn-spinner" style="border-top-color: var(--primary); width: 24px; height: 24px;"></div></div>
+                        <div style="flex:1">
+                            <div class="skeleton-line long"></div>
+                            <div class="skeleton-line short"></div>
+                        </div>
+                    </div>`);
+                }
             }
 
             const { data, error } = await supabase
@@ -1208,7 +1267,7 @@ let currentUser = null;
                 // Return a spinning circle/placeholder
                 stickerHtml = `<div class="btn-spinner" style="border-top-color: var(--primary); width: 24px; height: 24px;"></div>`;
             } else if (entry.sticker) {
-                stickerHtml = `<img src="${entry.sticker}" alt="sticker" class="coffee-item-sticker" loading="lazy">`;
+                stickerHtml = getCachedStickerImgTag(entry.sticker, 'coffee-item-sticker');
             } else {
                 stickerHtml = `<span class="coffee-item-emoji">${entry.emoji || '☕'}</span>`;
             }
@@ -1363,7 +1422,7 @@ let currentUser = null;
             // Sticker or emoji
             const stickerEl = document.getElementById('share-card-sticker');
             if (entry.sticker) {
-                stickerEl.innerHTML = `<img src="${entry.sticker}" alt="sticker" crossorigin="anonymous" loading="lazy">`;
+                stickerEl.innerHTML = getCachedStickerImgTag(entry.sticker, '', 'crossorigin="anonymous" loading="lazy"');
             } else {
                 stickerEl.innerHTML = `<span class="share-sticker-emoji">${entry.emoji || '☕'}</span>`;
             }
@@ -1923,7 +1982,7 @@ let currentUser = null;
                         el.style.height = currentSize + 'px';
 
                         if (e.sticker) {
-                            el.innerHTML = `<img src="${e.sticker}" alt="" class="sticker-img" loading="lazy">`;
+                            el.innerHTML = getCachedStickerImgTag(e.sticker, 'sticker-img');
                         } else {
                             el.innerHTML = `<span class="sticker-emoji">${e.emoji || '☕'}</span>`;
                         }

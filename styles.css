@@ -49,6 +49,10 @@
     color: var(--primary-color) !important;
 }
 
+:root.dark-mode .cal-day {
+    background-color: var(--skeleton-bg);
+}
+
 :root.dark-mode .cal-day.has-coffee {
     background-color: rgba(168, 139, 111, 0.1) !important;
 }
@@ -69,6 +73,26 @@
 
 :root.dark-mode .empty-state-icon svg {
     opacity: 0.8;
+}
+
+:root.dark-mode .card,
+:root.dark-mode .text-input,
+:root.dark-mode .icon-bg,
+:root.dark-mode .size-btn,
+:root.dark-mode .temp-btn,
+:root.dark-mode .coffee-item-card,
+:root.dark-mode .swipe-container {
+    background: var(--card-bg);
+    color: var(--text-main);
+}
+
+:root.dark-mode .type-card-lg {
+    background: var(--border-color);
+}
+
+:root.dark-mode .type-card-lg.active {
+    background: var(--skeleton-bg);
+    border-color: var(--primary-color);
 }
 
 /* System Preference Fallback */
@@ -92,6 +116,10 @@
         color: var(--primary-color) !important;
     }
 
+    :root:not(.light-mode) .cal-day {
+        background-color: var(--skeleton-bg);
+    }
+
     :root:not(.light-mode) .cal-day.has-coffee {
         background-color: rgba(168, 139, 111, 0.1) !important;
     }
@@ -112,6 +140,26 @@
 
     :root:not(.light-mode) .empty-state-icon svg {
         opacity: 0.8;
+    }
+
+    :root:not(.light-mode) .card,
+    :root:not(.light-mode) .text-input,
+    :root:not(.light-mode) .icon-bg,
+    :root:not(.light-mode) .size-btn,
+    :root:not(.light-mode) .temp-btn,
+    :root:not(.light-mode) .coffee-item-card,
+    :root:not(.light-mode) .swipe-container {
+        background: var(--card-bg);
+        color: var(--text-main);
+    }
+
+    :root:not(.light-mode) .type-card-lg {
+        background: var(--border-color);
+    }
+
+    :root:not(.light-mode) .type-card-lg.active {
+        background: var(--skeleton-bg);
+        border-color: var(--primary-color);
     }
 }
 
