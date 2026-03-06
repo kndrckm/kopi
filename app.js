@@ -1056,6 +1056,9 @@ let currentUser = null;
 
             if (error) {
                 console.error('Error fetching entries:', error.message);
+                if (todayCoffeeList) {
+                    todayCoffeeList.innerHTML = `<div class="card empty-state-card" style="margin-top:20px;"><p class="empty-state-text" style="color: #ff3b30;">Failed to load: ${error.message}</p></div>`;
+                }
             } else {
                 coffeeEntries = data || [];
                 renderTodayCoffee();
