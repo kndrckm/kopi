@@ -1047,10 +1047,7 @@ let currentUser = null;
             const { data, error } = await supabase
                 .from('coffee_entries')
                 .select('id, type, size, temp, time, price, sticker, emoji, date_string, is_favorite, created_at')
-                // .eq('user_id', currentUser.id) AND .eq('is_deleted', false) is now handled automatically 
-                // by the Supabase RLS policies (see SQL migration), but keeping it here for speed/cache.
                 .eq('user_id', currentUser.id)
-                .eq('is_deleted', false)
                 .order('created_at', { ascending: false })
                 .limit(200);
 
@@ -1228,13 +1225,13 @@ let currentUser = null;
         async function executeDelete(id, idx) {
             haptic('heavy');
             if (currentUser && id && typeof id === 'string' && id.length > 5) {
-                // SOFT DELETE: Update is_deleted instead of actually removing the row
-                const { error } = await supabase.from('coffee_entries').update({ is_deleted: true }).eq('id', id);
+                // HARD DELETE: Remove the row from the database
+                const { error } = await supabase.from('coffee_entries').delete().eq('id', id);
                 if (!error) {
                     const findIdx = coffeeEntries.findIndex(e => e.id === id);
                     if (findIdx !== -1) coffeeEntries.splice(findIdx, 1);
                 } else {
-                    console.error('Soft delete error', error.message);
+                    console.error('Delete error', error.message);
                 }
             } else if (idx !== null) {
                 coffeeEntries.splice(idx, 1);
