@@ -1,4 +1,5 @@
 :root {
+    /* LIGHT THEME (Default) */
     --bg-color: #f7f7f9;
     --card-bg: #ffffff;
     --primary-color: #8b6b4a;
@@ -7,6 +8,34 @@
     --text-muted: #8e8e93;
     --border-color: #e5e5ea;
     --nav-bg: rgba(255, 255, 255, 0.9);
+    --skeleton-bg: #e5e5ea;
+    --skeleton-shine: #f2f2f7;
+    --empty-icon: #d1c1b1;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        /* MIDNIGHT CAFE THEME */
+        --bg-color: #121212;
+        --card-bg: #1e1e1e;
+        --primary-color: #a88b6f; /* Lighter for contrast */
+        --primary-color-dark: #c2a890;
+        --text-main: #f5f5f7;
+        --text-muted: #98989d;
+        --border-color: #2c2c2e;
+        --nav-bg: rgba(30, 30, 30, 0.9);
+        --skeleton-bg: #2c2c2e;
+        --skeleton-shine: #3a3a3c;
+        --empty-icon: #4b3e32;
+    }
+    
+    /* Specific Dark Mode Overrides */
+    .cal-day.today { background-color: rgba(168, 139, 111, 0.2) !important; color: var(--primary-color) !important; }
+    .cal-day.has-coffee { background-color: rgba(168, 139, 111, 0.1) !important; }
+    .tabs-group { background: var(--border-color); }
+    .tab-btn.active { background: var(--card-bg); color: var(--text-main); }
+    .btn-sheet { background: rgba(255, 255, 255, 0.15); color: var(--text-main); }
+    .empty-state-icon svg { opacity: 0.8; }
 }
 
 * {
@@ -465,6 +494,63 @@ p {
     color: var(--text-muted);
     font-weight: 500;
 }
+
+.empty-state-svg {
+    width: 140px;
+    height: 140px;
+    margin: 0 auto 16px;
+    color: var(--empty-icon);
+    opacity: 0.8;
+}
+
+/* SKELETON LOADERS */
+@keyframes shimmer {
+    0% { background-position: -400px 0; }
+    100% { background-position: 400px 0; }
+}
+
+@keyframes pulse-icon {
+    0%, 100% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.1); opacity: 0.8; }
+}
+
+.skeleton-card {
+    display: flex;
+    align-items: center;
+    padding: 16px;
+    height: 80px;
+    border-radius: 20px;
+    background: var(--card-bg);
+    margin-bottom: 16px;
+    pointer-events: none;
+}
+
+.skeleton-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: var(--skeleton-bg);
+    margin-right: 16px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: var(--text-muted);
+    animation: pulse-icon 2s infinite ease-in-out;
+}
+
+.skeleton-line {
+    height: 16px;
+    border-radius: 8px;
+    background: linear-gradient(to right, var(--skeleton-bg) 8%, var(--skeleton-shine) 38%, var(--skeleton-bg) 54%);
+    background-size: 800px 100%;
+    animation: shimmer 2s infinite linear;
+    margin-bottom: 8px;
+}
+
+.skeleton-line.short { width: 40%; height: 12px; margin-bottom: 0; }
+.skeleton-line.long { width: 70%; }
 
 /* Coffee Item Card (no mg) */
 .coffee-item-card .coffee-item-size {
