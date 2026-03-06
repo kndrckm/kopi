@@ -963,6 +963,7 @@ let currentUser = null;
         // --- FORM STATE ---
         let uploadedPhotoDataUrl = null;
         let uploadedPhotoBlob = null;
+        let userChangedPhoto = false;
 
         document.querySelectorAll('.size-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -979,14 +980,32 @@ let currentUser = null;
             });
         });
 
+        // --- PRICE INPUT FORMATTING ---
+        const priceInputEl = document.getElementById('input-price');
+        if (priceInputEl) {
+            priceInputEl.addEventListener('input', function (e) {
+                // Remove non-numeric chars
+                let val = this.value.replace(/\D/g, '');
+                // Format with commas
+                if (val !== '') {
+                    val = parseInt(val, 10).toLocaleString('en-US');
+                }
+                this.value = val;
+            });
+        }
+
         // --- PHOTO UPLOAD ---
         const photoBox = document.getElementById('photo-placeholder');
         const photoInput = document.getElementById('photo-input');
         if (photoBox && photoInput) {
             photoBox.addEventListener('click', (e) => { if (!e.target.closest('.remove-photo-btn')) photoInput.click(); });
             photoInput.addEventListener('change', (e) => {
+                userChangedPhoto = true;
                 const file = e.target.files[0];
-                if (!file) return;
+                if (!file) {
+                    userChangedPhoto = false;
+                    return;
+                }
 
                 // Validate File Size (10MB Max before compression)
                 if (file.size > 10 * 1024 * 1024) {
@@ -1050,6 +1069,9 @@ let currentUser = null;
         function resetPhotoBox() {
             uploadedPhotoDataUrl = null;
             uploadedPhotoBlob = null;
+            userChangedPhoto = false;
+            const photoBox = document.getElementById('photo-placeholder');
+            const photoInput = document.getElementById('photo-input');
             if (photoBox) photoBox.innerHTML = `<i class="ph ph-camera"></i><span class="photo-upload-title">Add Photo</span><span class="photo-upload-hint">Capture your coffee moment</span>`;
             if (photoInput) photoInput.value = '';
         }
@@ -1104,20 +1126,39 @@ let currentUser = null;
 
         if (btnSaveCoffee) {
             btnSaveCoffee.addEventListener('click', async () => {
-                const now = new Date();
-                const timeStr = `${String(now.getHours()).padStart(2, '0')}.${String(now.getMinutes()).padStart(2, '0')}`;
-                const priceInput = modalAddCoffee.querySelector('input[type="number"]');
-                const price = priceInput ? parseFloat(priceInput.value) || 0 : 0;
-                const hasPhoto = !!uploadedPhotoBlob;
-                const photoBlob = uploadedPhotoBlob; // capture reference before reset
+                // Use selected date/time instead of `now`
+                const timeStr = `${String(selectedDateTime.getHours()).padStart(2, '0')}.${String(selectedDateTime.getMinutes()).padStart(2, '0')}`;
 
-                // Set temporary flag so the UI knows this entry is busy processing a photo
-                const isProcessingPhoto = hasPhoto;
+                const nameInput = document.getElementById('input-coffee-name');
+                const coffeeName = nameInput ? nameInput.value.trim() : null;
+
+                // Get price from formatted text input
+                const priceInput = document.getElementById('input-price');
+                let price = null;
+                if (priceInput && priceInput.value) {
+                    price = parseFloat(priceInput.value.replace(/,/g, '')) || null;
+                }
+
+                const photoBlob = uploadedPhotoBlob; // capture reference before reset
+                const isProcessingPhoto = userChangedPhoto;
+
+                // If editing, remember the old sticker so we don't nullify it
+                let existingSticker = null;
+                if (editingCoffeeId || editingCoffeeIdx !== null) {
+                    const existingEntry = coffeeEntries.find(e => e.id === editingCoffeeId) || coffeeEntries[editingCoffeeIdx];
+                    if (existingEntry) existingSticker = existingEntry.sticker;
+                }
+
+                // Default sticker to what we already had
+                let newStickerVal = existingSticker;
+                if (userChangedPhoto) newStickerVal = null; // We are going to process a new one
 
                 const entry = {
                     user_id: currentUser ? currentUser.id : null,
+                    name: coffeeName,
                     type: selectedType, size: selectedSize, temp: selectedTemp,
-                    time: timeStr, price, sticker: null,
+                    time: timeStr, price,
+                    sticker: newStickerVal,
                     emoji: getTypeEmoji(selectedType),
                     date_string: selectedDateTime.toDateString()
                 };
@@ -1364,9 +1405,13 @@ let currentUser = null;
                 updateAddCoffeeDateTimeDisplay();
                 rebuildTypeGrid();
 
-                // Set price
-                const priceInput = modalAddCoffee.querySelector('input[type="number"]');
-                if (priceInput) priceInput.value = entry.price || '';
+                // Set name
+                const nameInput = document.getElementById('input-coffee-name');
+                if (nameInput) nameInput.value = entry.name || '';
+
+                // Set formatted price
+                const priceInput = document.getElementById('input-price');
+                if (priceInput) priceInput.value = entry.price ? Number(entry.price).toLocaleString('en-US') : '';
 
                 // Set Photo/Sticker preview if exists
                 if (entry.sticker) {
