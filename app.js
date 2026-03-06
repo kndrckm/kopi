@@ -2599,6 +2599,66 @@ let currentUser = null;
                 }
             }
         }
+
+        // ============================================================
+        // PWA VERSION UPDATER
+        // ============================================================
+        async function checkAppVersion() {
+            try {
+                // Fetch directly from network, ignoring Service Worker cache
+                const timestamp = new Date().getTime();
+                const response = await fetch(`version.json?t=${timestamp}`, { cache: "no-store", method: 'GET' });
+
+                if (!response.ok) return; // If file is missing locally, ignore
+
+                const data = await response.json();
+
+                const currentVersionVal = localStorage.getItem('kopi_app_version');
+                const newVersionVal = data.version;
+
+                // If no version is stored yet, just set it and return quietly
+                if (!currentVersionVal) {
+                    localStorage.setItem('kopi_app_version', newVersionVal);
+                    return;
+                }
+
+                // If versions mismatch, an update occurred! Show the banner
+                if (currentVersionVal !== newVersionVal) {
+                    const banner = document.getElementById('pwa-update-banner');
+                    if (banner) {
+                        banner.classList.add('show');
+                        banner.addEventListener('click', async () => {
+                            // Destroy Service Worker
+                            if ('serviceWorker' in navigator) {
+                                const registrations = await navigator.serviceWorker.getRegistrations();
+                                for (let registration of registrations) {
+                                    await registration.unregister();
+                                }
+                            }
+
+                            // Destroy explicit Caches
+                            if ('caches' in window) {
+                                const cacheNames = await caches.keys();
+                                for (let cacheName of cacheNames) {
+                                    await caches.delete(cacheName);
+                                }
+                            }
+
+                            // Commit the new version and reload
+                            localStorage.setItem('kopi_app_version', newVersionVal);
+                            window.location.reload(true);
+                        });
+                    }
+                }
+
+            } catch (err) {
+                console.log("Could not check app version:", err);
+            }
+        }
+
+        // Run the version check quietly in the background on launch
+        checkAppVersion();
+
     } catch (err) {
         console.error('App initialization error:', err);
     }
