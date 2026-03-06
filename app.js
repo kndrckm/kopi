@@ -692,6 +692,7 @@ let currentUser = null;
                 sc.style.transition = '';
             }
             sheet.style.background = '';
+            sheet.style.zIndex = '';
             sheet.classList.remove('active');
             // Remove from stack
             const idx = sheetStack.indexOf(sheet);
@@ -1598,7 +1599,7 @@ let currentUser = null;
 
             // Populate the card
             document.getElementById('share-card-date').textContent = dateStr;
-            document.getElementById('share-card-name').textContent = entry.type || 'Coffee';
+            document.getElementById('share-card-name').textContent = entry.name || entry.type || 'Coffee';
 
             // Sticker or emoji
             const stickerEl = document.getElementById('share-card-sticker');
