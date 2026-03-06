@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Monicoffee">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="styles.css?v=5">
+    <link rel="stylesheet" href="styles.css?v=6">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 </head>
@@ -358,7 +358,20 @@
                     </div>
 
                     <div class="split-row" style="display: flex; gap: 12px; margin-bottom: 24px;">
-                        <!-- Left Date -->
+                        <!-- Left Maps (66%) -->
+                        <div class="card list-input selectable compact-list-input" id="btn-open-maps"
+                            style="flex: 2; margin-bottom: 0; padding: 16px;">
+                            <div class="list-input-left" style="gap: 12px;">
+                                <i class="ph ph-map-pin" style="font-size: 22px; color: var(--primary-color);"></i>
+                                <div>
+                                    <h3 id="add-coffee-location" style="font-size: 14px; margin-bottom: 2px;">Add
+                                        Location</h3>
+                                    <p id="add-coffee-address" style="font-size: 13px;">Optional</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Date (33%) -->
                         <div class="card list-input selectable compact-list-input" id="btn-open-dt-picker"
                             style="flex: 1; margin-bottom: 0; padding: 16px;">
                             <div class="list-input-left" style="gap: 12px;">
@@ -371,24 +384,11 @@
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Right Maps -->
-                        <div class="card list-input selectable compact-list-input" id="btn-open-maps"
-                            style="flex: 1; margin-bottom: 0; padding: 16px;">
-                            <div class="list-input-left" style="gap: 12px;">
-                                <i class="ph ph-map-pin" style="font-size: 22px; color: var(--primary-color);"></i>
-                                <div>
-                                    <h3 id="add-coffee-location" style="font-size: 14px; margin-bottom: 2px;">Add
-                                        Location</h3>
-                                    <p id="add-coffee-address" style="font-size: 13px;">Optional</p>
-                                </div>
-                            </div>
-                        </div>
                     </div>
 
                     <div class="form-group">
                         <label>Name (Optional)</label>
-                        <input type="text" id="input-coffee-name" class="text-input" placeholder="">
+                        <input type="text" id="input-coffee-name" class="text-input" placeholder="e.g. Montblanc">
                     </div>
 
                     <!-- Coffee Type (2x3 grid) -->
