@@ -1060,6 +1060,7 @@ let currentUser = null;
 
                             uploadedPhotoDataUrl = canvas.toDataURL('image/webp', 0.8);
                             photoBox.innerHTML = `<img src="${uploadedPhotoDataUrl}" alt="coffee photo"><button class="remove-photo-btn" id="btn-remove-photo"><i class="ph ph-x"></i></button>`;
+                            photoBox.classList.add('has-photo');
                             document.getElementById('btn-remove-photo').addEventListener('click', (evt) => { evt.stopPropagation(); resetPhotoBox(); });
                         }, 'image/webp', 0.8);
                     };
@@ -1075,7 +1076,10 @@ let currentUser = null;
             userChangedPhoto = false;
             const photoBox = document.getElementById('photo-placeholder');
             const photoInput = document.getElementById('photo-input');
-            if (photoBox) photoBox.innerHTML = `<i class="ph ph-camera"></i><span class="photo-upload-title">Add Photo</span><span class="photo-upload-hint">Capture your coffee moment</span>`;
+            if (photoBox) {
+                photoBox.innerHTML = `<i class="ph ph-camera"></i><span class="photo-upload-title">Add Photo</span><span class="photo-upload-hint">Capture your coffee moment</span>`;
+                photoBox.classList.remove('has-photo');
+            }
             if (photoInput) photoInput.value = '';
         }
 
@@ -1522,6 +1526,7 @@ let currentUser = null;
 
                     if (photoBox) {
                         photoBox.innerHTML = `<img src="${entry.sticker}" alt="coffee photo" crossorigin="anonymous"><button class="remove-photo-btn" id="btn-remove-photo"><i class="ph ph-x"></i></button>`;
+                        photoBox.classList.add('has-photo');
                         document.getElementById('btn-remove-photo').addEventListener('click', (evt) => {
                             evt.stopPropagation();
                             if (window.confirm("Are you sure you want to permanently delete this photo?")) {

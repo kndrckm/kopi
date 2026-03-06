@@ -1439,6 +1439,18 @@ input:checked+.slider-toggle:before {
     position: absolute;
     top: 0;
     left: 0;
+    border-radius: 20px;
+}
+
+.photo-upload-box.has-photo {
+    border: none;
+    background: transparent;
+}
+
+.photo-upload-box.has-photo i,
+.photo-upload-box.has-photo .photo-upload-title,
+.photo-upload-box.has-photo .photo-upload-hint {
+    display: none;
 }
 
 .photo-upload-box .remove-photo-btn {
