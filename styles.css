@@ -637,6 +637,11 @@ p {
 .steam-path {
     stroke-dasharray: 10;
     stroke-dashoffset: 10;
+    opacity: 0;
+}
+
+.empty-state-icon .steam-path,
+.nav-item.active .steam-path {
     animation: steam 3.5s infinite ease-out;
 }
 
@@ -1722,13 +1727,15 @@ input:checked+.slider-toggle:before {
 
 /* BOTTOM NAV */
 .bottom-nav {
+    padding: 12px 0 30px;
     position: absolute;
-    bottom: 30px;
+    bottom: 0;
     left: 0;
     width: 100%;
     display: flex;
     justify-content: center;
     z-index: 100;
+    pointer-events: none;
 }
 
 .bottom-nav.hidden {
@@ -1736,35 +1743,38 @@ input:checked+.slider-toggle:before {
 }
 
 .nav-pill {
-    background: var(--nav-bg);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    background-color: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
     border-radius: 46px;
     display: flex;
-    padding: 8px 16px;
+    padding: 12px;
     gap: 12px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
     align-items: center;
     position: relative;
     touch-action: pan-y;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    pointer-events: auto;
 }
 
 .nav-indicator {
     position: absolute;
-    top: 8px;
-    left: 16px;
+    top: 12px;
+    left: 12px;
     width: 60px;
     height: 60px;
     border-radius: 30px;
-    background: #f2ede7;
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(12px) saturate(150%);
+    -webkit-backdrop-filter: blur(12px) saturate(150%);
     z-index: 1;
     transition: left 0.4s cubic-bezier(0.25, 1, 0.5, 1),
         width 0.4s cubic-bezier(0.25, 1, 0.5, 1),
         border-radius 0.4s cubic-bezier(0.25, 1, 0.5, 1),
         transform 0.2s;
     pointer-events: none;
-    box-shadow: inset 0 0 12px rgba(255, 255, 255, 0.5), 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: inset 0 0 16px rgba(255, 255, 255, 0.8), 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 :root.dark-mode .nav-indicator {
@@ -1798,8 +1808,58 @@ input:checked+.slider-toggle:before {
     }
 }
 
+/* Nav Item Animated Icons */
+.nav-bar-path {
+    transform-origin: bottom;
+    transform-box: fill-box;
+    transform: scaleY(0.5);
+}
+
+.nav-item.active .nav-bar-path {
+    animation: nav-bar-bounce 3.5s infinite ease-out;
+}
+
+@keyframes nav-bar-bounce {
+
+    0%,
+    100% {
+        transform: scaleY(0.5);
+    }
+
+    15% {
+        transform: scaleY(1);
+    }
+
+    30% {
+        transform: scaleY(0.5);
+    }
+}
+
+.nav-slider-circle,
+.nav-slider-mask {
+    transform: translateX(0);
+}
+
+.nav-item.active .nav-slider-circle.top,
+.nav-item.active .nav-slider-mask.top {
+    animation: nav-slider-move 3.5s infinite ease-in-out;
+}
+
+@keyframes nav-slider-move {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    50% {
+        transform: translateX(8px);
+    }
+}
+
 .nav-item {
-    background: transparent;
+    background: rgba(0, 0, 0, 0.04);
+    box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.02);
     border: none;
     width: 60px;
     height: 60px;
@@ -1810,7 +1870,7 @@ input:checked+.slider-toggle:before {
     justify-content: center;
     align-items: center;
     cursor: pointer;
-    transition: color 0.3s, transform 0.2s;
+    transition: color 0.3s, transform 0.2s, background 0.3s;
     position: relative;
     z-index: 2;
 }
@@ -2167,67 +2227,7 @@ input:checked+.slider-toggle:before {
     background: transparent;
 }
 
-/* ========== BOTTOM NAV ========== */
-.bottom-nav {
-    padding: 12px 0 20px;
-    display: flex;
-    justify-content: center;
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 100;
-    pointer-events: none;
-}
 
-.bottom-nav.hidden {
-    display: none;
-}
-
-.nav-pill {
-    display: flex;
-    gap: 0;
-    background: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-radius: 40px;
-    padding: 6px;
-    position: relative;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-    pointer-events: auto;
-}
-
-.nav-indicator {
-    position: absolute;
-    height: calc(100% - 12px);
-    width: 48px;
-    top: 6px;
-    left: 6px;
-    background-color: var(--bg-color);
-    border-radius: 50px;
-    transition: left 0.4s cubic-bezier(0.25, 1, 0.5, 1), width 0.2s ease-in;
-    z-index: 0;
-}
-
-.nav-item {
-    background: none;
-    border: none;
-    width: 52px;
-    height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 22px;
-    color: var(--text-muted);
-    cursor: pointer;
-    position: relative;
-    z-index: 1;
-    transition: color 0.2s;
-}
-
-.nav-item.active {
-    color: var(--primary-color);
-}
 
 /* ========== DAY DETAIL OVERLAY (BOTTOM SHEET) ========== */
 .day-overlay-backdrop {

@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Monicoffee">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-    <link rel="stylesheet" href="styles.css?v=12">
+    <link rel="stylesheet" href="styles.css?v=14">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 </head>
@@ -617,8 +617,37 @@
                         <path d="M2 19h17" />
                     </svg>
                 </button>
-                <button class="nav-item" data-target="view-statistics"><i class="ph-bold ph-chart-line-up"></i></button>
-                <button class="nav-item" data-target="view-settings"><i class="ph-bold ph-gear"></i></button>
+                <button class="nav-item" data-target="view-statistics">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                        <!-- Bar 1 (left) -->
+                        <rect x="4" y="14" width="4" height="6" rx="1.5" class="nav-bar-path"
+                            style="animation-delay: 0s;" />
+                        <!-- Bar 2 (middle) -->
+                        <rect x="10" y="8" width="4" height="12" rx="1.5" class="nav-bar-path"
+                            style="animation-delay: 0.2s;" />
+                        <!-- Bar 3 (right) -->
+                        <rect x="16" y="11" width="4" height="9" rx="1.5" class="nav-bar-path"
+                            style="animation-delay: 0.4s;" />
+                    </svg>
+                </button>
+                <button class="nav-item" data-target="view-settings">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <defs>
+                            <mask id="sliderMask">
+                                <rect x="0" y="0" width="24" height="24" fill="white" />
+                                <circle cx="7" cy="8" r="5" fill="black" class="nav-slider-mask top" />
+                                <circle cx="17" cy="16" r="5" fill="black" />
+                            </mask>
+                        </defs>
+                        <g mask="url(#sliderMask)">
+                            <line x1="3" y1="8" x2="21" y2="8" />
+                            <line x1="3" y1="16" x2="21" y2="16" />
+                        </g>
+                        <circle cx="7" cy="8" r="2.5" class="nav-slider-circle top" />
+                        <circle cx="17" cy="16" r="2.5" />
+                    </svg>
+                </button>
             </div>
         </div>
 
