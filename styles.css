@@ -1242,7 +1242,6 @@ input:checked+.slider-toggle:before {
 }
 
 .modal-header {
-    margin-bottom: 24px;
     position: sticky;
     top: 0;
     z-index: 10;
@@ -1251,8 +1250,10 @@ input:checked+.slider-toggle:before {
     -webkit-backdrop-filter: blur(24px);
     padding: 20px 24px;
     padding-top: 30px;
+    padding-bottom: 20px;
     margin-top: 5vh;
     border-radius: 28px 28px 0 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
 }
 
 .modal-header.center {
