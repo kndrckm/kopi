@@ -1,4 +1,4 @@
-const CACHE_NAME = 'monicoffee-v1';
+const CACHE_NAME = 'monicoffee-v2';
 const ASSETS_TO_CACHE = [
     '/kopi/',
     '/kopi/index.html',
@@ -36,26 +36,76 @@ self.addEventListener('activate', (event) => {
     self.clients.claim();
 });
 
-// Fetch — network-first strategy (so data stays fresh)
+// Fetch — smart caching strategy
 self.addEventListener('fetch', (event) => {
-    // Skip non-GET requests and Supabase API calls
+    // Skip non-GET requests
     if (event.request.method !== 'GET') return;
-    if (event.request.url.includes('supabase.co')) return;
-    if (event.request.url.includes('cdn.jsdelivr.net')) return;
 
-    event.respondWith(
-        fetch(event.request)
-            .then((response) => {
-                // Clone and cache the fresh response
-                const responseClone = response.clone();
-                caches.open(CACHE_NAME).then((cache) => {
-                    cache.put(event.request, responseClone);
+    // Skip Supabase API calls — always go to network for fresh data
+    if (event.request.url.includes('supabase.co')) return;
+
+    const url = new URL(event.request.url);
+
+    // --- STRATEGY 1: Stale-While-Revalidate for app shell assets ---
+    // Returns cache immediately for instant load, updates cache in background
+    const isAppShell = ASSETS_TO_CACHE.some(asset => url.pathname.endsWith(asset) || url.pathname === asset);
+    if (isAppShell) {
+        event.respondWith(
+            caches.open(CACHE_NAME).then((cache) => {
+                return cache.match(event.request).then((cachedResponse) => {
+                    const fetchPromise = fetch(event.request).then((networkResponse) => {
+                        if (networkResponse && networkResponse.ok) {
+                            cache.put(event.request, networkResponse.clone());
+                        }
+                        return networkResponse;
+                    }).catch(() => cachedResponse); // Fallback to cache if network fails
+
+                    // Return cached version immediately, update in background
+                    return cachedResponse || fetchPromise;
                 });
-                return response;
             })
-            .catch(() => {
-                // Fallback to cache when offline
-                return caches.match(event.request);
+        );
+        return;
+    }
+
+    // --- STRATEGY 2: Cache-first for @imgly WASM/ML model files ---
+    // These are large, versioned files that don't change — cache aggressively
+    if (event.request.url.includes('cdn.jsdelivr.net') && event.request.url.includes('@imgly')) {
+        event.respondWith(
+            caches.open(CACHE_NAME).then((cache) => {
+                return cache.match(event.request).then((cachedResponse) => {
+                    if (cachedResponse) return cachedResponse;
+                    return fetch(event.request).then((networkResponse) => {
+                        if (networkResponse && networkResponse.ok) {
+                            cache.put(event.request, networkResponse.clone());
+                        }
+                        return networkResponse;
+                    });
+                });
             })
+        );
+        return;
+    }
+
+    // --- STRATEGY 3: Skip other CDN requests (Supabase JS, fonts, icons) ---
+    if (event.request.url.includes('cdn.jsdelivr.net')) return;
+    if (event.request.url.includes('fonts.googleapis.com')) return;
+    if (event.request.url.includes('fonts.gstatic.com')) return;
+    if (event.request.url.includes('unpkg.com')) return;
+
+    // --- STRATEGY 4: Stale-While-Revalidate for everything else ---
+    event.respondWith(
+        caches.open(CACHE_NAME).then((cache) => {
+            return cache.match(event.request).then((cachedResponse) => {
+                const fetchPromise = fetch(event.request).then((networkResponse) => {
+                    if (networkResponse && networkResponse.ok) {
+                        cache.put(event.request, networkResponse.clone());
+                    }
+                    return networkResponse;
+                }).catch(() => cachedResponse);
+
+                return cachedResponse || fetchPromise;
+            });
+        })
     );
 });

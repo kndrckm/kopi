@@ -126,14 +126,15 @@ let currentUser = null;
         supabase.auth.onAuthStateChange((event, session) => {
             if (event === 'SIGNED_IN') {
                 currentUser = session.user;
-                // Profile & types fetched in getSession block on first load
-                // This handles subsequent sign-ins (e.g., OAuth redirect)
-                fetchUserProfile().then(() => {
+                // Fire all queries in parallel on sign-in
+                Promise.all([
+                    fetchUserProfile(),
+                    fetchCoffeeTypes(),
+                    fetchCoffeeEntries()
+                ]).then(() => {
                     updateUserGreeting();
                     checkAdminFeatures();
                 });
-                fetchCoffeeTypes();
-                fetchCoffeeEntries();
             } else if (event === 'SIGNED_OUT') {
                 currentUser = null;
                 coffeeEntries = [];
@@ -225,12 +226,15 @@ let currentUser = null;
         const { data: { session }, error } = await supabase.auth.getSession();
         if (session) {
             currentUser = session.user;
-            await fetchUserProfile();
-            await fetchCoffeeTypes();
+            switchView('view-calendar'); // Show UI skeleton immediately
+            // Fire all 3 queries in parallel instead of sequentially
+            await Promise.all([
+                fetchUserProfile(),
+                fetchCoffeeTypes(),
+                fetchCoffeeEntries()
+            ]);
             updateUserGreeting();
             checkAdminFeatures();
-            fetchCoffeeEntries();
-            switchView('view-calendar');
         } else {
             if (error) console.error('Error fetching session:', error.message);
             switchView('view-login');
@@ -373,6 +377,11 @@ let currentUser = null;
             views.forEach(v => v.classList.remove('active'));
             document.getElementById(viewId).classList.add('active');
             if (bottomNav) bottomNav.classList.toggle('hidden', ['view-onboarding', 'view-login', 'view-nickname'].includes(viewId));
+
+            // Stop physics loop when leaving Statistics tab (saves battery)
+            if (viewId !== 'view-statistics') {
+                stickerPhysics.clear();
+            }
 
             // Refresh stats tab indicator position if opening statistics
             if (viewId === 'view-statistics') {
@@ -854,8 +863,10 @@ let currentUser = null;
             if (!currentUser) return;
             const { data, error } = await supabase
                 .from('coffee_entries')
-                .select('*')
-                .order('created_at', { ascending: false });
+                .select('id, type, size, temp, time, price, sticker, emoji, date_string, is_favorite, created_at')
+                .eq('user_id', currentUser.id)
+                .order('created_at', { ascending: false })
+                .limit(200);
 
             if (error) {
                 console.error('Error fetching entries:', error.message);
@@ -1023,10 +1034,8 @@ let currentUser = null;
             const newState = !entry.is_favorite;
             entry.is_favorite = newState;
 
-            // Optimistic UI update
+            // Targeted UI update — only re-render the coffee list, skip heavy calendar/stats rebuild
             renderTodayCoffee();
-            updateCalendarStickers();
-            updateStatistics();
 
             if (currentUser && entry.id && typeof entry.id === 'string' && entry.id.length > 5) {
                 const { error } = await supabase.from('coffee_entries').update({ is_favorite: newState }).eq('id', entry.id);
@@ -1035,8 +1044,6 @@ let currentUser = null;
                     // Revert if error
                     entry.is_favorite = !newState;
                     renderTodayCoffee();
-                    updateCalendarStickers();
-                    updateStatistics();
                 }
             }
         }
@@ -1044,7 +1051,7 @@ let currentUser = null;
         function createCoffeeItemRow(entry, idx) {
             const tempIcon = entry.temp === 'Hot' ? '♨️' : '🧊';
             const stickerHtml = entry.sticker
-                ? `<img src="${entry.sticker}" alt="sticker" class="coffee-item-sticker">`
+                ? `<img src="${entry.sticker}" alt="sticker" class="coffee-item-sticker" loading="lazy">`
                 : `<span class="coffee-item-emoji">${entry.emoji || '☕'}</span>`;
 
             const favHtml = entry.is_favorite ? `<i class="ph-fill ph-heart favorite-icon"></i>` : '';
@@ -1147,7 +1154,25 @@ let currentUser = null;
 
             // Favorite Event
             container.querySelector('.favorite-btn').addEventListener('click', () => {
-                closeSheet(content); // snap shut if it was open
+                // Snap the card closed immediately
+                content.style.transition = 'transform 0.3s cubic-bezier(0.1, 0.7, 0.1, 1)';
+                content.style.transform = 'translateX(0px)';
+
+                // Show the heart icon instantly on the card for responsive feel
+                const infoEl = content.querySelector('.coffee-item-info');
+                if (infoEl) {
+                    const existingHeart = infoEl.querySelector('.favorite-icon');
+                    if (entry.is_favorite) {
+                        // Will unfavorite — remove heart instantly
+                        if (existingHeart) existingHeart.remove();
+                    } else {
+                        // Will favorite — add heart instantly
+                        if (!existingHeart) {
+                            infoEl.insertAdjacentHTML('beforeend', '<i class="ph-fill ph-heart favorite-icon"></i>');
+                        }
+                    }
+                }
+
                 toggleFavorite(entry);
             });
 
@@ -1179,7 +1204,7 @@ let currentUser = null;
             // Sticker or emoji
             const stickerEl = document.getElementById('share-card-sticker');
             if (entry.sticker) {
-                stickerEl.innerHTML = `<img src="${entry.sticker}" alt="sticker" crossorigin="anonymous">`;
+                stickerEl.innerHTML = `<img src="${entry.sticker}" alt="sticker" crossorigin="anonymous" loading="lazy">`;
             } else {
                 stickerEl.innerHTML = `<span class="share-sticker-emoji">${entry.emoji || '☕'}</span>`;
             }
@@ -1441,6 +1466,7 @@ let currentUser = null;
                             const img = document.createElement('img');
                             img.src = c.sticker;
                             img.alt = '';
+                            img.loading = 'lazy';
                             gridDiv.appendChild(img);
                         } else {
                             const span = document.createElement('span');
@@ -1467,7 +1493,6 @@ let currentUser = null;
             let startX = 0, currentTranslate = 0, isDragging = false;
             const limitLeft = -150; // Share & Delete limit
             const limitRight = 75;  // Favorite limit
-            const triggerRight = 100; // Auto-trigger Favorite threshold
 
             el.addEventListener('touchstart', (e) => {
                 startX = e.touches[0].clientX;
@@ -1479,10 +1504,11 @@ let currentUser = null;
                 if (!isDragging) return;
                 let val = currentTranslate + (e.touches[0].clientX - startX);
 
-                // Spring resistance past limits
-                if (val > limitRight + 45) { // Max drag ~120px
-                    val = limitRight + 45 + ((val - (limitRight + 45)) * 0.2); // Add heavy friction past max drag
+                // Spring resistance past right limit (rubber band effect)
+                if (val > limitRight) {
+                    val = limitRight + ((val - limitRight) * 0.25);
                 }
+                // Spring resistance past left limit
                 if (val < limitLeft - 20) val = limitLeft - 20;
 
                 el.style.transform = `translateX(${val}px)`;
@@ -1493,22 +1519,19 @@ let currentUser = null;
                 isDragging = false;
                 el.style.transition = 'transform 0.3s cubic-bezier(0.1, 0.7, 0.1, 1)';
 
-                // Get absolute current translation, not matrix, for better reliability during fast swipes
                 const transformStr = el.style.transform || 'translateX(0px)';
                 const currentXMatch = transformStr.match(/translateX\(([-0-9.]+)px\)/);
                 const currentX = currentXMatch ? parseFloat(currentXMatch[1]) : 0;
 
-                if (currentX > triggerRight) {
-                    // Auto-trigger Favorite!
-                    currentTranslate = 0;
-                    const favBtn = el.parentElement.querySelector('.favorite-btn');
-                    if (favBtn) setTimeout(() => favBtn.click(), 150); // slight delay for visual snap
-                } else if (currentX > limitRight / 2) {
-                    currentTranslate = limitRight; // Snap open
+                // Snap right (reveal favorite): low threshold so gentle swipes work
+                if (currentX > 25) {
+                    currentTranslate = limitRight;
+                    // Snap left (reveal share/delete)
                 } else if (currentX < limitLeft / 2) {
-                    currentTranslate = limitLeft;  // Snap open
+                    currentTranslate = limitLeft;
+                    // Snap closed
                 } else {
-                    currentTranslate = 0;          // Snap closed
+                    currentTranslate = 0;
                 }
 
                 el.style.transform = `translateX(${currentTranslate}px)`;
@@ -1727,7 +1750,7 @@ let currentUser = null;
                         el.style.height = currentSize + 'px';
 
                         if (e.sticker) {
-                            el.innerHTML = `<img src="${e.sticker}" alt="" class="sticker-img">`;
+                            el.innerHTML = `<img src="${e.sticker}" alt="" class="sticker-img" loading="lazy">`;
                         } else {
                             el.innerHTML = `<span class="sticker-emoji">${e.emoji || '☕'}</span>`;
                         }
