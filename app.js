@@ -988,7 +988,7 @@ let currentUser = null;
                 const file = e.target.files[0];
                 if (!file) return;
 
-                // Validate File Size (10MB Max)
+                // Validate File Size (10MB Max before compression)
                 if (file.size > 10 * 1024 * 1024) {
                     alert("Photo is too large. Max size is 10MB.");
                     resetPhotoBox();
@@ -996,20 +996,53 @@ let currentUser = null;
                 }
 
                 // Validate File Type (HEIC, JPG, JPEG, PNG)
-                const validTypes = ['image/jpeg', 'image/png', 'image/heic'];
+                const validTypes = ['image/jpeg', 'image/png', 'image/heic', 'image/webp'];
                 const extension = file.name.split('.').pop().toLowerCase();
-                if (!validTypes.includes(file.type) && !['jpg', 'jpeg', 'png', 'heic'].includes(extension)) {
-                    alert("Invalid file format. Please upload JPG, PNG, or HEIC.");
+                if (!validTypes.includes(file.type) && !['jpg', 'jpeg', 'png', 'heic', 'webp'].includes(extension)) {
+                    alert("Invalid file format. Please upload JPG, PNG, WEBP, or HEIC.");
                     resetPhotoBox();
                     return;
                 }
 
-                uploadedPhotoBlob = file;
                 const reader = new FileReader();
                 reader.onload = (ev) => {
-                    uploadedPhotoDataUrl = ev.target.result;
-                    photoBox.innerHTML = `<img src="${ev.target.result}" alt="coffee photo"><button class="remove-photo-btn" id="btn-remove-photo"><i class="ph ph-x"></i></button>`;
-                    document.getElementById('btn-remove-photo').addEventListener('click', (evt) => { evt.stopPropagation(); resetPhotoBox(); });
+                    const img = new Image();
+                    img.onload = () => {
+                        // Compress Image Using Canvas -> WebP
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 800;
+                        const MAX_HEIGHT = 800;
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > height && width > MAX_WIDTH) {
+                            height *= MAX_WIDTH / width;
+                            width = MAX_WIDTH;
+                        } else if (height > MAX_HEIGHT) {
+                            width *= MAX_HEIGHT / height;
+                            height = MAX_HEIGHT;
+                        }
+
+                        canvas.width = Math.round(width);
+                        canvas.height = Math.round(height);
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                        // Export as WebP with 0.8 quality (often results in <100kb sizes)
+                        canvas.toBlob((blob) => {
+                            if (!blob) {
+                                console.error('Canvas compression failed, falling back to original');
+                                uploadedPhotoBlob = file;
+                            } else {
+                                uploadedPhotoBlob = new File([blob], "compressed.webp", { type: "image/webp" });
+                            }
+
+                            uploadedPhotoDataUrl = canvas.toDataURL('image/webp', 0.8);
+                            photoBox.innerHTML = `<img src="${uploadedPhotoDataUrl}" alt="coffee photo"><button class="remove-photo-btn" id="btn-remove-photo"><i class="ph ph-x"></i></button>`;
+                            document.getElementById('btn-remove-photo').addEventListener('click', (evt) => { evt.stopPropagation(); resetPhotoBox(); });
+                        }, 'image/webp', 0.8);
+                    };
+                    img.src = ev.target.result;
                 };
                 reader.readAsDataURL(file);
             });
@@ -1245,8 +1278,9 @@ let currentUser = null;
             const newState = !entry.is_favorite;
             entry.is_favorite = newState;
 
-            // Targeted UI update — only re-render the coffee list, skip heavy calendar/stats rebuild
-            renderTodayCoffee();
+            // Notice: We do NOT call renderTodayCoffee() here anymore because the 
+            // click listener instantly applies the heart icon visually. Re-rendering 
+            // drops the animation and causes layout recalculations.
 
             if (currentUser && entry.id && typeof entry.id === 'string' && entry.id.length > 5) {
                 const { error } = await supabase.from('coffee_entries').update({ is_favorite: newState }).eq('id', entry.id);
@@ -1615,8 +1649,8 @@ let currentUser = null;
             if (todaysCoffees.length === 0) {
                 todayCoffeeList.innerHTML = `
                 <div class="card empty-state-card" style="margin-top:20px;">
-                    <div class="empty-state-svg">
-                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 3H4v10c0 2.21 1.79 4 4 4h6c2.21 0 4-1.79 4-4v-3h2c1.11 0 2-.89 2-2V5c0-1.11-.89-2-2-2zm-2 5h-2V5h2v3zm-4 7H8c-1.1 0-2-.9-2-2V5h12v6c0 1.1-.9 2-2 2z" opacity="0.6"/><path d="M4 19h16v2H4z"/></svg>
+                    <div class="empty-state-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.6; color: var(--text-muted);"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" y1="2" x2="6" y2="4"/><line x1="10" y1="2" x2="10" y2="4"/><line x1="14" y1="2" x2="14" y2="4"/></svg>
                     </div>
                     <p class="empty-state-text">No coffee today. Time for a break?</p>
                 </div>`;
