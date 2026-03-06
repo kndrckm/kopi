@@ -244,9 +244,9 @@ textarea {
 
 h1 {
     font-size: 32px;
-    font-weight: 700;
+    font-weight: 600;
     color: var(--text-main);
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 h2 {
@@ -614,12 +614,25 @@ p {
 /* Empty State */
 .empty-state-card {
     text-align: center;
-    padding: 32px 20px;
+    padding: 16px 20px;
+    height: 80px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 16px;
 }
 
 .empty-state-icon {
-    font-size: 48px;
-    margin-bottom: 8px;
+    font-size: 24px;
+    margin-bottom: 0;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--skeleton-bg);
+    border-radius: 12px;
 }
 
 .empty-state-text {
@@ -747,7 +760,7 @@ p {
 
 /* Swipeable Coffee List */
 .coffee-list {
-    margin-top: 15px;
+    margin-top: 0;
 }
 
 .swipe-container {
@@ -1553,7 +1566,7 @@ input:checked+.slider-toggle:before {
     grid-auto-flow: column;
     grid-auto-columns: calc(33.33% - 11px);
     gap: 12px;
-    padding: 8px 4px;
+    padding: 0;
     overflow-x: auto;
     overflow-y: hidden;
     scroll-snap-type: x mandatory;
@@ -1587,7 +1600,7 @@ input:checked+.slider-toggle:before {
 
 .type-card-lg span:last-child {
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
     color: var(--text-main);
 }
 
@@ -1613,7 +1626,7 @@ input:checked+.slider-toggle:before {
     border-radius: 20px;
     border: none;
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 400;
     cursor: pointer;
     transition: all 0.2s;
     background: white;
@@ -1642,7 +1655,7 @@ input:checked+.slider-toggle:before {
     border-radius: 20px;
     border: none;
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 400;
     cursor: pointer;
     transition: all 0.2s;
     background: white;
@@ -2212,7 +2225,7 @@ input:checked+.slider-toggle:before {
 
 .day-overlay-header h2 {
     font-size: 28px;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .day-overlay-header p {

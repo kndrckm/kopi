@@ -1802,9 +1802,15 @@ let currentUser = null;
             todayCoffeeList.innerHTML = '';
             if (todaysCoffees.length === 0) {
                 todayCoffeeList.innerHTML = `
-                <div class="card empty-state-card" style="margin-top:20px;">
+                <div class="card empty-state-card">
                     <div class="empty-state-icon">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.6; color: var(--text-muted);"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" y1="2" x2="6" y2="4"/><line x1="10" y1="2" x2="10" y2="4"/><line x1="14" y1="2" x2="14" y2="4"/></svg>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.6; color: var(--text-muted);">
+                            <path d="M17 8h1a4 4 0 1 1 0 8h-1"/>
+                            <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/>
+                            <line x1="6" y1="2" x2="6" y2="4"/>
+                            <line x1="10" y1="2" x2="10" y2="4"/>
+                            <line x1="14" y1="2" x2="14" y2="4"/>
+                        </svg>
                     </div>
                     <p class="empty-state-text">No coffee today. Time for a break?</p>
                 </div>`;
