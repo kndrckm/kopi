@@ -2145,196 +2145,227 @@ let currentUser = null;
         // UPDATE STATISTICS
         // ============================================================
         function updateStatistics() {
-            const now = new Date();
-            let filtered = [];
+            const fadeTargets = [
+                document.getElementById('stats-chart-area'),
+                document.getElementById('stat-total-cups')?.parentElement,
+                document.getElementById('stat-total-spend')?.parentElement,
+                document.getElementById('stat-most-popular')?.parentElement,
+                document.getElementById('daily-cups-chart')?.parentElement,
+                document.getElementById('by-type-chart')?.parentElement
+            ];
 
-            if (currentPeriod === 'week') {
-                const dayOfWeek = now.getDay();
-                const weekStart = new Date(now);
-                weekStart.setDate(now.getDate() - dayOfWeek);
-                weekStart.setHours(0, 0, 0, 0);
-                const weekEnd = new Date(weekStart);
-                weekEnd.setDate(weekStart.getDate() + 7);
-                filtered = coffeeEntries.filter(e => {
-                    const d = new Date(e.date_string);
-                    return d >= weekStart && d < weekEnd;
-                });
-            } else if (currentPeriod === 'month') {
-                filtered = coffeeEntries.filter(e => {
-                    const d = new Date(e.date_string);
-                    return d.getMonth() === (typeof pickerSelectedMonth !== 'undefined' ? pickerSelectedMonth : now.getMonth())
-                        && d.getFullYear() === (typeof pickerSelectedYear !== 'undefined' ? pickerSelectedYear : now.getFullYear());
-                });
-            } else {
-                filtered = coffeeEntries.filter(e => {
-                    const d = new Date(e.date_string);
-                    return d.getFullYear() === (typeof pickerSelectedYear !== 'undefined' ? pickerSelectedYear : now.getFullYear());
-                });
-            }
-
-            // Stickers display — Fluid Physics Scene
-            const chartArea = document.getElementById('stats-chart-area');
-            if (chartArea) {
-                stickerPhysics.clear();
-
-                if (filtered.length === 0) {
-                    chartArea.innerHTML = '<div class="stickers-display"><p style="color:var(--text-muted);font-size:14px;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);">No coffee yet</p></div>';
-                } else {
-                    chartArea.innerHTML = '<div class="stickers-display" id="physics-container"></div>';
-                    const container = document.getElementById('physics-container');
-                    stickerPhysics.init(container);
-
-                    const cw = chartArea.clientWidth || 300;
-                    const ch = chartArea.clientHeight || 200;
-
-                    // Dynamic scaling rules based on density
-                    let currentSize = STICKER_SIZE;
-                    let currentPerc = HITBOX_PERC;
-                    if (filtered.length > 10) {
-                        currentSize = STICKER_SIZE * 0.8; // 80% size
-                        currentPerc = HITBOX_PERC * 0.85; // Less collision distance = Higher overlap
-                    } else if (filtered.length > 5) {
-                        currentSize = STICKER_SIZE * 0.9; // 90% size
-                        currentPerc = HITBOX_PERC * 1.0;
-                    }
-
-                    filtered.forEach((e) => {
-                        const el = document.createElement('div');
-                        el.className = 'sticker-layer';
-
-                        // Override css default with dynamic size
-                        el.style.width = currentSize + 'px';
-                        el.style.height = currentSize + 'px';
-
-                        if (e.sticker) {
-                            el.innerHTML = getCachedStickerImgTag(e.sticker, 'sticker-img');
-                        } else {
-                            el.innerHTML = `<span class="sticker-emoji">${e.emoji || '☕'}</span>`;
-                        }
-
-                        container.appendChild(el);
-
-                        // Random start pos within bounds
-                        const startX = Math.random() * (cw - currentSize);
-                        const startY = Math.random() * (ch - currentSize);
-                        // Tilt angle bounded by MAX_TILT_ANGLE constant instead of hardcoded 30
-                        const rotate = Math.floor(Math.random() * (MAX_TILT_ANGLE * 2)) - MAX_TILT_ANGLE;
-
-                        stickerPhysics.add(el, startX, startY, rotate, currentSize, currentPerc);
-                    });
+            // 1. Trigger Fade Out
+            fadeTargets.forEach(el => {
+                if (el) {
+                    el.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+                    el.style.opacity = '0';
+                    el.style.transform = 'translateY(4px)';
                 }
-            }
+            });
 
-            // Total cups & spend
-            const totalCupsEl = document.getElementById('stat-total-cups');
-            const totalSpendEl = document.getElementById('stat-total-spend');
-            if (totalCupsEl) totalCupsEl.textContent = filtered.length;
-            if (totalSpendEl) {
-                const totalSpend = filtered.reduce((sum, e) => sum + (e.price || 0), 0);
-                totalSpendEl.textContent = totalSpend.toLocaleString();
-            }
-
-            // Most popular
-            const popularEl = document.getElementById('stat-most-popular');
-            if (popularEl && filtered.length > 0) {
-                const typeCounts = {};
-                filtered.forEach(e => { typeCounts[e.type] = (typeCounts[e.type] || 0) + 1; });
-                const topType = Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0];
-                const topEmoji = (coffeeTypes.find(t => t.name === topType[0]) || {}).emoji || '☕';
-                popularEl.innerHTML = `<div class="popular-icon">${topEmoji}</div><div class="popular-text"><h3>${topType[0]}</h3><p>${topType[1]} Cups</p></div>`;
-            } else if (popularEl) {
-                popularEl.innerHTML = '<div class="popular-icon">☕</div><div class="popular-text"><h3>—</h3><p>0 Cups</p></div>';
-            }
-
-            // Daily Cups bar chart
-            const dailyChart = document.getElementById('daily-cups-chart');
-            if (dailyChart) {
-                let dayLabels, dayCounts;
+            // 2. Wait for fade out, then update data
+            setTimeout(() => {
+                const now = new Date();
+                let filtered = [];
 
                 if (currentPeriod === 'week') {
-                    // Week: 7 daily bars (S M T W T F S)
-                    dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-                    dayCounts = new Array(7).fill(0);
-                    filtered.forEach(e => {
+                    const dayOfWeek = now.getDay();
+                    const weekStart = new Date(now);
+                    weekStart.setDate(now.getDate() - dayOfWeek);
+                    weekStart.setHours(0, 0, 0, 0);
+                    const weekEnd = new Date(weekStart);
+                    weekEnd.setDate(weekStart.getDate() + 7);
+                    filtered = coffeeEntries.filter(e => {
                         const d = new Date(e.date_string);
-                        const idx = d.getDay();
-                        if (idx >= 0 && idx < 7) dayCounts[idx]++;
+                        return d >= weekStart && d < weekEnd;
                     });
                 } else if (currentPeriod === 'month') {
-                    // Month: group by weeks (W1, W2, ... W4-6)
-                    const selMonth = typeof pickerSelectedMonth !== 'undefined' ? pickerSelectedMonth : now.getMonth();
-                    const selYear = typeof pickerSelectedYear !== 'undefined' ? pickerSelectedYear : now.getFullYear();
-                    const firstDayOfMonth = new Date(selYear, selMonth, 1).getDay();
-                    const totalDaysInMonth = new Date(selYear, selMonth + 1, 0).getDate();
-                    const totalWeeks = Math.ceil((firstDayOfMonth + totalDaysInMonth) / 7);
-                    dayLabels = Array.from({ length: totalWeeks }, (_, i) => `W${i + 1}`);
-                    dayCounts = new Array(totalWeeks).fill(0);
-                    filtered.forEach(e => {
+                    filtered = coffeeEntries.filter(e => {
                         const d = new Date(e.date_string);
-                        const dayOfMonth = d.getDate();
-                        const weekIdx = Math.floor((firstDayOfMonth + dayOfMonth - 1) / 7);
-                        if (weekIdx >= 0 && weekIdx < totalWeeks) dayCounts[weekIdx]++;
+                        return d.getMonth() === (typeof pickerSelectedMonth !== 'undefined' ? pickerSelectedMonth : now.getMonth())
+                            && d.getFullYear() === (typeof pickerSelectedYear !== 'undefined' ? pickerSelectedYear : now.getFullYear());
                     });
                 } else {
-                    // Year: 12 monthly bars
-                    dayLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                    dayCounts = new Array(12).fill(0);
-                    filtered.forEach(e => {
+                    filtered = coffeeEntries.filter(e => {
                         const d = new Date(e.date_string);
-                        dayCounts[d.getMonth()]++;
+                        return d.getFullYear() === (typeof pickerSelectedYear !== 'undefined' ? pickerSelectedYear : now.getFullYear());
                     });
                 }
 
-                const maxCount = Math.max(...dayCounts, 1);
-                let chartHtml = '';
-                dayLabels.forEach((label, i) => {
-                    const h = (dayCounts[i] / maxCount) * 90;
-                    const countLabel = dayCounts[i] > 0 ? dayCounts[i] : '';
-                    chartHtml += `<div class="daily-bar-col">
+                // Stickers display — Fluid Physics Scene
+                const chartArea = document.getElementById('stats-chart-area');
+                if (chartArea) {
+                    stickerPhysics.clear();
+
+                    if (filtered.length === 0) {
+                        chartArea.innerHTML = '<div class="stickers-display"><p style="color:var(--text-muted);font-size:14px;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);">No coffee yet</p></div>';
+                    } else {
+                        chartArea.innerHTML = '<div class="stickers-display" id="physics-container"></div>';
+                        const container = document.getElementById('physics-container');
+                        stickerPhysics.init(container);
+
+                        const cw = chartArea.clientWidth || 300;
+                        const ch = chartArea.clientHeight || 200;
+
+                        // Dynamic scaling rules based on density
+                        let currentSize = STICKER_SIZE;
+                        let currentPerc = HITBOX_PERC;
+                        if (filtered.length > 10) {
+                            currentSize = STICKER_SIZE * 0.8; // 80% size
+                            currentPerc = HITBOX_PERC * 0.85; // Less collision distance = Higher overlap
+                        } else if (filtered.length > 5) {
+                            currentSize = STICKER_SIZE * 0.9; // 90% size
+                            currentPerc = HITBOX_PERC * 1.0;
+                        }
+
+                        filtered.forEach((e) => {
+                            const el = document.createElement('div');
+                            el.className = 'sticker-layer';
+
+                            // Override css default with dynamic size
+                            el.style.width = currentSize + 'px';
+                            el.style.height = currentSize + 'px';
+
+                            if (e.sticker) {
+                                el.innerHTML = getCachedStickerImgTag(e.sticker, 'sticker-img');
+                            } else {
+                                el.innerHTML = `<span class="sticker-emoji">${e.emoji || '☕'}</span>`;
+                            }
+
+                            container.appendChild(el);
+
+                            // Random start pos within bounds
+                            const startX = Math.random() * (cw - currentSize);
+                            const startY = Math.random() * (ch - currentSize);
+                            // Tilt angle bounded by MAX_TILT_ANGLE constant instead of hardcoded 30
+                            const rotate = Math.floor(Math.random() * (MAX_TILT_ANGLE * 2)) - MAX_TILT_ANGLE;
+
+                            stickerPhysics.add(el, startX, startY, rotate, currentSize, currentPerc);
+                        });
+                    }
+                }
+
+                // Total cups & spend
+                const totalCupsEl = document.getElementById('stat-total-cups');
+                const totalSpendEl = document.getElementById('stat-total-spend');
+                if (totalCupsEl) totalCupsEl.textContent = filtered.length;
+                if (totalSpendEl) {
+                    const totalSpend = filtered.reduce((sum, e) => sum + (e.price || 0), 0);
+                    totalSpendEl.textContent = totalSpend.toLocaleString();
+                }
+
+                // Most popular
+                const popularEl = document.getElementById('stat-most-popular');
+                if (popularEl && filtered.length > 0) {
+                    const typeCounts = {};
+                    filtered.forEach(e => { typeCounts[e.type] = (typeCounts[e.type] || 0) + 1; });
+                    const topType = Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0];
+                    const topEmoji = (coffeeTypes.find(t => t.name === topType[0]) || {}).emoji || '☕';
+                    popularEl.innerHTML = `<div class="popular-icon">${topEmoji}</div><div class="popular-text"><h3>${topType[0]}</h3><p>${topType[1]} Cups</p></div>`;
+                } else if (popularEl) {
+                    popularEl.innerHTML = '<div class="popular-icon">☕</div><div class="popular-text"><h3>—</h3><p>0 Cups</p></div>';
+                }
+
+                // Daily Cups bar chart
+                const dailyChart = document.getElementById('daily-cups-chart');
+                if (dailyChart) {
+                    let dayLabels, dayCounts;
+
+                    if (currentPeriod === 'week') {
+                        // Week: 7 daily bars (S M T W T F S)
+                        dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+                        dayCounts = new Array(7).fill(0);
+                        filtered.forEach(e => {
+                            const d = new Date(e.date_string);
+                            const idx = d.getDay();
+                            if (idx >= 0 && idx < 7) dayCounts[idx]++;
+                        });
+                    } else if (currentPeriod === 'month') {
+                        // Month: group by weeks (W1, W2, ... W4-6)
+                        const selMonth = typeof pickerSelectedMonth !== 'undefined' ? pickerSelectedMonth : now.getMonth();
+                        const selYear = typeof pickerSelectedYear !== 'undefined' ? pickerSelectedYear : now.getFullYear();
+                        const firstDayOfMonth = new Date(selYear, selMonth, 1).getDay();
+                        const totalDaysInMonth = new Date(selYear, selMonth + 1, 0).getDate();
+                        const totalWeeks = Math.ceil((firstDayOfMonth + totalDaysInMonth) / 7);
+                        dayLabels = Array.from({ length: totalWeeks }, (_, i) => `W${i + 1}`);
+                        dayCounts = new Array(totalWeeks).fill(0);
+                        filtered.forEach(e => {
+                            const d = new Date(e.date_string);
+                            const dayOfMonth = d.getDate();
+                            const weekIdx = Math.floor((firstDayOfMonth + dayOfMonth - 1) / 7);
+                            if (weekIdx >= 0 && weekIdx < totalWeeks) dayCounts[weekIdx]++;
+                        });
+                    } else {
+                        // Year: 12 monthly bars
+                        dayLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                        dayCounts = new Array(12).fill(0);
+                        filtered.forEach(e => {
+                            const d = new Date(e.date_string);
+                            dayCounts[d.getMonth()]++;
+                        });
+                    }
+
+                    const maxCount = Math.max(...dayCounts, 1);
+                    let chartHtml = '';
+                    dayLabels.forEach((label, i) => {
+                        const h = (dayCounts[i] / maxCount) * 90;
+                        const countLabel = dayCounts[i] > 0 ? dayCounts[i] : '';
+                        chartHtml += `<div class="daily-bar-col">
                         <span class="daily-bar-count">${countLabel}</span>
                         <div class="daily-bar" style="height:${Math.max(h, 4)}px;${dayCounts[i] === 0 ? 'opacity:0.2;' : ''}"></div>
                         <span class="daily-bar-label">${label}</span>
                     </div>`;
-                });
-                dailyChart.innerHTML = chartHtml;
-            }
-
-            // By Type donut chart
-            const byTypeChart = document.getElementById('by-type-chart');
-            if (byTypeChart) {
-                if (filtered.length === 0) {
-                    byTypeChart.innerHTML = '<p style="color:var(--text-muted);font-size:14px;">No data</p>';
-                    return;
+                    });
+                    dailyChart.innerHTML = chartHtml;
                 }
-                const typeCounts = {};
-                filtered.forEach(e => { typeCounts[e.type] = (typeCounts[e.type] || 0) + 1; });
-                const total = filtered.length;
-                const entries = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]);
 
-                const DONUT_COLORS = ['#8b6b4a', '#b8956a', '#d4b896', '#c9a87c', '#a68b6b', '#e8d5c0', '#6b4f35'];
-                let gradientParts = [];
-                let cumPct = 0;
-                entries.forEach(([type, count], i) => {
-                    const pct = (count / total) * 100;
-                    const color = DONUT_COLORS[i % DONUT_COLORS.length];
-                    gradientParts.push(`${color} ${cumPct}% ${cumPct + pct}%`);
-                    cumPct += pct;
-                });
+                // By Type donut chart
+                const byTypeChart = document.getElementById('by-type-chart');
+                if (byTypeChart) {
+                    if (filtered.length === 0) {
+                        byTypeChart.innerHTML = '<p style="color:var(--text-muted);font-size:14px;">No data</p>';
+                        return;
+                    }
+                    const typeCounts = {};
+                    filtered.forEach(e => { typeCounts[e.type] = (typeCounts[e.type] || 0) + 1; });
+                    const total = filtered.length;
+                    const entries = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]);
 
-                let legendHtml = '';
-                entries.forEach(([type, count], i) => {
-                    const pct = Math.round((count / total) * 100);
-                    const color = DONUT_COLORS[i % DONUT_COLORS.length];
-                    const emoji = (coffeeTypes.find(t => t.name === type) || {}).emoji || '☕';
-                    legendHtml += `<div class="legend-item"><span class="legend-dot" style="background:${color}"></span>${emoji} ${type}<span class="legend-pct">${pct}%</span></div>`;
-                });
+                    const DONUT_COLORS = ['#8b6b4a', '#b8956a', '#d4b896', '#c9a87c', '#a68b6b', '#e8d5c0', '#6b4f35'];
+                    let gradientParts = [];
+                    let cumPct = 0;
+                    entries.forEach(([type, count], i) => {
+                        const pct = (count / total) * 100;
+                        const color = DONUT_COLORS[i % DONUT_COLORS.length];
+                        gradientParts.push(`${color} ${cumPct}% ${cumPct + pct}%`);
+                        cumPct += pct;
+                    });
 
-                byTypeChart.innerHTML = `
+                    let legendHtml = '';
+                    entries.forEach(([type, count], i) => {
+                        const pct = Math.round((count / total) * 100);
+                        const color = DONUT_COLORS[i % DONUT_COLORS.length];
+                        const emoji = (coffeeTypes.find(t => t.name === type) || {}).emoji || '☕';
+                        legendHtml += `<div class="legend-item"><span class="legend-dot" style="background:${color}"></span>${emoji} ${type}<span class="legend-pct">${pct}%</span></div>`;
+                    });
+
+                    byTypeChart.innerHTML = `
                     <div class="donut-chart" style="background:conic-gradient(${gradientParts.join(',')});">
                         <div class="donut-hole"><span class="donut-total">${total}</span><span class="donut-label">total</span></div>
                     </div>
                     <div class="donut-legend">${legendHtml}</div>`;
-            }
+                }
+
+                // 3. Trigger Fade In
+                requestAnimationFrame(() => {
+                    fadeTargets.forEach(el => {
+                        if (el) {
+                            el.style.opacity = '1';
+                            el.style.transform = 'translateY(0)';
+                        }
+                    });
+                });
+            }, 150); // 150ms delay perfectly masks the data swap
         }
 
         // Year/Month Picker

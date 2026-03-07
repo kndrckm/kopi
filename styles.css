@@ -755,10 +755,12 @@ p {
 }
 
 .coffee-item-sticker {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    object-fit: cover;
+    width: auto;
+    height: auto;
+    max-width: 60px;
+    max-height: 48px;
+    border-radius: 4px;
+    object-fit: contain;
 }
 
 .coffee-item-emoji {
@@ -1748,8 +1750,8 @@ input:checked+.slider-toggle:before {
     -webkit-backdrop-filter: blur(16px) saturate(180%);
     border-radius: 46px;
     display: flex;
-    padding: 12px;
-    gap: 12px;
+    padding: 2px;
+    gap: 16px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
     align-items: center;
     position: relative;
@@ -1760,12 +1762,12 @@ input:checked+.slider-toggle:before {
 
 .nav-indicator {
     position: absolute;
-    top: 12px;
-    left: 12px;
+    top: 2px;
+    left: 2px;
     width: 60px;
     height: 60px;
     border-radius: 30px;
-    background: rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(12px) saturate(150%);
     -webkit-backdrop-filter: blur(12px) saturate(150%);
     z-index: 1;
@@ -1812,7 +1814,7 @@ input:checked+.slider-toggle:before {
 .nav-bar-path {
     transform-origin: bottom;
     transform-box: fill-box;
-    transform: scaleY(0.5);
+    transform: scaleY(1);
 }
 
 .nav-item.active .nav-bar-path {
@@ -1823,15 +1825,15 @@ input:checked+.slider-toggle:before {
 
     0%,
     100% {
-        transform: scaleY(0.5);
-    }
-
-    15% {
         transform: scaleY(1);
     }
 
+    15% {
+        transform: scaleY(0.4);
+    }
+
     30% {
-        transform: scaleY(0.5);
+        transform: scaleY(1);
     }
 }
 
@@ -1858,8 +1860,7 @@ input:checked+.slider-toggle:before {
 }
 
 .nav-item {
-    background: rgba(0, 0, 0, 0.04);
-    box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.02);
+    background: transparent;
     border: none;
     width: 60px;
     height: 60px;
