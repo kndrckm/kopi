@@ -2374,7 +2374,7 @@ let currentUser = null;
 
             // Daily Cups bar chart and title swaps
             const dailyChart = document.getElementById('daily-cups-chart');
-            const barTitleEl = dailyChart ? dailyChart.parentElement.querySelector('h3') : null;
+            const barTitleEl = dailyChart ? dailyChart.parentElement.querySelector('p') : null;
 
             if (barTitleEl) {
                 barTitleEl.style.transition = 'opacity 0.15s ease';
@@ -2789,14 +2789,14 @@ let currentUser = null;
         const settingsVersionSpan = document.getElementById('settings-app-version');
         const storedVersion = localStorage.getItem('kopi_app_version');
         if (settingsVersionSpan && storedVersion) {
-            settingsVersionSpan.textContent = `Version ${storedVersion} `;
+            settingsVersionSpan.textContent = `Version ${storedVersion}`;
         }
 
         async function checkAppVersion() {
             try {
                 // Fetch directly from network, ignoring Service Worker cache
                 const timestamp = new Date().getTime();
-                const response = await fetch(`version.json ? t = ${timestamp} `, { cache: "no-store", method: 'GET' });
+                const response = await fetch(`version.json?t=${timestamp}`, { cache: "no-store", method: 'GET' });
 
                 if (!response.ok) return; // If file is missing locally, ignore
 
@@ -2807,7 +2807,7 @@ let currentUser = null;
 
                 // Update the settings UI dynamically if it's the first time
                 if (settingsVersionSpan) {
-                    settingsVersionSpan.textContent = `Version ${newVersionVal} `;
+                    settingsVersionSpan.textContent = `Version ${newVersionVal}`;
                 }
 
                 // If no version is stored yet, just set it and return quietly
