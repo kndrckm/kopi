@@ -1332,6 +1332,7 @@ let currentUser = null;
                             else if (data && data[0]) {
                                 const idx = coffeeEntries.findIndex(e => e.id === editingId);
                                 if (idx > -1) coffeeEntries[idx] = data[0];
+                                entryToSave.id = data[0].id;
                             }
                         } else if (editingCoffeeIdx !== null) {
                             entryToSave.id = coffeeEntries[editingCoffeeIdx].id;
@@ -1352,6 +1353,7 @@ let currentUser = null;
                             coffeeEntries.unshift(entryToSave);
                         }
                     }
+                    return entryToSave;
                 };
 
                 // Add a local UI-only property to show spinning state while processing
@@ -1364,8 +1366,8 @@ let currentUser = null;
                 editingCoffeeId = null;
                 editingCoffeeIdx = null;
 
-                // Fire initial DB save
-                await saveEntryToDB(entry, capturedEditingId);
+                // Fire initial DB save and WAIT for the real ID
+                const savedEntry = await saveEntryToDB(entry, capturedEditingId);
 
                 // Render immediately with placeholder/spinner
                 renderTodayCoffee();
@@ -1391,14 +1393,14 @@ let currentUser = null;
                                     .getPublicUrl(fileName);
 
                                 // Update local entry reference
-                                entry.sticker = urlData.publicUrl;
-                                delete entry._processing_photo;
+                                savedEntry.sticker = urlData.publicUrl;
+                                delete savedEntry._processing_photo;
 
                                 // Update DB with the new sticker URL
-                                if (currentUser && entry.id && !entry.id.toString().startsWith('temp-')) {
+                                if (currentUser && savedEntry.id && !savedEntry.id.toString().startsWith('temp-')) {
                                     await supabase.from('coffee_entries')
-                                        .update({ sticker: entry.sticker })
-                                        .eq('id', entry.id);
+                                        .update({ sticker: savedEntry.sticker })
+                                        .eq('id', savedEntry.id);
                                 }
 
                                 // Re-render to show sticker
@@ -1407,12 +1409,12 @@ let currentUser = null;
                                 updateStatistics();
                             } else {
                                 console.error('Storage upload error:', uploadError.message);
-                                delete entry._processing_photo;
+                                delete savedEntry._processing_photo;
                                 renderTodayCoffee();
                             }
                         } catch (err) {
                             console.error('BG removal / upload failed:', err);
-                            delete entry._processing_photo;
+                            delete savedEntry._processing_photo;
                             renderTodayCoffee();
                         }
                     })();

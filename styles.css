@@ -2600,7 +2600,7 @@ input:checked+.slider-toggle:before {
 }
 
 .btn-danger {
-    background: var(--error);
+    background: #ff3b30;
     color: white;
     border: none;
     padding: 14px;
@@ -2608,6 +2608,7 @@ input:checked+.slider-toggle:before {
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
+    box-shadow: 0 4px 12px rgba(255, 59, 48, 0.3);
 }
 
 .btn-secondary {
@@ -2619,6 +2620,7 @@ input:checked+.slider-toggle:before {
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 /* ========== SHARE CARD ========== */
@@ -2786,11 +2788,7 @@ input:checked+.slider-toggle:before {
     cursor: pointer;
 }
 
-/* Physics Sticker Drop Shadows for Statistics View */
-.chart-placeholder-card .sticker-img,
-.chart-placeholder-card .sticker-emoji {
-    /* Removed drop-shadow(0 6px 12px rgba(0, 0, 0, 0.25)) per user request. Too heavy. */
-}
+/* Physics Sticker Drop Shadows for Statistics View (Removed) */
 
 /* Jiggle Animation for Edit Mode */
 @keyframes ios-jiggle {
