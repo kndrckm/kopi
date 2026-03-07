@@ -1,4 +1,4 @@
-import { removeBackground, trimCanvas } from './bg-removal.js';
+import { removeBackground, trimCanvas, preloadModel } from './bg-removal.js';
 import { supabase } from './supabase.js';
 
 let currentUser = null;
@@ -6,6 +6,8 @@ let currentUser = null;
 // Initialize App — modules run after DOM is ready, no need for DOMContentLoaded
 (async () => {
     try {
+        // Preload RMBG-1.4 model quietly in the background
+        setTimeout(() => preloadModel(), 500);
 
         // Declare shared state early to avoid TDZ issues with auth callbacks
         const todayCoffeeList = document.getElementById('today-coffee-list');
@@ -159,25 +161,11 @@ let currentUser = null;
             }
         };
 
-        // Register orientation listener — requests permission on iOS 13+ to avoid deprecation warning.
-        function requestDeviceOrientationPermission() {
-            const handler = (e) => {
-                stickerPhysics.gravity.x = (e.gamma || 0) / 45;
-                stickerPhysics.gravity.y = (e.beta || 0) / 45;
-            };
-            if (typeof DeviceOrientationEvent !== 'undefined' &&
-                typeof DeviceOrientationEvent.requestPermission === 'function') {
-                // iOS 13+ requires explicit user-gesture permission
-                DeviceOrientationEvent.requestPermission()
-                    .then(state => { if (state === 'granted') window.addEventListener('deviceorientation', handler); })
-                    .catch(() => { }); // Permission denied — tilt physics disabled
-            } else {
-                // Non-iOS / older browsers — event fires without permission
-                window.addEventListener('deviceorientation', handler);
-            }
-        }
-        // Trigger on first meaningful interaction so it counts as a user gesture on iOS
-        window.addEventListener('pointerdown', requestDeviceOrientationPermission, { once: true });
+        window.addEventListener('deviceorientation', (e) => {
+            // Gamma is left-to-right tilt (-90 to 90), Beta is front-to-back tilt (-180 to 180)
+            stickerPhysics.gravity.x = (e.gamma || 0) / 45;
+            stickerPhysics.gravity.y = (e.beta || 0) / 45;
+        });
 
         // Setup Auth Listener
         supabase.auth.onAuthStateChange((event, session) => {

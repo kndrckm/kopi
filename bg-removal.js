@@ -1,32 +1,73 @@
 // ============================================================
-// bg-removal.js — Background Removal (briaai/RMBG-1.4 via WebWorker)
+// bg-removal.js — Background Removal (RMBG-1.4 WebWorker)
 // ============================================================
 
-// ---------------------------------------------------------------
-// LARGEST CONNECTED COMPONENT FILTER
-// BFS over opaque pixels, keeps only the biggest blob, zeroes others.
-// ---------------------------------------------------------------
+let worker = null;
+let isModelPreloaded = false;
+
+// Initialize the worker and start caching the model quietly
+export function preloadModel() {
+    if (worker || isModelPreloaded) return;
+
+    worker = new Worker('hf-worker.js', { type: 'module' });
+    worker.postMessage({
+        type: 'init',
+        modelId: 'briaai/RMBG-1.4',
+        modelOpts: { config: { model_type: 'custom' } }
+    });
+
+    // Listen for the initial load progress
+    worker.addEventListener('message', function preloadHandler(e) {
+        if (e.data.type === 'status' && e.data.data === 'Ready') {
+            isModelPreloaded = true;
+            worker.removeEventListener('message', preloadHandler);
+            console.log('RMBG-1.4 model preloaded successfully.');
+        }
+    });
+}
+
+// Ensure worker exists
+function getWorker() {
+    if (!worker) preloadModel();
+    return worker;
+}
+
+// --- Largest Connected Component filter ---
+// Runs iterative BFS over all pixels with alpha > 50.
+// Identifies every isolated blob, keeps only the largest one,
+// and zeroes the alpha of every pixel belonging to smaller blobs.
+// Operates directly on a Uint8ClampedArray (imgData.data).
 function keepLargestComponent(data, width, height) {
     const total = width * height;
-    const visited = new Uint8Array(total);
-    const queue = new Int32Array(total);
+    const visited = new Uint8Array(total); // 0 = unvisited
+
+    let largestId = -1;
+    let largestSize = 0;
+
+    // Store each component as { pixels: Int32Array, size }
     const components = [];
-    let largestId = -1, largestSize = 0;
+
+    // 4-connected BFS
+    const queue = new Int32Array(total); // pre-allocated ring buffer
 
     for (let start = 0; start < total; start++) {
-        if (data[(start << 2) + 3] <= 50 || visited[start]) continue;
+        const a = data[(start << 2) + 3];
+        if (a <= 50 || visited[start]) continue;
 
+        // BFS from `start`
         let head = 0, tail = 0;
         queue[tail++] = start;
         visited[start] = 1;
-        const pixels = [];
 
+        const compPixels = [];
         while (head < tail) {
             const idx = queue[head++];
-            pixels.push(idx);
+            compPixels.push(idx);
+
             const x = idx % width;
             const y = (idx / width) | 0;
 
+            // 4 neighbours
             if (x > 0) { const n = idx - 1; if (!visited[n] && data[(n << 2) + 3] > 50) { visited[n] = 1; queue[tail++] = n; } }
             if (x < width - 1) { const n = idx + 1; if (!visited[n] && data[(n << 2) + 3] > 50) { visited[n] = 1; queue[tail++] = n; } }
             if (y > 0) { const n = idx - width; if (!visited[n] && data[(n << 2) + 3] > 50) { visited[n] = 1; queue[tail++] = n; } }
@@ -34,20 +75,26 @@ function keepLargestComponent(data, width, height) {
         }
 
         const id = components.length;
-        components.push(pixels);
-        if (pixels.length > largestSize) { largestSize = pixels.length; largestId = id; }
+        components.push(compPixels);
+        if (compPixels.length > largestSize) {
+            largestSize = compPixels.length;
+            largestId = id;
+        }
     }
 
+    // Zero alpha for every component that is NOT the largest
     for (let id = 0; id < components.length; id++) {
         if (id === largestId) continue;
-        for (const px of components[id]) data[(px << 2) + 3] = 0;
+        for (const px of components[id]) {
+            data[(px << 2) + 3] = 0;
+        }
     }
+
+    return components.length;
 }
 
-// ---------------------------------------------------------------
-// WHITE OUTLINE (Sticker edge effect)
-// ---------------------------------------------------------------
-function addWhiteOutline(blob, outlineWidth = 15) {
+// Add white sticker outline around a transparent-bg image
+async function addWhiteOutline(blob, outlineWidth = 15) {
     const bmpUrl = URL.createObjectURL(blob);
     return new Promise((resolve) => {
         const img = new Image();
@@ -58,32 +105,38 @@ function addWhiteOutline(blob, outlineWidth = 15) {
             canvas.height = img.height + pad;
             const ctx = canvas.getContext('2d');
 
-            // Radial silhouette draws
-            for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 16) {
-                const dx = Math.cos(angle) * outlineWidth;
-                const dy = Math.sin(angle) * outlineWidth;
-                ctx.drawImage(img, pad / 2 + dx, pad / 2 + dy);
+            // Step 1: draw offset in all directions → dilated silhouette
+            const offsets = [];
+            for (let angle = 0; angle < 360; angle += 15) {
+                offsets.push({
+                    x: Math.cos(angle * Math.PI / 180) * outlineWidth,
+                    y: Math.sin(angle * Math.PI / 180) * outlineWidth
+                });
             }
+            offsets.forEach(o => {
+                ctx.drawImage(img, pad / 2 + o.x, pad / 2 + o.y);
+            });
 
-            // Fill silhouette white
+            // Step 2: fill silhouette with white
             ctx.globalCompositeOperation = 'source-in';
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Draw original on top
+            // Step 3: draw original on top
             ctx.globalCompositeOperation = 'source-over';
             ctx.drawImage(img, pad / 2, pad / 2);
 
+            // Step 4: Trim transparent margins (Autocrop)
+            const trimmedCanvas = trimCanvas(canvas);
+
             URL.revokeObjectURL(bmpUrl);
-            trimCanvas(canvas).toBlob((b) => resolve(b), 'image/webp', 0.85);
+            trimmedCanvas.toBlob((blob) => resolve(blob), 'image/webp', 0.85);
         };
         img.src = bmpUrl;
     });
 }
 
-// ---------------------------------------------------------------
-// TRIM CANVAS — removes empty transparent margins
-// ---------------------------------------------------------------
+// Helper to remove empty transparent pixels around the content
 export function trimCanvas(canvas) {
     const ctx = canvas.getContext('2d');
     const width = canvas.width;
@@ -92,6 +145,7 @@ export function trimCanvas(canvas) {
     const l = pixels.data.length;
     let bound = { top: null, left: null, right: null, bottom: null };
 
+    // Use a higher alpha threshold (50) to ignore ghost shadows left by AI bg removal
     for (let i = 0; i < l; i += 4) {
         if (pixels.data[i + 3] > 50) {
             const x = (i / 4) % width;
@@ -110,93 +164,71 @@ export function trimCanvas(canvas) {
     const trimmed = document.createElement('canvas');
     trimmed.width = trimWidth;
     trimmed.height = trimHeight;
-    trimmed.getContext('2d').drawImage(canvas, bound.left, bound.top, trimWidth, trimHeight, 0, 0, trimWidth, trimHeight);
+
+    trimmed.getContext('2d').drawImage(canvas,
+        bound.left, bound.top, trimWidth, trimHeight,
+        0, 0, trimWidth, trimHeight
+    );
     return trimmed;
 }
 
-// ---------------------------------------------------------------
-// RMBG-1.4 WebWorker — singleton setup
-// ---------------------------------------------------------------
-const _worker = new Worker('./hf-worker.js', { type: 'module' });
-_worker.postMessage({
-    type: 'init',
-    modelId: 'briaai/RMBG-1.4',
-    modelOpts: {
-        // Load the quantized ONNX directly — avoids "unknown model class" and
-        // "missing dtype" warnings from transformers.js auto-detection.
-        config: { model_type: 'custom' },
-        dtype: 'q8',
-        model_file_name: 'onnx/model_quantized'
-    }
-});
-
-// Preload model 500ms after page fully renders (zero UI freeze)
-window.addEventListener('load', () => {
-    setTimeout(() => {
-        console.log('[bg-removal] Preloading RMBG-1.4 model...');
-        _worker.postMessage({ type: 'preload' });
-    }, 500);
-});
-
-// ---------------------------------------------------------------
-// removeBackground — Promise-based wrapper around the WebWorker.
-// Drop-in replacement for the old imgly removeBackground().
-// Returns a WebP Blob with white stroke, alpha-cleaned.
-// ---------------------------------------------------------------
+// Background removal via briaai/RMBG-1.4 (Method B) + white outline
 export async function removeBackground(imageBlob) {
-    // Decode blob → ImageBitmap so we can drawImage it directly
-    const bitmap = await createImageBitmap(imageBlob);
+    return new Promise(async (resolve, reject) => {
+        const imgWorker = getWorker();
+        const bmp = await createImageBitmap(imageBlob);
 
-    // Send a URL the worker can fetch
-    const url = URL.createObjectURL(imageBlob);
-
-    return new Promise((resolve, reject) => {
-        function onMessage(e) {
+        const messageHandler = async (e) => {
             const data = e.data;
-
-            if (data.type === 'done') {
-                _worker.removeEventListener('message', onMessage);
-                URL.revokeObjectURL(url);
+            if (data.type === 'progress') {
+                console.log(`RMBG: DL ${data.data.name || 'Model'}: ${Math.round((data.data.loaded / data.data.total) * 100)}%`);
+            } else if (data.type === 'status') {
+                console.log('RMBG Status:', data.data);
+            } else if (data.type === 'done') {
+                imgWorker.removeEventListener('message', messageHandler);
 
                 const { maskData } = data;
 
-                // Draw original image, apply mask alpha
+                // 1. Draw original onto canvas
                 const cvs = document.createElement('canvas');
-                cvs.width = bitmap.width;
-                cvs.height = bitmap.height;
+                cvs.width = bmp.width;
+                cvs.height = bmp.height;
                 const ctx = cvs.getContext('2d');
-                ctx.drawImage(bitmap, 0, 0);
+                ctx.drawImage(bmp, 0, 0);
 
+                // 2. Inject Alpha Mask
                 const imgData = ctx.getImageData(0, 0, cvs.width, cvs.height);
                 for (let i = 0; i < maskData.length; ++i) {
                     imgData.data[i * 4 + 3] = maskData[i];
                 }
 
-                // Largest Connected Component filter — remove stray background blobs
+                // 3. Filter out disconnected artifacts (Largest Connected Component)
                 keepLargestComponent(imgData.data, cvs.width, cvs.height);
-
                 ctx.putImageData(imgData, 0, 0);
 
-                // Add white stroke, trim, export
-                cvs.toBlob(async (alphaBlob) => {
-                    try {
-                        const finalBlob = await addWhiteOutline(alphaBlob);
-                        resolve(finalBlob);
-                    } catch (err) {
-                        reject(err);
-                    }
-                }, 'image/webp', 0.85);
+                // 4. Export to blob and add stroke
+                const alphaBlob = await new Promise(res => cvs.toBlob(res, 'image/webp'));
+                const finalBlob = await addWhiteOutline(alphaBlob, 15);
 
+                resolve(finalBlob);
             } else if (data.type === 'error') {
-                _worker.removeEventListener('message', onMessage);
-                URL.revokeObjectURL(url);
+                imgWorker.removeEventListener('message', messageHandler);
                 reject(new Error(data.error));
             }
-            // 'status' and 'progress' messages are intentionally ignored here;
-            // the caller (app.js) doesn't use them for UI today.
-        }
+        };
 
-        _worker.addEventListener('message', onMessage);
-        _worker.postMessage({ url, width: bitmap.width, height: bitmap.height });
+        imgWorker.addEventListener('message', messageHandler);
+
+        // Send to worker for inference
+        const url = URL.createObjectURL(imageBlob);
+        imgWorker.postMessage({
+            type: 'predict',
+            url: url,
+            width: bmp.width,
+            height: bmp.height
+        });
+
+        // Clean up object URL after a while to let worker load it
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
     });
 }
