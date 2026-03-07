@@ -1325,14 +1325,21 @@ let currentUser = null;
 
                 // 1) Update local state or insert into DB *immediately* (without sticker)
                 const saveEntryToDB = async (entryToSave, editingId) => {
+                    const dbPayload = { ...entryToSave };
+                    delete dbPayload._processing_photo;
+
                     if (editingId || editingCoffeeIdx !== null) {
                         if (currentUser && editingId) {
-                            const { data, error } = await supabase.from('coffee_entries').update(entryToSave).eq('id', editingId).select();
+                            const { data, error } = await supabase.from('coffee_entries').update(dbPayload).eq('id', editingId).select();
                             if (error) console.error('Update error:', error.message);
                             else if (data && data[0]) {
                                 const idx = coffeeEntries.findIndex(e => e.id === editingId);
-                                if (idx > -1) coffeeEntries[idx] = data[0];
-                                entryToSave.id = data[0].id;
+                                if (idx > -1) {
+                                    Object.assign(entryToSave, data[0]);
+                                    coffeeEntries[idx] = entryToSave;
+                                } else {
+                                    entryToSave.id = data[0].id;
+                                }
                             }
                         } else if (editingCoffeeIdx !== null) {
                             entryToSave.id = coffeeEntries[editingCoffeeIdx].id;
@@ -1340,12 +1347,12 @@ let currentUser = null;
                         }
                     } else {
                         if (currentUser) {
-                            const { data, error } = await supabase.from('coffee_entries').insert([entryToSave]).select();
+                            const { data, error } = await supabase.from('coffee_entries').insert([dbPayload]).select();
                             if (error) {
                                 console.error('Insert error:', error.message);
                             } else if (data && data[0]) {
-                                coffeeEntries.unshift(data[0]);
-                                entryToSave.id = data[0].id; // Capture new DB ID
+                                Object.assign(entryToSave, data[0]);
+                                coffeeEntries.unshift(entryToSave);
                             }
                         } else {
                             // Assign a temporary ID if local-only
