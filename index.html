@@ -136,11 +136,15 @@
             <div class="stats-grid">
                 <div class="card stat-box">
                     <p>Total Cups</p>
-                    <h3 id="stat-total-cups">0</h3>
+                    <div class="odometer-container">
+                        <h3 id="stat-total-cups" class="odometer-value">0</h3>
+                    </div>
                 </div>
                 <div class="card stat-box">
                     <p>Total Spend</p>
-                    <h3 id="stat-total-spend">0</h3>
+                    <div class="odometer-container">
+                        <h3 id="stat-total-spend" class="odometer-value">0</h3>
+                    </div>
                 </div>
             </div>
 
@@ -149,10 +153,17 @@
                     <p>Most Popular</p>
                 </div>
                 <div class="popular-coffee" id="stat-most-popular">
-                    <div class="popular-icon">☕</div>
+                    <div class="popular-icon" id="popular-icon-wrapper">
+                        <div class="popular-icon-inner" id="popular-icon-inner">☕</div>
+                    </div>
                     <div class="popular-text">
-                        <h3>—</h3>
-                        <p>0 Cups</p>
+                        <div class="popular-title-wrapper" id="popular-title-wrapper">
+                            <h3 id="popular-title-inner">—</h3>
+                        </div>
+                        <div class="odometer-container">
+                            <p id="popular-cups-val" class="odometer-value">0</p>
+                            <p style="margin-left: 4px;">Cups</p>
+                        </div>
                     </div>
                 </div>
             </div>

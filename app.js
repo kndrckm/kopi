@@ -2302,6 +2302,45 @@ let currentUser = null;
                 }
             }
 
+            // Helper to animate numbers and width
+            function animateOdometer(el, oldVal, newVal, isCurrency = false) {
+                if (!el || oldVal === newVal) return;
+
+                // Measure target width invisibly
+                const tempSpan = document.createElement('span');
+                tempSpan.style.visibility = 'hidden';
+                tempSpan.style.position = 'absolute';
+                tempSpan.style.whiteSpace = 'nowrap';
+                tempSpan.style.font = window.getComputedStyle(el).font;
+                tempSpan.textContent = isCurrency ? newVal.toLocaleString() : newVal.toLocaleString();
+                document.body.appendChild(tempSpan);
+                const targetWidth = tempSpan.offsetWidth;
+                document.body.removeChild(tempSpan);
+
+                // Set explicit target width for CSS transition to grab
+                el.style.width = targetWidth + 'px';
+
+                let startTime = null;
+                const duration = 400; // ms
+                const step = (timestamp) => {
+                    if (!startTime) startTime = timestamp;
+                    const progress = Math.min((timestamp - startTime) / duration, 1);
+                    const easeProgress = 1 - Math.pow(1 - progress, 4); // easeOutQuart
+                    const current = Math.floor(oldVal + (newVal - oldVal) * easeProgress);
+
+                    el.textContent = current.toLocaleString();
+
+                    if (progress < 1) {
+                        window.requestAnimationFrame(step);
+                    } else {
+                        el.textContent = newVal.toLocaleString();
+                        // Reset width to auto after transition finishes so it remains responsive
+                        setTimeout(() => { el.style.width = 'auto'; }, 300);
+                    }
+                };
+                window.requestAnimationFrame(step);
+            }
+
             // Total cups & spend
             const totalCupsEl = document.getElementById('stat-total-cups');
             const totalSpendEl = document.getElementById('stat-total-spend');
@@ -2311,18 +2350,7 @@ let currentUser = null;
                 const currentCupsVal = parseInt(totalCupsEl.textContent.replace(/,/g, '')) || 0;
 
                 if (currentCupsVal !== totalCups) {
-                    let startTimeCups = null;
-                    const duration = 400;
-                    const stepCups = (timestamp) => {
-                        if (!startTimeCups) startTimeCups = timestamp;
-                        const progress = Math.min((timestamp - startTimeCups) / duration, 1);
-                        const easeProgress = 1 - Math.pow(1 - progress, 4);
-                        const current = Math.floor(currentCupsVal + (totalCups - currentCupsVal) * easeProgress);
-                        totalCupsEl.textContent = current.toLocaleString();
-                        if (progress < 1) window.requestAnimationFrame(stepCups);
-                        else totalCupsEl.textContent = totalCups.toLocaleString();
-                    };
-                    window.requestAnimationFrame(stepCups);
+                    animateOdometer(totalCupsEl, currentCupsVal, totalCups);
                 } else {
                     totalCupsEl.textContent = totalCups.toLocaleString();
                 }
@@ -2332,44 +2360,73 @@ let currentUser = null;
                 const currentVal = parseInt(totalSpendEl.textContent.replace(/,/g, '')) || 0;
 
                 if (currentVal !== totalSpend) {
-                    let startTime = null;
-                    const duration = 400; // ms
-                    const step = (timestamp) => {
-                        if (!startTime) startTime = timestamp;
-                        const progress = Math.min((timestamp - startTime) / duration, 1);
-                        // easeOutQuart
-                        const easeProgress = 1 - Math.pow(1 - progress, 4);
-                        const current = Math.floor(currentVal + (totalSpend - currentVal) * easeProgress);
-                        totalSpendEl.textContent = current.toLocaleString();
-                        if (progress < 1) {
-                            window.requestAnimationFrame(step);
-                        } else {
-                            totalSpendEl.textContent = totalSpend.toLocaleString();
-                        }
-                    };
-                    window.requestAnimationFrame(step);
+                    animateOdometer(totalSpendEl, currentVal, totalSpend, true);
                 } else {
                     totalSpendEl.textContent = totalSpend.toLocaleString();
                 }
             }
 
-            // Most popular (Fade Icon & Text)
-            const popularEl = document.getElementById('stat-most-popular');
-            if (popularEl) {
-                popularEl.style.transition = 'opacity 0.15s ease';
-                popularEl.style.opacity = '0';
-                setTimeout(() => {
-                    if (filtered.length > 0) {
-                        const typeCounts = {};
-                        filtered.forEach(e => { typeCounts[e.type] = (typeCounts[e.type] || 0) + 1; });
-                        const topType = Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0];
-                        const topEmoji = (coffeeTypes.find(t => t.name === topType[0]) || {}).emoji || '☕';
-                        popularEl.innerHTML = `<div class="popular-icon">${topEmoji}</div><div class="popular-text"><h3>${topType[0]}</h3><p>${topType[1]} Cups</p></div>`;
-                    } else {
-                        popularEl.innerHTML = '<div class="popular-icon">☕</div><div class="popular-text"><h3>—</h3><p>0 Cups</p></div>';
-                    }
-                    popularEl.style.opacity = '1';
-                }, 150);
+            // Most popular (Roulette / Odometer)
+            const popularIconInner = document.getElementById('popular-icon-inner');
+            const popularTitleInner = document.getElementById('popular-title-inner');
+            const popularCupsVal = document.getElementById('popular-cups-val');
+
+            if (popularIconInner && popularTitleInner && popularCupsVal) {
+                let topName = '—';
+                let topEmoji = '☕';
+                let topCount = 0;
+
+                if (filtered.length > 0) {
+                    const typeCounts = {};
+                    filtered.forEach(e => { typeCounts[e.type] = (typeCounts[e.type] || 0) + 1; });
+                    const topType = Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0];
+                    topName = topType[0];
+                    topCount = topType[1];
+                    topEmoji = (coffeeTypes.find(t => t.name === topName) || {}).emoji || '☕';
+                }
+
+                const currentName = popularTitleInner.textContent;
+                const currentCups = parseInt(popularCupsVal.textContent.replace(/,/g, '')) || 0;
+
+                if (currentName !== topName) {
+                    // Type changed -> Revolver animation
+
+                    // 1. Slide old out UP
+                    popularIconInner.classList.add('roulette-slide-out-up');
+                    popularTitleInner.classList.add('roulette-slide-out-up');
+
+                    setTimeout(() => {
+                        // 2. Teleport to bottom (invisible) and update content
+                        popularIconInner.style.transition = 'none';
+                        popularTitleInner.style.transition = 'none';
+
+                        popularIconInner.classList.remove('roulette-slide-out-up');
+                        popularTitleInner.classList.remove('roulette-slide-out-up');
+
+                        popularIconInner.classList.add('roulette-slide-in-up');
+                        popularTitleInner.classList.add('roulette-slide-in-up');
+
+                        popularIconInner.textContent = topEmoji;
+                        popularTitleInner.textContent = topName;
+                        popularCupsVal.textContent = topCount.toLocaleString(); // Instant snap for cups on type change
+                        popularCupsVal.style.width = 'auto'; // Reset width
+
+                        // Force layout reflow
+                        void popularIconInner.offsetWidth;
+
+                        // 3. Restore transition and slide IN
+                        popularIconInner.style.transition = '';
+                        popularTitleInner.style.transition = '';
+
+                        popularIconInner.classList.remove('roulette-slide-in-up');
+                        popularTitleInner.classList.remove('roulette-slide-in-up');
+
+                    }, 400); // Wait for slide out to finish (CSS is 0.4s)
+
+                } else if (currentCups !== topCount) {
+                    // Same type, different counts -> Odometer
+                    animateOdometer(popularCupsVal, currentCups, topCount);
+                }
             }
 
             // Daily Cups bar chart and title swaps

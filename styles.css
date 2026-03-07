@@ -2878,3 +2878,57 @@ input:checked+.slider-toggle:before {
     display: flex;
     align-items: center;
 }
+
+/* Odometer Width Dynamics */
+.odometer-container {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.odometer-value {
+    display: inline-block;
+    transition: width 0.3s ease;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+/* Most Popular Roulette */
+.popular-icon,
+.popular-title-wrapper {
+    overflow: hidden;
+    position: relative;
+}
+
+.popular-icon {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.popular-icon-inner,
+.popular-title-inner {
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.popular-icon-inner {
+    align-items: center;
+}
+
+.roulette-slide-out-up {
+    transform: translateY(-100%);
+    opacity: 0;
+}
+
+.roulette-slide-in-up {
+    transform: translateY(100%);
+    opacity: 0;
+}
+
+.roulette-slide-center {
+    transform: translateY(0);
+    opacity: 1;
+}
