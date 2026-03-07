@@ -186,6 +186,7 @@ export async function removeBackground(imageBlob) {
                 console.log('RMBG Status:', data.data);
             } else if (data.type === 'done') {
                 imgWorker.removeEventListener('message', messageHandler);
+                URL.revokeObjectURL(imageUrl);
 
                 const { maskData } = data;
 
@@ -213,6 +214,7 @@ export async function removeBackground(imageBlob) {
                 resolve(finalBlob);
             } else if (data.type === 'error') {
                 imgWorker.removeEventListener('message', messageHandler);
+                URL.revokeObjectURL(imageUrl);
                 reject(new Error(data.error));
             }
         };
@@ -220,15 +222,12 @@ export async function removeBackground(imageBlob) {
         imgWorker.addEventListener('message', messageHandler);
 
         // Send to worker for inference
-        const url = URL.createObjectURL(imageBlob);
+        const imageUrl = URL.createObjectURL(imageBlob);
         imgWorker.postMessage({
             type: 'predict',
-            url: url,
+            url: imageUrl,
             width: bmp.width,
             height: bmp.height
         });
-
-        // Clean up object URL after a while to let worker load it
-        setTimeout(() => URL.revokeObjectURL(url), 10000);
     });
 }
