@@ -196,6 +196,13 @@ let currentUser = null;
         const navPill = document.getElementById('nav-pill');
         const indicator = document.getElementById('nav-indicator');
 
+        // Tab Scroll Position Memory
+        const scrollPositions = {
+            'view-calendar': 0,
+            'view-statistics': 0,
+            'view-settings': 0
+        };
+
         const MONTHS_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
         const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -415,12 +422,6 @@ let currentUser = null;
         }, 50);
 
         // isDraggingNav, navStartX, indInitialLeft moved to top of IIFE
-        // Tab Scroll Position Memory
-        const scrollPositions = {
-            'view-calendar': 0,
-            'view-statistics': 0,
-            'view-settings': 0
-        };
 
         function switchView(viewId) {
             haptic('light');
