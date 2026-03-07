@@ -11,6 +11,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@harshit_01/ai-bg-remover": "^1.0.2",
     "@imgly/background-removal-node": "^1.4.5",
     "cors": "^2.8.6",
     "express": "^5.2.1",

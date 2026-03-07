@@ -1,4 +1,4 @@
-const CACHE_NAME = 'monicoffee-v2';
+const CACHE_NAME = 'monicoffee-v3';
 const ASSETS_TO_CACHE = [
     '/kopi/',
     '/kopi/index.html',
@@ -7,6 +7,7 @@ const ASSETS_TO_CACHE = [
     '/kopi/supabase.js',
     '/kopi/config.js',
     '/kopi/bg-removal.js',
+    '/kopi/hf-worker.js',
     '/kopi/manifest.json',
     '/kopi/icons/icon-192.png',
     '/kopi/icons/icon-512.png'
@@ -68,9 +69,9 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // --- STRATEGY 2: Cache-first for @imgly WASM/ML model files ---
-    // These are large, versioned files that don't change — cache aggressively
-    if (event.request.url.includes('cdn.jsdelivr.net') && event.request.url.includes('@imgly')) {
+    // --- STRATEGY 2: Cache-first for @huggingface/transformers WASM/ML model files ---
+    // These are large CDN-hosted model shards — cache aggressively
+    if (event.request.url.includes('cdn.jsdelivr.net') && event.request.url.includes('@huggingface')) {
         event.respondWith(
             caches.open(CACHE_NAME).then((cache) => {
                 return cache.match(event.request).then((cachedResponse) => {

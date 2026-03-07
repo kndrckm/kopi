@@ -1,0 +1,28 @@
+
+(process:19204): GLib-GObject-CRITICAL **: 14:47:07.922: invalid unclassed type '(NULL)' in class cast to '(NULL)'
+
+(process:19204): GLib-GObject-CRITICAL **: 14:47:07.922: invalid unclassed type '(NULL)' in class cast to '(NULL)'
+
+(process:19204): GLib-GObject-CRITICAL **: 14:47:07.923: invalid unclassed type '(NULL)' in class cast to '(NULL)'
+
+(process:19204): GLib-GObject-CRITICAL **: 14:47:07.923: invalid unclassed type '(NULL)' in class cast to '(NULL)'
+
+(process:19204): GLib-GObject-CRITICAL **: 14:47:07.923: invalid unclassed type '(NULL)' in class cast to '(NULL)'
+
+(process:19204): GLib-GObject-CRITICAL **: 14:47:07.923: invalid unclassed type '(NULL)' in class cast to '(NULL)'
+
+(process:19204): GLib-GObject-CRITICAL **: 14:47:07.923: invalid unclassed type '(NULL)' in class cast to '(NULL)'
+
+(process:19204): GLib-GObject-CRITICAL **: 14:47:07.923: invalid unclassed type '(NULL)' in class cast to '(NULL)'
+Test Bench Server running on http://localhost:3001
+Method C - Crop Detection: 103.909ms
+Method C - Sharp Crop & Stroke: 112.346ms
+Method C Total Time: 216.672ms
+
+(process:19204): GLib-GObject-CRITICAL **: 14:47:09.151: can't peek value table for type '(NULL)' which is not currently referenced
+
+(process:19204): GLib-GObject-CRITICAL **: 14:47:09.151: ../glib-2.78.0/gobject/gvalue.c:220: cannot initialize GValue with type '(NULL)', this type has no GTypeValueTable implementation
+
+(process:19204): GLib-GObject-CRITICAL **: 14:47:09.151: ../glib-2.78.0/gobject/gtype.c:4424: type id '0' is invalid
+
+(process:19204): GLib-GObject-CRITICAL **: 14:47:09.151: can't peek value table for type '<invalid>' which is not currently referenced

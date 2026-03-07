@@ -4,6 +4,8 @@ const sharp = require('sharp');
 const { removeBackground } = require('@imgly/background-removal-node');
 const smartcrop = require('smartcrop-sharp');
 const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
 const cors = require('cors');
 
 const app = express();
@@ -22,53 +24,61 @@ app.post('/api/method-b', upload.single('photo'), async (req, res) => {
 
         // 1. Remove BG using node optimized imgly
         console.time('Method B - Background Removal');
-        const resultBlob = await removeBackground(buffer);
+        const blob = new Blob([buffer], { type: req.file.mimetype });
+        const resultBlob = await removeBackground(blob);
         const bgRemovedBuffer = Buffer.from(await resultBlob.arrayBuffer());
         console.timeEnd('Method B - Background Removal');
-
-        // 2. Add White Stroke / Outline using Sharp
-        console.time('Method B - Sharp Stroke Setup');
-        const img = sharp(bgRemovedBuffer);
-        const metadata = await img.metadata();
-        const strokeWidth = 15;
-        const pad = strokeWidth * 2;
-
-        // This compositing approach simulates the client-side 15px dialation setup
-        // It's a bit mathematically intense inside Sharp, but much faster than Canvas
-        // Sharp v0.32 doesn't have a native 'stroke', so we use standard composite dilation logic
-        // For benchmarking fairness of backend vs frontend, we'll just run a fast blur 
-        // to emulate the stroke creation time, followed by extraction if actual dilation is too complex.
-
-        // Here is a simpler stroke method for sharp: shadow/blur then recolor
-        const outlineMask = await img
-            .resize({ width: metadata.width + pad, height: metadata.height + pad, fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-            .blur(strokeWidth / 2)
-            .threshold(1) // Solidify the blurred alpha channel
-            .tint('#ffffff') // Make it white
-            .toBuffer();
-
-        // Overlay the original image on top of the white silhouette
-        console.timeEnd('Method B - Sharp Stroke Setup');
-
-        console.time('Method B - Composite and Output');
-        const finalBuffer = await sharp(outlineMask)
-            .composite([{
-                input: bgRemovedBuffer,
-                gravity: 'center'
-            }])
-            .trim() // Auto-crop transparent boundaries
-            .webp({ quality: 85 })
-            .toBuffer();
-        console.timeEnd('Method B - Composite and Output');
         console.timeEnd('Method B Total Time');
 
-        res.set('Content-Type', 'image/webp');
-        res.send(finalBuffer);
+        res.set('Content-Type', 'image/png');
+        res.send(bgRemovedBuffer);
     } catch (e) {
         console.error(e);
         res.status(500).send('Error in Method B');
     }
 });
+
+// --------------------------------------------------------------------------------------
+// METHOD D: @harshit_01/ai-bg-remover
+// (This is a Node wrapper around Python rembg. It creates temp files and execs rembg)
+// --------------------------------------------------------------------------------------
+const aiBgRemover = require('@harshit_01/ai-bg-remover');
+
+app.post('/api/method-d', upload.single('photo'), async (req, res) => {
+    if (!req.file) return res.status(400).send('No file uploaded');
+
+    try {
+        console.time('Method D Total Time');
+
+        // ai-bg-remover requires actual files on disk
+        const tempId = crypto.randomBytes(8).toString('hex');
+        const inPath = path.join(__dirname, `temp_in_${tempId}.png`);
+        const outPath = path.join(__dirname, `temp_out_${tempId}.png`);
+
+        fs.writeFileSync(inPath, req.file.buffer);
+
+        console.time('Method D - rembg Python Process');
+        // This will throw if python `rembg` is not installed globally!
+        await aiBgRemover.removeBg(inPath, outPath);
+        console.timeEnd('Method D - rembg Python Process');
+
+        const finalBuffer = fs.readFileSync(outPath);
+
+        // cleanup temp files
+        fs.unlinkSync(inPath);
+        fs.unlinkSync(outPath);
+
+        console.timeEnd('Method D Total Time');
+
+        res.set('Content-Type', 'image/png');
+        res.send(finalBuffer);
+    } catch (e) {
+        console.error('Method D Error (Is Python rembg installed?):', e);
+        res.status(500).send('Error in Method D: ' + e.message);
+    }
+});
+
+// --------------------------------------------------------------------------------------
 
 // Method C: Smartcrop.js (Backend processing)
 app.post('/api/method-c', upload.single('photo'), async (req, res) => {
@@ -106,7 +116,7 @@ app.post('/api/method-c', upload.single('photo'), async (req, res) => {
     }
 });
 
-const PORT = 3000;
+const PORT = 3001;
 app.listen(PORT, () => {
     console.log(`Test Bench Server running on http://localhost:${PORT}`);
 });

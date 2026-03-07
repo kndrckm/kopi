@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BG Removal Benchmarks</title>
+    <title>BG Removal Benchmarks – Method A vs B</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -119,12 +119,27 @@
 <body>
     <h1>Photo Crop & Stroke Benchmark</h1>
     <div class="grid">
+
+        <!-- METHOD C -->
+        <div class="card" id="card-c">
+            <h2>Method C: RMBG-1.4 @ 512×512</h2>
+            <p style="font-size:0.9rem; color:#666;">Half-Res Inference → Upscaled Mask (Fastest)</p>
+            <div class="status" id="status-c">Ready</div>
+            <button class="btn" id="btn-c">Choose Photo</button>
+            <input type="file" id="file-c" accept="image/*">
+            <div class="time-box" id="time-c">Time: -- ms</div>
+            <div class="result-box" id="result-c">Preview</div>
+            <div class="logs" id="logs-c"></div>
+        </div>
+
+
         <!-- METHOD A -->
         <div class="card" id="card-a">
-            <h2>Method A: Client @imgly</h2>
-            <p style="font-size:0.9rem; color:#666;">Runs in your browser via WebAssembly (Preloaded)</p>
-            <div class="status" id="status-a">Preloading AI Model...</div>
-            <button class="btn" id="btn-a" disabled>Choose Photo</button>
+            <h2>Method A: RMBG-1.4 + Optimizations</h2>
+            <p style="font-size:0.9rem; color:#666;">Downscale → Bitwise Alpha → Fewer Stroke Draws → Early-Exit Trim
+            </p>
+            <div class="status" id="status-a">Ready</div>
+            <button class="btn" id="btn-a">Choose Photo</button>
             <input type="file" id="file-a" accept="image/*">
             <div class="time-box" id="time-a">Time: -- ms</div>
             <div class="result-box" id="result-a">Preview</div>
@@ -133,27 +148,14 @@
 
         <!-- METHOD B -->
         <div class="card" id="card-b">
-            <h2>Method B: Node.js Sharp + @imgly</h2>
-            <p style="font-size:0.9rem; color:#666;">Runs on backend. Uploads raw buffer -> cuts -> strokes.</p>
-            <div class="status" id="status-b">Ready instantly</div>
+            <h2>Method B: briaai/RMBG-1.4</h2>
+            <p style="font-size:0.9rem; color:#666;">Ultra-fast CPU-WASM Background Removal (Zero UI Freeze)</p>
+            <div class="status" id="status-b">Ready</div>
             <button class="btn" id="btn-b">Choose Photo</button>
             <input type="file" id="file-b" accept="image/*">
             <div class="time-box" id="time-b">Time: -- ms</div>
             <div class="result-box" id="result-b">Preview</div>
             <div class="logs" id="logs-b"></div>
-        </div>
-
-        <!-- METHOD C -->
-        <div class="card" id="card-c">
-            <h2>Method C: Node.js Smartcrop.js</h2>
-            <p style="font-size:0.9rem; color:#666;">Runs on backend. Calculates optimal square crop focus -> adds
-                stroke.</p>
-            <div class="status" id="status-c">Ready instantly</div>
-            <button class="btn" id="btn-c">Choose Photo</button>
-            <input type="file" id="file-c" accept="image/*">
-            <div class="time-box" id="time-c">Time: -- ms</div>
-            <div class="result-box" id="result-c">Preview</div>
-            <div class="logs" id="logs-c"></div>
         </div>
     </div>
 
