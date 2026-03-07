@@ -896,6 +896,34 @@ p {
     animation: heartPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 
+.floating-particle {
+    position: absolute;
+    right: 8px;
+    /* align center w/ heart */
+    top: 50%;
+    font-size: 16px;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 10;
+    animation: floatUp 0.8s ease-out forwards;
+}
+
+@keyframes floatUp {
+    0% {
+        transform: translate(0, -50%) scale(0.5);
+        opacity: 0;
+    }
+
+    10% {
+        opacity: 0.8;
+    }
+
+    100% {
+        transform: translate(var(--tx), calc(-50% - 40px)) scale(1.2);
+        opacity: 0;
+    }
+}
+
 .coffee-item-info {
     display: flex;
     align-items: center;
@@ -2764,6 +2792,39 @@ input:checked+.slider-toggle:before {
 .chart-placeholder-card .sticker-img,
 .chart-placeholder-card .sticker-emoji {
     /* Removed drop-shadow(0 6px 12px rgba(0, 0, 0, 0.25)) per user request. Too heavy. */
+}
+
+/* Jiggle Animation for Edit Mode */
+@keyframes ios-jiggle {
+    0% {
+        transform: rotate(-1.5deg);
+    }
+
+    50% {
+        transform: rotate(1.5deg);
+    }
+
+    100% {
+        transform: rotate(-1.5deg);
+    }
+}
+
+.editing-jiggle {
+    animation: ios-jiggle 0.25s linear infinite;
+    transform-origin: center;
+}
+
+/* Expanding Splash Overlay */
+.fab-splash {
+    position: fixed;
+    background: var(--primary-color);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 100;
+    /* Behind modals (1000) but above page (10) */
+    transform: scale(0);
+    opacity: 0;
+    transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s ease-out;
 }
 
 /* PWA VERSION UPDATER BANNER */

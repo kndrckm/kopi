@@ -837,22 +837,62 @@ let currentUser = null;
             if (bestTemp) selectedTemp = bestTemp;
         }
 
-        if (btnAddCup) btnAddCup.addEventListener('click', () => {
-            editingCoffeeId = null;
-            editingCoffeeIdx = null;
-            resetPhotoBox(); // Fix: Clear previous photo data
-            updateAddCoffeeDateTime();
+        function triggerFabSplash(e, callback) {
+            const splash = document.getElementById('fab-splash');
+            if (!splash || !e) {
+                if (callback) callback();
+                return;
+            }
 
-            // Guess what the user wants to drink right now
-            guessAddCoffeeDefaults();
+            let x = e.clientX, y = e.clientY;
+            if (e.touches && e.touches.length > 0) {
+                x = e.touches[0].clientX;
+                y = e.touches[0].clientY;
+            }
+            if (x === undefined || y === undefined) {
+                if (callback) callback();
+                return;
+            }
 
-            rebuildTypeGrid();
+            splash.style.transition = 'none';
+            splash.style.transform = 'scale(0)';
+            splash.style.opacity = '1';
 
-            // Apply guessed size and temp to UI buttons
-            document.querySelectorAll('.size-btn').forEach(btn => btn.classList.toggle('active', btn.textContent === selectedSize));
-            document.querySelectorAll('.temp-btn').forEach(btn => btn.classList.toggle('active', btn.textContent.includes(selectedTemp)));
+            const size = 50;
+            splash.style.width = size + 'px';
+            splash.style.height = size + 'px';
+            splash.style.left = (x - size / 2) + 'px';
+            splash.style.top = (y - size / 2) + 'px';
 
-            openSheet(modalAddCoffee);
+            void splash.offsetWidth; // Reflow
+
+            const maxDim = Math.max(window.innerWidth, window.innerHeight);
+            splash.style.transition = 'transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s ease-out';
+            splash.style.transform = `scale(${(maxDim / size) * 2.5})`;
+
+            setTimeout(() => { splash.style.opacity = '0'; }, 200);
+
+            setTimeout(() => { if (callback) callback(); }, 50); // Small delay to feel the pop
+        }
+
+        if (btnAddCup) btnAddCup.addEventListener('click', (e) => {
+            triggerFabSplash(e, () => {
+                editingCoffeeId = null;
+                editingCoffeeIdx = null;
+                resetPhotoBox(); // Fix: Clear previous photo data
+                updateAddCoffeeDateTime();
+
+                // Guess what the user wants to drink right now
+                guessAddCoffeeDefaults();
+
+                rebuildTypeGrid();
+
+                // Apply guessed size and temp to UI buttons
+                document.querySelectorAll('.size-btn').forEach(btn => btn.classList.toggle('active', btn.textContent === selectedSize));
+                document.querySelectorAll('.temp-btn').forEach(btn => btn.classList.toggle('active', btn.textContent.includes(selectedTemp)));
+
+                openSheet(modalAddCoffee);
+            });
         });
         if (btnCancelAdd) btnCancelAdd.addEventListener('click', () => {
             editingCoffeeId = null;
@@ -1315,11 +1355,11 @@ let currentUser = null;
                     (async () => {
                         try {
                             const stickerBlob = await removeBackground(photoBlob);
-                            const fileName = `${currentUser ? currentUser.id : 'anon'}/${Date.now()}.png`;
+                            const fileName = `${currentUser ? currentUser.id : 'anon'}/${Date.now()}.webp`;
                             const { error: uploadError } = await supabase.storage
                                 .from('stickers')
                                 .upload(fileName, stickerBlob, {
-                                    contentType: 'image/png',
+                                    contentType: 'image/webp',
                                     upsert: false
                                 });
 
@@ -1580,6 +1620,19 @@ let currentUser = null;
                         // Will favorite — add heart instantly
                         if (!existingHeart) {
                             infoEl.insertAdjacentHTML('beforeend', '<i class="ph-fill ph-heart favorite-icon"></i>');
+
+                            // Spawn floating particles
+                            const emojis = ['☕', '✨', '🤎'];
+                            for (let i = 0; i < 3; i++) {
+                                const particle = document.createElement('span');
+                                particle.className = 'floating-particle';
+                                particle.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+                                const tx = (Math.random() * 40 - 20) + 'px'; // drift left/right
+                                particle.style.setProperty('--tx', tx);
+                                particle.style.animationDelay = (Math.random() * 0.15) + 's';
+                                infoEl.appendChild(particle);
+                                setTimeout(() => particle.remove(), 1000); // clear from DOM after animation
+                            }
                         }
                     }
                 }
@@ -2040,13 +2093,15 @@ let currentUser = null;
 
             // Set selected date for Add a Cup (use selected date with current time)
             if (!isFuture) {
-                btnAddCupOverlay.onclick = () => {
-                    const now = new Date();
-                    selectedDateTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), now.getHours(), now.getMinutes());
-                    closeSheet(dayOverlayWrapper);
-                    updateAddCoffeeDateTimeDisplay();
-                    rebuildTypeGrid();
-                    openSheet(modalAddCoffee);
+                btnAddCupOverlay.onclick = (e) => {
+                    triggerFabSplash(e, () => {
+                        const now = new Date();
+                        selectedDateTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), now.getHours(), now.getMinutes());
+                        closeSheet(dayOverlayWrapper);
+                        updateAddCoffeeDateTimeDisplay();
+                        rebuildTypeGrid();
+                        openSheet(modalAddCoffee);
+                    });
                 };
             }
 
@@ -2251,7 +2306,28 @@ let currentUser = null;
                 if (totalCupsEl) totalCupsEl.textContent = filtered.length;
                 if (totalSpendEl) {
                     const totalSpend = filtered.reduce((sum, e) => sum + (e.price || 0), 0);
-                    totalSpendEl.textContent = totalSpend.toLocaleString();
+                    const currentVal = parseInt(totalSpendEl.textContent.replace(/,/g, '')) || 0;
+
+                    if (currentVal !== totalSpend) {
+                        let startTime = null;
+                        const duration = 400; // ms
+                        const step = (timestamp) => {
+                            if (!startTime) startTime = timestamp;
+                            const progress = Math.min((timestamp - startTime) / duration, 1);
+                            // easeOutQuart
+                            const easeProgress = 1 - Math.pow(1 - progress, 4);
+                            const current = Math.floor(currentVal + (totalSpend - currentVal) * easeProgress);
+                            totalSpendEl.textContent = current.toLocaleString();
+                            if (progress < 1) {
+                                window.requestAnimationFrame(step);
+                            } else {
+                                totalSpendEl.textContent = totalSpend.toLocaleString();
+                            }
+                        };
+                        window.requestAnimationFrame(step);
+                    } else {
+                        totalSpendEl.textContent = totalSpend.toLocaleString();
+                    }
                 }
 
                 // Most popular
@@ -2467,8 +2543,9 @@ let currentUser = null;
 
             editingTypes.forEach((t, i) => {
                 const card = document.createElement('div');
-                card.className = 'type-card-lg';
+                card.className = 'type-card-lg editing-jiggle';
                 card.style.position = 'relative';
+                card.style.animationDelay = (Math.random() * 0.2) + 's'; // stagger
                 card.innerHTML = `
                     <span class="type-emoji">${t.emoji}</span>
                     <span>${t.name}</span>

@@ -39,7 +39,7 @@ async function addWhiteOutline(blob, outlineWidth = 15) {
             const trimmedCanvas = trimCanvas(canvas);
 
             URL.revokeObjectURL(bmpUrl);
-            trimmedCanvas.toBlob((blob) => resolve(blob), 'image/png');
+            trimmedCanvas.toBlob((blob) => resolve(blob), 'image/webp', 0.85);
         };
         img.src = bmpUrl;
     });
