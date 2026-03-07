@@ -173,7 +173,7 @@ export function trimCanvas(canvas) {
 }
 
 // Background removal via briaai/RMBG-1.4 (Method B) + white outline
-export async function removeBackground(imageBlob) {
+export async function removeBackground(imageBlob, progressCallback = null) {
     return new Promise(async (resolve, reject) => {
         const imgWorker = getWorker();
         const bmp = await createImageBitmap(imageBlob);
@@ -181,8 +181,10 @@ export async function removeBackground(imageBlob) {
         const messageHandler = async (e) => {
             const data = e.data;
             if (data.type === 'progress') {
+                if (progressCallback) progressCallback({ type: 'progress', name: data.data.name, loaded: data.data.loaded, total: data.data.total });
                 console.log(`RMBG: DL ${data.data.name || 'Model'}: ${Math.round((data.data.loaded / data.data.total) * 100)}%`);
             } else if (data.type === 'status') {
+                if (progressCallback) progressCallback({ type: 'status', message: data.data });
                 console.log('RMBG Status:', data.data);
             } else if (data.type === 'done') {
                 imgWorker.removeEventListener('message', messageHandler);

@@ -1367,7 +1367,25 @@ let currentUser = null;
                     // Step A: If we have a photo, upload it FIRST
                     if (isProcessingPhoto) {
                         try {
-                            const stickerBlob = await removeBackground(photoBlob);
+                            const stickerBlob = await removeBackground(photoBlob, (status) => {
+                                const statusEl = document.getElementById(`processing-status-${entry.id}`);
+                                if (!statusEl) return;
+
+                                if (status.type === 'progress') {
+                                    const percent = Math.round((status.loaded / status.total) * 100);
+                                    statusEl.textContent = `Downloading AI... ${percent}%`;
+                                } else if (status.type === 'status') {
+                                    if (status.message.includes('Processing image tensors') || status.message.includes('Predicting') || status.message.includes('Generating')) {
+                                        statusEl.textContent = 'Removing Background...';
+                                    } else {
+                                        statusEl.textContent = status.message;
+                                    }
+                                }
+                            });
+
+                            const statusEl = document.getElementById(`processing-status-${entry.id}`);
+                            if (statusEl) statusEl.textContent = 'Saving Sticker...';
+
                             const fileName = `${currentUser ? currentUser.id : 'anon'}/${Date.now()}.webp`;
                             const { error: uploadError } = await supabase.storage
                                 .from('stickers')
@@ -1524,8 +1542,8 @@ let currentUser = null;
                 tempDiv.innerHTML = `
                 <div class="skeleton-card" style="margin-bottom: 8px;">
                     <div class="skeleton-icon"><div class="btn-spinner" style="border-top-color: var(--primary); width: 24px; height: 24px;"></div></div>
-                    <div style="flex:1">
-                        <div class="skeleton-line long"></div>
+                    <div style="flex:1; display:flex; flex-direction:column; justify-content:center;">
+                        <div class="skeleton-line long" style="background:transparent; animation:none; font-size:13px; font-weight:600; color:var(--text); width:100%;" id="processing-status-${entry.id}">Processing Image...</div>
                         <div class="skeleton-line short"></div>
                     </div>
                 </div>`.trim();
