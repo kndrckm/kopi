@@ -2664,16 +2664,21 @@ let currentUser = null;
             });
         }
 
+        let typeSortableInstance = null;
         function renderTypeEditor() {
             typeEditorList.innerHTML = '';
             // Match the grid style of the selection screen
             typeEditorList.classList.add('coffee-type-grid');
 
+            if (typeSortableInstance) {
+                typeSortableInstance.destroy();
+                typeSortableInstance = null;
+            }
+
             editingTypes.forEach((t, i) => {
                 const card = document.createElement('div');
-                card.className = 'type-card-lg editing-jiggle';
+                card.className = 'type-card-lg';
                 card.style.position = 'relative';
-                card.style.animationDelay = (Math.random() * 0.2) + 's'; // stagger
                 card.innerHTML = `
                         < span class="type-emoji" > ${t.emoji}</span >
                     <span>${t.name}</span>
@@ -2699,6 +2704,28 @@ let currentUser = null;
 
                 typeEditorList.appendChild(card);
             });
+
+            if (window.Sortable) {
+                typeSortableInstance = new Sortable(typeEditorList, {
+                    animation: 150,
+                    delay: 200,
+                    delayOnTouchOnly: true,
+                    ghostClass: 'sortable-ghost',
+                    onStart: function (evt) {
+                        evt.item.classList.add('editing-jiggle');
+                    },
+                    onEnd: function (evt) {
+                        evt.item.classList.remove('editing-jiggle');
+                        const oldIdx = evt.oldIndex;
+                        const newIdx = evt.newIndex;
+                        if (oldIdx !== undefined && newIdx !== undefined && oldIdx !== newIdx) {
+                            const movedItem = editingTypes.splice(oldIdx, 1)[0];
+                            editingTypes.splice(newIdx, 0, movedItem);
+                            setTimeout(() => renderTypeEditor(), 10);
+                        }
+                    }
+                });
+            }
         }
 
         // ============================================================
