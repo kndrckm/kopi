@@ -121,7 +121,13 @@ const _worker = new Worker('./hf-worker.js', { type: 'module' });
 _worker.postMessage({
     type: 'init',
     modelId: 'briaai/RMBG-1.4',
-    modelOpts: { config: { model_type: 'custom' } }
+    modelOpts: {
+        // Load the quantized ONNX directly — avoids "unknown model class" and
+        // "missing dtype" warnings from transformers.js auto-detection.
+        config: { model_type: 'custom' },
+        dtype: 'q8',
+        model_file_name: 'onnx/model_quantized'
+    }
 });
 
 // Preload model 500ms after page fully renders (zero UI freeze)

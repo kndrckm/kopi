@@ -269,7 +269,7 @@ const workerC = new Worker('hf-worker.js', { type: 'module' });
 workerC.postMessage({
     type: 'init',
     modelId: 'briaai/RMBG-1.4',
-    modelOpts: { config: { model_type: 'custom' } },
+    modelOpts: { config: { model_type: 'custom' }, dtype: 'q8', model_file_name: 'onnx/model_quantized' },
     // ✅ Force processor to 512×512 instead of the default 1024×1024
     processorOpts: {
         size: { width: 512, height: 512 },
@@ -367,7 +367,7 @@ fileC.addEventListener('change', async (e) => {
 // ---------------------------------------------------------------
 
 const workerA = new Worker('hf-worker.js', { type: 'module' });
-workerA.postMessage({ type: 'init', modelId: 'briaai/RMBG-1.4', modelOpts: { config: { model_type: 'custom' } } });
+workerA.postMessage({ type: 'init', modelId: 'briaai/RMBG-1.4', modelOpts: { config: { model_type: 'custom' }, dtype: 'q8', model_file_name: 'onnx/model_quantized' } });
 
 let startTimeA = 0;
 let currentImageA = null;
@@ -466,7 +466,7 @@ fileA.addEventListener('change', async (e) => {
 // ---------------------------------------------------------------
 
 const workerB = new Worker('hf-worker.js', { type: 'module' });
-workerB.postMessage({ type: 'init', modelId: 'briaai/RMBG-1.4', modelOpts: { config: { model_type: 'custom' } } });
+workerB.postMessage({ type: 'init', modelId: 'briaai/RMBG-1.4', modelOpts: { config: { model_type: 'custom' }, dtype: 'q8', model_file_name: 'onnx/model_quantized' } });
 
 let startTimeB = 0;
 let currentImageB = null;
