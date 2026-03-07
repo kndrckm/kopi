@@ -1323,67 +1323,47 @@ let currentUser = null;
                 resetPhotoBox();
                 showSaveToast();
 
-                // 1) Update local state or insert into DB *immediately* (without sticker)
-                const saveEntryToDB = async (entryToSave, editingId) => {
-                    const dbPayload = { ...entryToSave };
-                    delete dbPayload._processing_photo;
-
-                    if (editingId || editingCoffeeIdx !== null) {
-                        if (currentUser && editingId) {
-                            const { data, error } = await supabase.from('coffee_entries').update(dbPayload).eq('id', editingId).select();
-                            if (error) console.error('Update error:', error.message);
-                            else if (data && data[0]) {
-                                const idx = coffeeEntries.findIndex(e => e.id === editingId);
-                                if (idx > -1) {
-                                    Object.assign(entryToSave, data[0]);
-                                    coffeeEntries[idx] = entryToSave;
-                                } else {
-                                    entryToSave.id = data[0].id;
-                                }
-                            }
-                        } else if (editingCoffeeIdx !== null) {
-                            entryToSave.id = coffeeEntries[editingCoffeeIdx].id;
-                            coffeeEntries[editingCoffeeIdx] = entryToSave;
-                        }
-                    } else {
-                        if (currentUser) {
-                            const { data, error } = await supabase.from('coffee_entries').insert([dbPayload]).select();
-                            if (error) {
-                                console.error('Insert error:', error.message);
-                            } else if (data && data[0]) {
-                                Object.assign(entryToSave, data[0]);
-                                coffeeEntries.unshift(entryToSave);
-                            }
-                        } else {
-                            // Assign a temporary ID if local-only
-                            entryToSave.id = 'temp-' + Date.now();
-                            coffeeEntries.unshift(entryToSave);
-                        }
-                    }
-                    return entryToSave;
-                };
-
-                // Add a local UI-only property to show spinning state while processing
-                if (isProcessingPhoto) {
-                    entry._processing_photo = true;
-                }
-
+                // 2) Keep track of editing context locally
+                const isEditing = (editingCoffeeId || editingCoffeeIdx !== null);
                 const capturedEditingId = editingCoffeeId;
                 const capturedEditingIdx = editingCoffeeIdx;
                 editingCoffeeId = null;
                 editingCoffeeIdx = null;
 
-                // Fire initial DB save and WAIT for the real ID
-                const savedEntry = await saveEntryToDB(entry, capturedEditingId);
+                // 3) Push optimistic entry to local UI immediately so user sees a skeleton
+                if (isProcessingPhoto) {
+                    entry._processing_photo = true;
+                }
+
+                // If editing, find and temporarily override the local entry
+                if (isEditing) {
+                    if (capturedEditingIdx !== null) {
+                        entry.id = coffeeEntries[capturedEditingIdx].id;
+                        coffeeEntries[capturedEditingIdx] = entry;
+                    } else if (capturedEditingId) {
+                        const idx = coffeeEntries.findIndex(e => e.id === capturedEditingId);
+                        if (idx > -1) {
+                            entry.id = coffeeEntries[idx].id;
+                            coffeeEntries[idx] = entry;
+                        }
+                    }
+                } else {
+                    // It's a brand new entry, push to start of list
+                    entry.id = 'temp-' + Date.now();
+                    coffeeEntries.unshift(entry);
+                }
 
                 // Render immediately with placeholder/spinner
                 renderTodayCoffee();
                 updateCalendarStickers();
                 updateStatistics();
 
-                // 2) Process photo in background (non-blocking)
-                if (isProcessingPhoto) {
-                    (async () => {
+                // 4) Background Database and Image Upload logic
+                (async () => {
+                    let finalStickerUrl = entry.sticker;
+
+                    // Step A: If we have a photo, upload it FIRST
+                    if (isProcessingPhoto) {
                         try {
                             const stickerBlob = await removeBackground(photoBlob);
                             const fileName = `${currentUser ? currentUser.id : 'anon'}/${Date.now()}.webp`;
@@ -1398,34 +1378,70 @@ let currentUser = null;
                                 const { data: urlData } = supabase.storage
                                     .from('stickers')
                                     .getPublicUrl(fileName);
-
-                                // Update local entry reference
-                                savedEntry.sticker = urlData.publicUrl;
-                                delete savedEntry._processing_photo;
-
-                                // Update DB with the new sticker URL
-                                if (currentUser && savedEntry.id && !savedEntry.id.toString().startsWith('temp-')) {
-                                    await supabase.from('coffee_entries')
-                                        .update({ sticker: savedEntry.sticker })
-                                        .eq('id', savedEntry.id);
-                                }
-
-                                // Re-render to show sticker
-                                renderTodayCoffee();
-                                updateCalendarStickers();
-                                updateStatistics();
+                                finalStickerUrl = urlData.publicUrl;
                             } else {
                                 console.error('Storage upload error:', uploadError.message);
-                                delete savedEntry._processing_photo;
-                                renderTodayCoffee();
+                                alert('Failed to upload image: ' + uploadError.message);
                             }
                         } catch (err) {
                             console.error('BG removal / upload failed:', err);
-                            delete savedEntry._processing_photo;
-                            renderTodayCoffee();
+                            alert('Failed to process image background.');
                         }
-                    })();
-                }
+                    }
+
+                    // Prepare DB payload
+                    const dbPayload = { ...entry, sticker: finalStickerUrl };
+                    delete dbPayload._processing_photo;
+
+                    // Local cleanup flag
+                    delete entry._processing_photo;
+                    entry.sticker = finalStickerUrl;
+
+                    // Step B: Send the complete final payload to the Database
+                    try {
+                        if (isEditing) {
+                            if (currentUser && capturedEditingId) {
+                                const { data, error } = await supabase.from('coffee_entries')
+                                    .update(dbPayload)
+                                    .eq('id', capturedEditingId)
+                                    .select();
+
+                                if (error) throw error;
+                                if (data && data[0]) {
+                                    Object.assign(entry, data[0]);
+                                }
+                            }
+                        } else {
+                            if (currentUser) {
+                                // Important: We MUST remove the `temp-` ID before inserting
+                                delete dbPayload.id;
+
+                                const { data, error } = await supabase.from('coffee_entries')
+                                    .insert([dbPayload])
+                                    .select();
+
+                                if (error) throw error;
+                                if (data && data[0]) {
+                                    Object.assign(entry, data[0]);
+                                }
+                            }
+                        }
+                    } catch (dbErr) {
+                        console.error('Database save error:', dbErr);
+                        alert('Failed to save coffee data: ' + dbErr.message);
+
+                        // If it completely failed to insert, we should probably remove the optimistic entry
+                        if (!isEditing && entry.id.toString().startsWith('temp-')) {
+                            const tempIdx = coffeeEntries.findIndex(e => e.id === entry.id);
+                            if (tempIdx > -1) coffeeEntries.splice(tempIdx, 1);
+                        }
+                    }
+
+                    // Re-render to clear spinner and show final saved data
+                    renderTodayCoffee();
+                    updateCalendarStickers();
+                    updateStatistics();
+                })();
             });
         }
 
@@ -1499,13 +1515,25 @@ let currentUser = null;
         }
 
         function createCoffeeItemRow(entry, idx) {
+            if (entry._processing_photo) {
+                // Return a full skeleton row so the entire card structure pulses,
+                // matching the original layout shape roughly.
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = `
+                <div class="skeleton-card" style="margin-bottom: 8px;">
+                    <div class="skeleton-icon"><div class="btn-spinner" style="border-top-color: var(--primary); width: 24px; height: 24px;"></div></div>
+                    <div style="flex:1">
+                        <div class="skeleton-line long"></div>
+                        <div class="skeleton-line short"></div>
+                    </div>
+                </div>`.trim();
+                return tempDiv.firstChild;
+            }
+
             const tempIcon = entry.temp === 'Hot' ? '♨️' : '🧊';
 
             let stickerHtml = '';
-            if (entry._processing_photo) {
-                // Return a spinning circle/placeholder
-                stickerHtml = `<div class="btn-spinner" style="border-top-color: var(--primary); width: 24px; height: 24px;"></div>`;
-            } else if (entry.sticker) {
+            if (entry.sticker) {
                 stickerHtml = getCachedStickerImgTag(entry.sticker, 'coffee-item-sticker');
             } else {
                 stickerHtml = `<span class="coffee-item-emoji">${entry.emoji || '☕'}</span>`;
