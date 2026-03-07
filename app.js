@@ -2374,17 +2374,16 @@ let currentUser = null;
 
             // Daily Cups bar chart and title swaps
             const dailyChart = document.getElementById('daily-cups-chart');
-            const barTitleEl = dailyChart ? dailyChart.parentElement.querySelector('p') : null;
+            const rouletteEl = document.getElementById('daily-cups-roulette');
 
-            if (barTitleEl) {
-                barTitleEl.style.transition = 'opacity 0.15s ease';
-                barTitleEl.style.opacity = '0';
-                setTimeout(() => {
-                    if (currentPeriod === 'week') barTitleEl.textContent = 'Daily Cups';
-                    else if (currentPeriod === 'month') barTitleEl.textContent = 'Weekly Cups';
-                    else barTitleEl.textContent = 'Monthly Cups';
-                    barTitleEl.style.opacity = '1';
-                }, 150);
+            if (rouletteEl) {
+                if (currentPeriod === 'week') {
+                    rouletteEl.style.transform = 'translateY(0px)';
+                } else if (currentPeriod === 'month') {
+                    rouletteEl.style.transform = 'translateY(-22px)';
+                } else {
+                    rouletteEl.style.transform = 'translateY(-44px)';
+                }
             }
 
             if (dailyChart) {
