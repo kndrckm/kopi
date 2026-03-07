@@ -220,7 +220,7 @@ textarea {
     padding: 24px;
     padding-top: env(safe-area-inset-top, 24px);
     padding-bottom: 90px;
-    animation: fadeIn 0.3s ease-out forwards;
+    animation: fadeIn 0.15s ease-out forwards;
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
@@ -233,12 +233,10 @@ textarea {
 @keyframes fadeIn {
     from {
         opacity: 0;
-        transform: translateY(10px);
     }
 
     to {
         opacity: 1;
-        transform: translateY(0);
     }
 }
 
