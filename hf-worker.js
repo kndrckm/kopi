@@ -9,20 +9,13 @@ self.onmessage = async (e) => {
     try {
         if (e.data.type === 'init') {
             currentModelId = e.data.modelId;
-            const userModelOpts = e.data.modelOpts || {};
-
-            // Try to use WebGPU for massive speedup, but gracefully fallback to CPU (WASM)
-            // if WebGPU isn't supported on the device.
-            const preferredDevice = navigator.gpu ? 'webgpu' : 'wasm';
-
             const modelOpts = {
-                ...userModelOpts,
-                device: preferredDevice,
+                ...(e.data.modelOpts || {}),
                 progress_callback: (p) => {
                     self.postMessage({ type: 'progress', data: p });
                 }
             };
-            const processorOpts = { ...(e.data.processorOpts || {}), device: preferredDevice };
+            const processorOpts = e.data.processorOpts || {};
 
             self.postMessage({ type: 'status', data: `Downloading ${currentModelId}...` });
 

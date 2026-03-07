@@ -13,7 +13,11 @@ export function preloadModel() {
     worker.postMessage({
         type: 'init',
         modelId: 'briaai/RMBG-1.4',
-        modelOpts: { dtype: 'q8' }
+        modelOpts: {
+            dtype: 'q8',
+            revision: 'main',
+            config: { model_type: 'bria-rmbg' }
+        }
     });
 
     // Listen for the initial load progress
