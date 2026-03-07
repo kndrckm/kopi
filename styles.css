@@ -2867,8 +2867,10 @@ input:checked+.slider-toggle:before {
 .cups-title-roulette {
     display: flex;
     flex-direction: column;
-    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-    /* Bouncy slot machine effect */
+    width: 38px;
+    /* Default for Daily */
+    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), width 0.3s ease;
+    /* Bouncy slot machine effect + width */
 }
 
 .roulette-item {

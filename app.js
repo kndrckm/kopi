@@ -2379,10 +2379,13 @@ let currentUser = null;
             if (rouletteEl) {
                 if (currentPeriod === 'week') {
                     rouletteEl.style.transform = 'translateY(0px)';
+                    rouletteEl.style.width = '38px'; // "Daily" roughly 38px
                 } else if (currentPeriod === 'month') {
                     rouletteEl.style.transform = 'translateY(-22px)';
+                    rouletteEl.style.width = '56px'; // "Weekly" roughly 56px
                 } else {
                     rouletteEl.style.transform = 'translateY(-44px)';
+                    rouletteEl.style.width = '64px'; // "Monthly" roughly 64px
                 }
             }
 
