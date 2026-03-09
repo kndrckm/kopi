@@ -1,7 +1,7 @@
 // ============================================================
 // worker.js — Dedicated Web Worker for RMBG-1.4 inference
-// Handles model loading, caching, inference, and tensor disposal
-// off the main thread to prevent UI freezes and OOM crashes.
+// Only handles the Quantized (uint8) WASM model.
+// IMG.LY models run on the main thread and bypass this worker.
 // ============================================================
 
 import {
@@ -14,11 +14,11 @@ import {
 env.allowLocalModels = false;
 
 // ── Model + Processor cache (reuse across runs) ────────────
-const modelCache = {};    // keyed by cacheKey = `${modelId}|${device}|${dtype}|${quantized}`
+const modelCache = {};    // keyed by cacheKey
 const processorCache = {}; // keyed by modelId
 
 function cacheKey(cfg) {
-    return `${cfg.modelId}|${cfg.device}|${cfg.dtype}|${cfg.quantized}`;
+    return `${cfg.modelId}|${cfg.device}`;
 }
 
 // ── Message handler ────────────────────────────────────────
@@ -50,26 +50,15 @@ self.onmessage = async (e) => {
                 }
             };
 
-            // Build from_pretrained options
+            // Always uint8 quantized for the WASM model
             const modelOpts = {
                 revision: 'main',
                 config: { model_type: 'bria-rmbg' },
-                device: config.device,
+                device: 'wasm',
+                dtype: 'uint8',
+                quantized: true,
                 progress_callback: progressCb,
             };
-
-            // Always set dtype explicitly to avoid Transformers.js defaults
-            // uint8 + quantized:true  → model_quantized.onnx (44 MB)
-            // fp16                    → model_fp16.onnx      (88 MB)
-            // fp32 + quantized:false  → model.onnx           (176 MB)
-            if (config.dtype) {
-                modelOpts.dtype = config.dtype;
-            }
-            if (config.quantized) {
-                modelOpts.quantized = true;
-            } else {
-                modelOpts.quantized = false;
-            }
 
             const tLoad0 = performance.now();
 
@@ -93,7 +82,6 @@ self.onmessage = async (e) => {
         self.postMessage({ type: 'status', id, text: 'Processing image...' });
 
         // ── Step 2: Reconstruct image from raw pixel data ──
-        // We receive pre-downscaled RGBA pixel data from the main thread
         const rawImage = new RawImage(
             new Uint8ClampedArray(imageData),
             imageWidth,
@@ -113,7 +101,7 @@ self.onmessage = async (e) => {
         const maskTensor = outputTensor.mul(255).to('uint8');
         const mask = await RawImage.fromTensor(maskTensor).resize(imageWidth, imageHeight);
 
-        // ── Step 4: Dispose tensors to free WASM/GPU memory ──
+        // ── Step 4: Dispose tensors to free WASM memory ──
         try { pixel_values.dispose(); } catch (_) {}
         try { outputTensor.dispose(); } catch (_) {}
         try { maskTensor.dispose(); } catch (_) {}
@@ -125,7 +113,6 @@ self.onmessage = async (e) => {
         self.postMessage({ type: 'status', id, text: 'Generating result...' });
 
         // ── Step 5: Compose masked image (apply alpha) ──
-        // Build RGBA output with mask as alpha channel
         const pixelCount = imageWidth * imageHeight;
         const resultData = new Uint8ClampedArray(pixelCount * 4);
         const srcPixels = new Uint8ClampedArray(imageData);
