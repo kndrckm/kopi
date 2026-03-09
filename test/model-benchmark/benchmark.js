@@ -1,19 +1,11 @@
 // ============================================================
 // benchmark.js — Kopi BG Removal Model Benchmark
-// 3 models: RMBG-1.4 Quantized (WASM) / FP16 (WASM) / Quantized (WebGPU)
-// All inference runs in a dedicated Web Worker to prevent UI crashes.
+// 2 models: RMBG-1.4 Quantized (WASM) / IMG.LY ISNet
+// RMBG runs in a Web Worker; IMG.LY runs on the main thread.
 // Images downscaled to max 1024px before inference.
 // ============================================================
 
 // ── Model Definitions ──────────────────────────────────────
-// briaai/RMBG-1.4 ONNX files available:
-//   model.onnx          (fp32, 176 MB)
-//   model_fp16.onnx     (fp16, 88 MB)
-//   model_quantized.onnx (uint8, 44 MB)
-//
-// quantized: true  → loads model_quantized.onnx
-// dtype: 'fp16'    → loads model_fp16.onnx
-// (default)        → loads model.onnx (fp32)
 const MODELS = [
     {
         id: 'rmbg14-quantized',
@@ -22,22 +14,14 @@ const MODELS = [
         device: 'wasm',
         dtype: 'uint8',
         quantized: true,
+        library: 'transformers',
     },
     {
-        id: 'rmbg14-fp16',
-        name: 'RMBG-1.4 — FP16',
-        modelId: 'briaai/RMBG-1.4',
+        id: 'imgly-isnet',
+        name: 'IMG.LY — ISNet',
+        modelId: 'isnet_fp16',
         device: 'wasm',
-        dtype: 'fp16',
-        quantized: false,
-    },
-    {
-        id: 'rmbg14-webgpu',
-        name: 'RMBG-1.4 — WebGPU (fp32)',
-        modelId: 'briaai/RMBG-1.4',
-        device: 'webgpu',
-        dtype: 'fp32',
-        quantized: false,
+        library: 'imgly',
     },
 ];
 
@@ -49,7 +33,7 @@ let results = {};
 let stickerMode = 'stroke';
 let runningModel = null; // lock: only one model runs at a time
 
-// ── Web Worker ─────────────────────────────────────────────
+// ── Web Worker (for Transformers.js models only) ───────────
 const worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
 
 worker.onmessage = (e) => {
@@ -95,15 +79,6 @@ const labelStroke     = document.getElementById('label-stroke');
 const labelStickerify = document.getElementById('label-stickerify');
 const summarySection  = document.getElementById('summary-section');
 const summaryTbody    = document.getElementById('summary-tbody');
-
-// ── Utility: Check WebGPU availability ─────────────────────
-async function hasWebGPU() {
-    if (!navigator.gpu) return false;
-    try {
-        const adapter = await navigator.gpu.requestAdapter();
-        return !!adapter;
-    } catch { return false; }
-}
 
 // ── Utility: Format time ───────────────────────────────────
 function fmt(ms) {
@@ -320,11 +295,9 @@ function rgbaToBlob(buffer, width, height) {
 }
 
 // ════════════════════════════════════════════════════════════
-// WORKER RESULT / ERROR HANDLERS
+// WORKER RESULT / ERROR HANDLERS (Transformers.js models)
 // ════════════════════════════════════════════════════════════
 
-// Per-run resolve/reject stored here so the worker message handler
-// can settle the promise created in runSingle().
 const pendingRuns = {}; // id -> { resolve }
 
 async function handleWorkerResult(id, msg) {
@@ -344,7 +317,6 @@ async function handleWorkerResult(id, msg) {
         const totalTime = performance.now() - results[id]._startTime;
         const processTime = msg.processTime;
 
-        // If loadTime wasn't sent (cached model), compute approximate
         if (results[id].loadTime == null) {
             results[id].loadTime = totalTime - processTime;
             setTime(id, 'load', results[id].loadTime);
@@ -388,9 +360,82 @@ function handleWorkerError(id, message) {
     console.error(`[${id}] Worker error:`, message);
 
     if (pendingRuns[id]) {
-        pendingRuns[id].resolve(); // resolve (not reject) so runSingle continues cleanup
+        pendingRuns[id].resolve();
         delete pendingRuns[id];
     }
+}
+
+// ════════════════════════════════════════════════════════════
+// IMG.LY RUNNER (runs on main thread, no worker needed)
+// ════════════════════════════════════════════════════════════
+
+let imglyModule = null; // lazy-loaded
+
+async function runImgly(modelId) {
+    // Lazy-load the imgly library on first use
+    if (!imglyModule) {
+        setStatus(modelId, 'Loading IMG.LY library...');
+        setProgress(modelId, 5);
+        imglyModule = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.11/dist/index.js');
+    }
+
+    const removeBackground = imglyModule.removeBackground || imglyModule.default;
+
+    const tLoad0 = performance.now();
+    setStatus(modelId, 'Downloading model...');
+    setProgress(modelId, 10);
+
+    const config = {
+        model: 'isnet_fp16',
+        output: {
+            format: 'image/png',
+            quality: 1.0,
+            type: 'foreground',
+        },
+        progress: (key, current, total) => {
+            if (total > 0) {
+                const pct = Math.round((current / total) * 40);
+                setProgress(modelId, 10 + pct);
+                const mb = (current / 1024 / 1024).toFixed(1);
+                setStatus(modelId, `Downloading... ${mb} MB`);
+            }
+        },
+    };
+
+    // removeBackground accepts File/Blob/URL directly
+    const resultBlob = await removeBackground(uploadedFile, config);
+
+    const loadAndProcessTime = performance.now() - tLoad0;
+
+    // IMG.LY doesn't separate load vs process, so we report combined as process
+    results[modelId].loadTime = 0;
+    results[modelId].processTime = loadAndProcessTime;
+
+    setTime(modelId, 'load', 0);
+    setTime(modelId, 'process', loadAndProcessTime);
+    setProgress(modelId, 80);
+    setStatus(modelId, 'Applying sticker effect...');
+
+    // Apply sticker post-processing
+    let finalBlob;
+    if (stickerMode === 'stickerify') {
+        finalBlob = await applyStickerify(resultBlob);
+    } else {
+        finalBlob = await applyCurrentStroke(resultBlob);
+    }
+
+    const totalTime = performance.now() - results[modelId]._startTime;
+
+    results[modelId].totalTime = totalTime;
+    results[modelId].blob = finalBlob;
+    results[modelId].status = 'done';
+
+    setTime(modelId, 'total', totalTime);
+    setProgress(modelId, 100);
+    setCardState(modelId, 'done');
+    setStatus(modelId, `Done \u2014 ${fmt(totalTime)}`);
+
+    await displayResult(modelId, finalBlob);
 }
 
 // ════════════════════════════════════════════════════════════
@@ -403,16 +448,6 @@ async function runSingle(modelId) {
 
     const modelDef = MODELS.find(m => m.id === modelId);
     if (!modelDef) return;
-
-    // For WebGPU models, check availability first
-    if (modelDef.device === 'webgpu') {
-        const gpuOk = await hasWebGPU();
-        if (!gpuOk) {
-            setCardState(modelId, 'error');
-            setStatus(modelId, 'WebGPU not available on this device');
-            return;
-        }
-    }
 
     runningModel = modelId;
     setRunBtnState(modelId, true, 'Running...');
@@ -440,37 +475,49 @@ async function runSingle(modelId) {
         _startTime: performance.now(),
     };
 
-    // ── Downscale image to max 1024px ──
-    const bitmap = await createImageBitmap(uploadedFile);
-    const scaled = downscaleImage(bitmap);
-    bitmap.close();
+    try {
+        if (modelDef.library === 'imgly') {
+            // ── IMG.LY path: runs on main thread ──
+            await runImgly(modelId);
+        } else {
+            // ── Transformers.js path: runs in Web Worker ──
+            const bitmap = await createImageBitmap(uploadedFile);
+            const scaled = downscaleImage(bitmap);
+            bitmap.close();
 
-    setProgress(modelId, 2);
+            setProgress(modelId, 2);
 
-    // ── Send to worker ──
-    const runPromise = new Promise(resolve => {
-        pendingRuns[modelId] = { resolve };
-    });
+            const runPromise = new Promise(resolve => {
+                pendingRuns[modelId] = { resolve };
+            });
 
-    worker.postMessage(
-        {
-            type: 'run',
-            id: modelId,
-            config: {
-                modelId: modelDef.modelId,
-                device: modelDef.device,
-                dtype: modelDef.dtype,
-                quantized: modelDef.quantized,
-            },
-            imageData: scaled.data.buffer,
-            imageWidth: scaled.width,
-            imageHeight: scaled.height,
-        },
-        [scaled.data.buffer] // transfer ownership for zero-copy
-    );
+            worker.postMessage(
+                {
+                    type: 'run',
+                    id: modelId,
+                    config: {
+                        modelId: modelDef.modelId,
+                        device: modelDef.device,
+                        dtype: modelDef.dtype,
+                        quantized: modelDef.quantized,
+                    },
+                    imageData: scaled.data.buffer,
+                    imageWidth: scaled.width,
+                    imageHeight: scaled.height,
+                },
+                [scaled.data.buffer]
+            );
 
-    // Wait for worker to finish
-    await runPromise;
+            await runPromise;
+        }
+    } catch (err) {
+        console.error(`[${modelId}] Error:`, err);
+        results[modelId].status = 'error';
+        results[modelId].totalTime = performance.now() - results[modelId]._startTime;
+        setCardState(modelId, 'error');
+        setStatus(modelId, `Error: ${String(err.message || err).slice(0, 60)}`);
+        setProgress(modelId, 100);
+    }
 
     // Update summary
     highlightFastest();
@@ -613,20 +660,4 @@ MODELS.forEach(m => {
 });
 
 // ── Init ───────────────────────────────────────────────────
-(async () => {
-    const gpuAvailable = await hasWebGPU();
-    const gpuBadges = document.querySelectorAll('.badge-gpu');
-    if (!gpuAvailable) {
-        gpuBadges.forEach(b => {
-            b.textContent = 'WebGPU (N/A)';
-            b.style.opacity = '0.5';
-        });
-        // Disable WebGPU run button if no GPU
-        const gpuBtn = document.getElementById('btn-run-rmbg14-webgpu');
-        if (gpuBtn) {
-            gpuBtn.disabled = true;
-            gpuBtn.textContent = 'No GPU';
-        }
-    }
-    console.log('Kopi Benchmark: Ready. WebGPU:', gpuAvailable ? 'Available' : 'Not available');
-})();
+console.log('Kopi Benchmark: Ready. Models:', MODELS.map(m => m.name).join(', '));
