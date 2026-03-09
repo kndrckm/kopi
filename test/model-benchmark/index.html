@@ -14,17 +14,6 @@
             <p class="subtitle">Kopi — Model Comparison Tool</p>
         </header>
 
-        <!-- Preload Banner -->
-        <div class="preload-banner" id="preload-banner" style="display:none;">
-            <div class="preload-info">
-                <span class="preload-icon">&#9881;</span>
-                <span id="preload-status">Preloading models... 0/6</span>
-            </div>
-            <div class="preload-bar">
-                <div class="preload-bar-fill" id="preload-progress" style="width:0%"></div>
-            </div>
-        </div>
-
         <!-- Sticker Style Toggle -->
         <div class="toggle-section">
             <div class="toggle-row">
@@ -57,7 +46,7 @@
         </div>
 
         <!-- Run Button -->
-        <button id="btn-run" class="btn-primary" disabled>Preloading models...</button>
+        <button id="btn-run" class="btn-primary" disabled>Run All Models</button>
 
         <!-- Results Grid -->
         <div class="results-grid" id="results-grid">
@@ -90,36 +79,7 @@
                 <p class="model-status" id="status-original">Ready</p>
             </div>
 
-            <!-- Model Card: u2netp -->
-            <div class="model-card" data-model="u2netp">
-                <div class="model-header">
-                    <h3>u2netp</h3>
-                    <span class="model-badge badge-tiny">~4.7 MB</span>
-                </div>
-                <div class="model-meta">Lightweight saliency model</div>
-                <div class="model-canvas-wrap">
-                    <canvas class="model-canvas" id="canvas-u2netp"></canvas>
-                    <div class="model-placeholder" id="ph-u2netp">Waiting...</div>
-                </div>
-                <div class="timing-strip">
-                    <div class="timing-item">
-                        <span class="timing-label">Load</span>
-                        <span class="timing-value" id="time-load-u2netp">—</span>
-                    </div>
-                    <div class="timing-item">
-                        <span class="timing-label">Process</span>
-                        <span class="timing-value" id="time-process-u2netp">—</span>
-                    </div>
-                    <div class="timing-item">
-                        <span class="timing-label">Total</span>
-                        <span class="timing-value timing-total" id="time-total-u2netp">—</span>
-                    </div>
-                </div>
-                <div class="progress-bar"><div class="progress-fill" id="prog-u2netp"></div></div>
-                <p class="model-status" id="status-u2netp">Ready</p>
-            </div>
 
-            <!-- Model Card: BiRefNet-lite -->
             <div class="model-card" data-model="birefnet-lite">
                 <div class="model-header">
                     <h3>BiRefNet-lite</h3>
@@ -148,36 +108,7 @@
                 <p class="model-status" id="status-birefnet-lite">Ready</p>
             </div>
 
-            <!-- Model Card: BEN2 -->
-            <div class="model-card" data-model="ben2">
-                <div class="model-header">
-                    <h3>BEN2</h3>
-                    <span class="model-badge badge-medium">~219 MB</span>
-                </div>
-                <div class="model-meta">Background Erase Network v2</div>
-                <div class="model-canvas-wrap">
-                    <canvas class="model-canvas" id="canvas-ben2"></canvas>
-                    <div class="model-placeholder" id="ph-ben2">Waiting...</div>
-                </div>
-                <div class="timing-strip">
-                    <div class="timing-item">
-                        <span class="timing-label">Load</span>
-                        <span class="timing-value" id="time-load-ben2">—</span>
-                    </div>
-                    <div class="timing-item">
-                        <span class="timing-label">Process</span>
-                        <span class="timing-value" id="time-process-ben2">—</span>
-                    </div>
-                    <div class="timing-item">
-                        <span class="timing-label">Total</span>
-                        <span class="timing-value timing-total" id="time-total-ben2">—</span>
-                    </div>
-                </div>
-                <div class="progress-bar"><div class="progress-fill" id="prog-ben2"></div></div>
-                <p class="model-status" id="status-ben2">Ready</p>
-            </div>
 
-            <!-- Model Card: RMBG-1.4 + WebGPU -->
             <div class="model-card" data-model="rmbg14-webgpu">
                 <div class="model-header">
                     <h3>RMBG-1.4</h3>
