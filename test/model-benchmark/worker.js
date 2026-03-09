@@ -58,14 +58,18 @@ self.onmessage = async (e) => {
                 progress_callback: progressCb,
             };
 
-            // Use quantized flag (maps to model_quantized.onnx)
-            // or dtype for fp16 (maps to model_fp16.onnx)
+            // Always set dtype explicitly to avoid Transformers.js defaults
+            // uint8 + quantized:true  → model_quantized.onnx (44 MB)
+            // fp16                    → model_fp16.onnx      (88 MB)
+            // fp32 + quantized:false  → model.onnx           (176 MB)
+            if (config.dtype) {
+                modelOpts.dtype = config.dtype;
+            }
             if (config.quantized) {
                 modelOpts.quantized = true;
-            } else if (config.dtype === 'fp16') {
-                modelOpts.dtype = 'fp16';
+            } else {
+                modelOpts.quantized = false;
             }
-            // If neither, defaults to model.onnx (fp32)
 
             const tLoad0 = performance.now();
 
