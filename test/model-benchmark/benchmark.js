@@ -7,7 +7,7 @@ import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transfo
 
 env.allowLocalModels = false;
 
-// ── Model Definitions ──────────────────────────────────────────
+// ── Model Definitions ──────────────────────────────────────
 const MODELS = [
     {
         id: 'u2netp',
@@ -75,7 +75,7 @@ async function hasWebGPU() {
     } catch { return false; }
 }
 
-// ── Utility: Format time ─────────────────────────────────
+// ── Utility: Format time ───────────────────────────────────
 function fmt(ms) {
     if (ms == null) return '—';
     return (ms / 1000).toFixed(2) + 's';
@@ -179,7 +179,7 @@ function applyStickerify(blob, outlineWidth = 12) {
     });
 }
 
-// ── Trim transparent pixels ──────────────────────────────
+// ── Trim transparent pixels ────────────────────────────────
 function trimCanvas(canvas) {
     const ctx = canvas.getContext('2d');
     const w = canvas.width;
@@ -210,7 +210,7 @@ function trimCanvas(canvas) {
     return trimmed;
 }
 
-// ── Update DOM helpers ───────────────────────────────────
+// ── Update DOM helpers ─────────────────────────────────────
 function setStatus(modelId, text) {
     document.getElementById(`status-${modelId}`).textContent = text;
 }
@@ -226,7 +226,7 @@ function setCardState(modelId, state) {
     if (state) card.classList.add(state);
 }
 
-// ── Display result on canvas ─────────────────────────────
+// ── Display result on canvas ───────────────────────────────
 async function displayResult(modelId, blob) {
     const canvas = document.getElementById(`canvas-${modelId}`);
     const ph = document.getElementById(`ph-${modelId}`);
@@ -249,7 +249,7 @@ async function displayResult(modelId, blob) {
     });
 }
 
-// ── Run a single model benchmark ─────────────────────────
+// ── Run a single model benchmark ───────────────────────────
 async function runModel(modelDef, imageBlob) {
     const { id, modelId, device, dtype } = modelDef;
     const result = { loadTime: null, processTime: null, totalTime: null, blob: null, status: 'running' };
@@ -346,7 +346,7 @@ async function runModel(modelDef, imageBlob) {
     return result;
 }
 
-// ── Run all models sequentially ──────────────────────────
+// ── Run all models sequentially ────────────────────────────
 // Sequential to avoid GPU/memory contention between models
 async function runAllModels() {
     if (!uploadedFile) return;
@@ -396,7 +396,7 @@ async function runAllModels() {
     btnRun.textContent = 'Run All Models';
 }
 
-// ── Build summary table ──────────────────────────────────
+// ── Build summary table ────────────────────────────────────
 function buildSummary(fastestId) {
     summaryTbody.innerHTML = '';
     const sorted = MODELS.map(m => ({ ...m, ...results[m.id] }))
@@ -447,7 +447,7 @@ async function reapplySticker() {
     }
 }
 
-// ── File handling ────────────────────────────────────────
+// ── File handling ──────────────────────────────────────────
 function handleFile(file) {
     if (!file || !file.type.startsWith('image/')) return;
     uploadedFile = file;
@@ -462,7 +462,7 @@ function handleFile(file) {
     btnRun.disabled = false;
 }
 
-// ── Event listeners ──────────────────────────────────────
+// ── Event listeners ────────────────────────────────────────
 uploadArea.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', (e) => {
     if (e.target.files[0]) handleFile(e.target.files[0]);
