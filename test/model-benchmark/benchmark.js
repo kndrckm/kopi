@@ -1,0 +1,512 @@
+// ============================================================
+// benchmark.js — Kopi BG Removal Model Benchmark
+// Uses Transformers.js v3 background-removal pipeline
+// ============================================================
+
+import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.4.1';
+
+env.allowLocalModels = false;
+
+// ── Model Definitions ──────────────────────────────────────────
+const MODELS = [
+    {
+        id: 'u2netp',
+        name: 'u2netp',
+        modelId: 'BritishWerewolf/U-2-Netp',
+        device: 'wasm',
+        dtype: 'fp32',
+    },
+    {
+        id: 'birefnet-lite',
+        name: 'BiRefNet-lite',
+        modelId: 'onnx-community/BiRefNet_lite-ONNX',
+        device: 'wasm',
+        dtype: 'fp32',
+    },
+    {
+        id: 'ben2',
+        name: 'BEN2',
+        modelId: 'onnx-community/BEN2-ONNX',
+        device: 'wasm',
+        dtype: 'fp32',
+    },
+    {
+        id: 'rmbg14-webgpu',
+        name: 'RMBG-1.4 (WebGPU)',
+        modelId: 'briaai/RMBG-1.4',
+        device: 'webgpu',
+        dtype: 'fp32',
+    },
+    {
+        id: 'birefnet-lite-webgpu',
+        name: 'BiRefNet-lite (WebGPU)',
+        modelId: 'onnx-community/BiRefNet_lite-ONNX',
+        device: 'webgpu',
+        dtype: 'fp32',
+    },
+];
+
+// ── State ──────────────────────────────────────────────────
+let uploadedFile = null;
+let results = {};       // modelId -> { loadTime, processTime, totalTime, blob, status }
+let stickerMode = 'stroke'; // 'stroke' or 'stickerify'
+
+// ── DOM refs ───────────────────────────────────────────────
+const fileInput       = document.getElementById('file-input');
+const uploadArea      = document.getElementById('upload-area');
+const previewRow      = document.getElementById('preview-row');
+const previewImg      = document.getElementById('preview-img');
+const previewName     = document.getElementById('preview-name');
+const previewSize     = document.getElementById('preview-size');
+const btnChange       = document.getElementById('btn-change');
+const btnRun          = document.getElementById('btn-run');
+const stickerToggle   = document.getElementById('sticker-toggle');
+const labelStroke     = document.getElementById('label-stroke');
+const labelStickerify = document.getElementById('label-stickerify');
+const summarySection  = document.getElementById('summary-section');
+const summaryTbody    = document.getElementById('summary-tbody');
+
+// ── Utility: Check WebGPU availability ─────────────────────
+async function hasWebGPU() {
+    if (!navigator.gpu) return false;
+    try {
+        const adapter = await navigator.gpu.requestAdapter();
+        return !!adapter;
+    } catch { return false; }
+}
+
+// ── Utility: Format time ─────────────────────────────────
+function fmt(ms) {
+    if (ms == null) return '—';
+    return (ms / 1000).toFixed(2) + 's';
+}
+
+// ── Sticker Post-Processing: Current Stroke Method ─────────
+// Replicates the addWhiteOutline from bg-removal.js
+function applyCurrentStroke(blob, outlineWidth = 15) {
+    return new Promise((resolve) => {
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => {
+            const pad = outlineWidth * 2;
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width + pad;
+            canvas.height = img.height + pad;
+            const ctx = canvas.getContext('2d');
+
+            // Draw dilated silhouette
+            for (let angle = 0; angle < 360; angle += 15) {
+                const ox = Math.cos(angle * Math.PI / 180) * outlineWidth;
+                const oy = Math.sin(angle * Math.PI / 180) * outlineWidth;
+                ctx.drawImage(img, pad / 2 + ox, pad / 2 + oy);
+            }
+
+            // Fill silhouette white
+            ctx.globalCompositeOperation = 'source-in';
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw original on top
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.drawImage(img, pad / 2, pad / 2);
+
+            URL.revokeObjectURL(url);
+
+            // Trim
+            const trimmed = trimCanvas(canvas);
+            trimmed.toBlob((b) => resolve(b), 'image/png');
+        };
+        img.src = url;
+    });
+}
+
+// ── Sticker Post-Processing: Stickerify + Drop Shadow ──────
+function applyStickerify(blob, outlineWidth = 12) {
+    return new Promise((resolve) => {
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => {
+            const shadowBlur = 16;
+            const shadowOffY = 6;
+            const pad = outlineWidth * 2 + shadowBlur * 2 + shadowOffY;
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width + pad;
+            canvas.height = img.height + pad;
+            const ctx = canvas.getContext('2d');
+            const cx = pad / 2;
+            const cy = pad / 2 - shadowOffY / 2;
+
+            // Step 1: Create white outline via radial offsets (stickerify approach)
+            ctx.save();
+            // Draw multiple offsets to build outline
+            const steps = 64;
+            for (let i = 0; i < steps; i++) {
+                const angle = (i / steps) * Math.PI * 2;
+                const ox = Math.cos(angle) * outlineWidth;
+                const oy = Math.sin(angle) * outlineWidth;
+                ctx.drawImage(img, cx + ox, cy + oy);
+            }
+            // Color the silhouette white
+            ctx.globalCompositeOperation = 'source-in';
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.restore();
+
+            // Step 2: Apply drop shadow to the white outline
+            const outlineCanvas = document.createElement('canvas');
+            outlineCanvas.width = canvas.width;
+            outlineCanvas.height = canvas.height;
+            const octx = outlineCanvas.getContext('2d');
+            octx.shadowColor = 'rgba(0, 0, 0, 0.25)';
+            octx.shadowBlur = shadowBlur;
+            octx.shadowOffsetX = 0;
+            octx.shadowOffsetY = shadowOffY;
+            octx.drawImage(canvas, 0, 0);
+
+            // Step 3: Draw original image on top
+            octx.shadowColor = 'transparent';
+            octx.shadowBlur = 0;
+            octx.shadowOffsetX = 0;
+            octx.shadowOffsetY = 0;
+            octx.drawImage(img, cx, cy);
+
+            URL.revokeObjectURL(url);
+
+            const trimmed = trimCanvas(outlineCanvas);
+            trimmed.toBlob((b) => resolve(b), 'image/png');
+        };
+        img.src = url;
+    });
+}
+
+// ── Trim transparent pixels ──────────────────────────────
+function trimCanvas(canvas) {
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+    const data = ctx.getImageData(0, 0, w, h).data;
+    let top = h, left = w, right = 0, bottom = 0;
+
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const a = data[(y * w + x) * 4 + 3];
+            if (a > 10) {
+                if (y < top) top = y;
+                if (y > bottom) bottom = y;
+                if (x < left) left = x;
+                if (x > right) right = x;
+            }
+        }
+    }
+
+    if (top >= bottom || left >= right) return canvas;
+
+    const tw = right - left + 1;
+    const th = bottom - top + 1;
+    const trimmed = document.createElement('canvas');
+    trimmed.width = tw;
+    trimmed.height = th;
+    trimmed.getContext('2d').drawImage(canvas, left, top, tw, th, 0, 0, tw, th);
+    return trimmed;
+}
+
+// ── Update DOM helpers ───────────────────────────────────
+function setStatus(modelId, text) {
+    document.getElementById(`status-${modelId}`).textContent = text;
+}
+function setProgress(modelId, pct) {
+    document.getElementById(`prog-${modelId}`).style.width = pct + '%';
+}
+function setTime(modelId, phase, ms) {
+    document.getElementById(`time-${phase}-${modelId}`).textContent = fmt(ms);
+}
+function setCardState(modelId, state) {
+    const card = document.querySelector(`.model-card[data-model="${modelId}"]`);
+    card.classList.remove('running', 'done', 'error', 'fastest');
+    if (state) card.classList.add(state);
+}
+
+// ── Display result on canvas ─────────────────────────────
+async function displayResult(modelId, blob) {
+    const canvas = document.getElementById(`canvas-${modelId}`);
+    const ph = document.getElementById(`ph-${modelId}`);
+    const img = new Image();
+    const url = URL.createObjectURL(blob);
+
+    return new Promise((resolve) => {
+        img.onload = () => {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+            canvas.classList.add('visible');
+            ph.classList.add('hidden');
+            URL.revokeObjectURL(url);
+            resolve();
+        };
+        img.src = url;
+    });
+}
+
+// ── Run a single model benchmark ─────────────────────────
+async function runModel(modelDef, imageBlob) {
+    const { id, modelId, device, dtype } = modelDef;
+    const result = { loadTime: null, processTime: null, totalTime: null, blob: null, status: 'running' };
+    results[id] = result;
+
+    setCardState(id, 'running');
+    setStatus(id, 'Loading model...');
+    setProgress(id, 10);
+
+    const t0 = performance.now();
+
+    try {
+        // Determine actual device — fallback to wasm if webgpu not available
+        let actualDevice = device;
+        if (device === 'webgpu') {
+            const gpuOk = await hasWebGPU();
+            if (!gpuOk) {
+                actualDevice = 'wasm';
+                setStatus(id, 'WebGPU N/A, falling back to WASM...');
+            }
+        }
+
+        // Load model via pipeline
+        const tLoad0 = performance.now();
+        const segmenter = await pipeline('background-removal', modelId, {
+            device: actualDevice,
+            dtype: dtype,
+            progress_callback: (p) => {
+                if (p.status === 'progress' && p.total) {
+                    const pct = Math.round((p.loaded / p.total) * 50);
+                    setProgress(id, 10 + pct);
+                    const mb = (p.loaded / 1024 / 1024).toFixed(1);
+                    setStatus(id, `Downloading... ${mb} MB`);
+                }
+            }
+        });
+        const tLoad1 = performance.now();
+        result.loadTime = tLoad1 - tLoad0;
+        setTime(id, 'load', result.loadTime);
+        setProgress(id, 65);
+        setStatus(id, 'Processing image...');
+
+        // Run inference
+        const tProc0 = performance.now();
+        const imageUrl = URL.createObjectURL(imageBlob);
+        const output = await segmenter(imageUrl);
+        URL.revokeObjectURL(imageUrl);
+        const tProc1 = performance.now();
+        result.processTime = tProc1 - tProc0;
+        setTime(id, 'process', result.processTime);
+        setProgress(id, 85);
+        setStatus(id, 'Applying sticker effect...');
+
+        // Get the raw cutout blob
+        let rawBlob;
+        if (output[0] && typeof output[0].toBlob === 'function') {
+            rawBlob = await output[0].toBlob();
+        } else if (output[0] && typeof output[0].toCanvas === 'function') {
+            const cvs = output[0].toCanvas();
+            rawBlob = await new Promise(res => cvs.toBlob(res, 'image/png'));
+        } else {
+            // Fallback: output might be RawImage, try converting
+            rawBlob = await output[0].toBlob();
+        }
+
+        // Apply sticker post-processing
+        let finalBlob;
+        if (stickerMode === 'stickerify') {
+            finalBlob = await applyStickerify(rawBlob);
+        } else {
+            finalBlob = await applyCurrentStroke(rawBlob);
+        }
+
+        result.blob = finalBlob;
+        result.totalTime = performance.now() - t0;
+        result.status = 'done';
+
+        setTime(id, 'total', result.totalTime);
+        setProgress(id, 100);
+        setCardState(id, 'done');
+        setStatus(id, `Done in ${fmt(result.totalTime)}`);
+
+        await displayResult(id, finalBlob);
+
+    } catch (err) {
+        console.error(`[${id}] Error:`, err);
+        result.status = 'error';
+        result.totalTime = performance.now() - t0;
+        setCardState(id, 'error');
+        setStatus(id, `Error: ${err.message.slice(0, 60)}`);
+        setProgress(id, 100);
+    }
+
+    return result;
+}
+
+// ── Run all models sequentially ──────────────────────────
+// Sequential to avoid GPU/memory contention between models
+async function runAllModels() {
+    if (!uploadedFile) return;
+
+    btnRun.disabled = true;
+    btnRun.textContent = 'Running...';
+    summarySection.style.display = 'none';
+    results = {};
+
+    // Reset all cards
+    MODELS.forEach(m => {
+        setCardState(m.id, null);
+        setStatus(m.id, 'Queued...');
+        setProgress(m.id, 0);
+        setTime(m.id, 'load', null);
+        setTime(m.id, 'process', null);
+        setTime(m.id, 'total', null);
+        const canvas = document.getElementById(`canvas-${m.id}`);
+        canvas.classList.remove('visible');
+        document.getElementById(`ph-${m.id}`).classList.remove('hidden');
+        document.getElementById(`ph-${m.id}`).textContent = 'Queued...';
+    });
+
+    // Run each model one at a time
+    for (const model of MODELS) {
+        await runModel(model, uploadedFile);
+    }
+
+    // Highlight fastest
+    let fastestId = null;
+    let fastestTime = Infinity;
+    for (const [id, r] of Object.entries(results)) {
+        if (r.status === 'done' && r.totalTime < fastestTime) {
+            fastestTime = r.totalTime;
+            fastestId = id;
+        }
+    }
+    if (fastestId) {
+        setCardState(fastestId, 'done');
+        document.querySelector(`.model-card[data-model="${fastestId}"]`).classList.add('fastest');
+    }
+
+    // Build summary table
+    buildSummary(fastestId);
+
+    btnRun.disabled = false;
+    btnRun.textContent = 'Run All Models';
+}
+
+// ── Build summary table ──────────────────────────────────
+function buildSummary(fastestId) {
+    summaryTbody.innerHTML = '';
+    const sorted = MODELS.map(m => ({ ...m, ...results[m.id] }))
+        .sort((a, b) => {
+            if (a.status === 'done' && b.status !== 'done') return -1;
+            if (a.status !== 'done' && b.status === 'done') return 1;
+            return (a.totalTime || Infinity) - (b.totalTime || Infinity);
+        });
+
+    sorted.forEach(r => {
+        const tr = document.createElement('tr');
+        const isWinner = r.id === fastestId;
+        const isFailed = r.status === 'error';
+        tr.innerHTML = `
+            <td>${r.name}${isWinner ? ' *' : ''}</td>
+            <td class="${isWinner ? 'winner' : ''}">${fmt(r.loadTime)}</td>
+            <td class="${isWinner ? 'winner' : ''}">${fmt(r.processTime)}</td>
+            <td class="${isWinner ? 'winner' : ''}">${fmt(r.totalTime)}</td>
+            <td class="${isFailed ? 'failed' : ''}">${r.status === 'done' ? 'OK' : r.status === 'error' ? 'FAIL' : '—'}</td>
+        `;
+        summaryTbody.appendChild(tr);
+    });
+
+    summarySection.style.display = 'block';
+}
+
+// ── Re-apply sticker effect to existing results ────────────
+async function reapplySticker() {
+    for (const model of MODELS) {
+        const r = results[model.id];
+        if (!r || r.status !== 'done' || !r.blob) continue;
+
+        setStatus(model.id, 'Re-applying sticker...');
+
+        // We need the raw (pre-sticker) blob — but we only stored the final.
+        // For a proper re-apply we'd need to store the raw cutout.
+        // For now, note: toggling re-runs the benchmark to see both styles.
+    }
+    // Show a note that re-run is needed
+    if (Object.keys(results).length > 0) {
+        const note = document.createElement('p');
+        note.style.cssText = 'text-align:center;color:var(--primary);font-size:13px;font-weight:600;margin-bottom:16px;';
+        note.textContent = 'Toggle changed! Click "Run All Models" to see results with the new sticker style.';
+        const existing = document.querySelector('.toggle-note');
+        if (existing) existing.remove();
+        note.classList.add('toggle-note');
+        btnRun.parentNode.insertBefore(note, btnRun);
+    }
+}
+
+// ── File handling ────────────────────────────────────────
+function handleFile(file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    uploadedFile = file;
+
+    const url = URL.createObjectURL(file);
+    previewImg.src = url;
+    previewName.textContent = file.name;
+    previewSize.textContent = (file.size / 1024).toFixed(0) + ' KB';
+
+    uploadArea.style.display = 'none';
+    previewRow.style.display = 'flex';
+    btnRun.disabled = false;
+}
+
+// ── Event listeners ──────────────────────────────────────
+uploadArea.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', (e) => {
+    if (e.target.files[0]) handleFile(e.target.files[0]);
+});
+btnChange.addEventListener('click', () => {
+    fileInput.value = '';
+    fileInput.click();
+});
+
+// Drag & drop
+uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+
+// Toggle sticker mode
+stickerToggle.addEventListener('change', () => {
+    if (stickerToggle.checked) {
+        stickerMode = 'stickerify';
+        labelStroke.classList.remove('active');
+        labelStickerify.classList.add('active');
+    } else {
+        stickerMode = 'stroke';
+        labelStroke.classList.add('active');
+        labelStickerify.classList.remove('active');
+    }
+    reapplySticker();
+});
+
+// Run benchmark
+btnRun.addEventListener('click', () => runAllModels());
+
+// ── Init ───────────────────────────────────────────────────
+(async () => {
+    const gpuAvailable = await hasWebGPU();
+    const gpuCards = document.querySelectorAll('.badge-gpu');
+    if (!gpuAvailable) {
+        gpuCards.forEach(b => {
+            b.textContent = 'WebGPU (N/A)';
+            b.style.opacity = '0.5';
+        });
+    }
+    console.log('Kopi Benchmark ready. WebGPU:', gpuAvailable ? 'Available' : 'Not available');
+})();
