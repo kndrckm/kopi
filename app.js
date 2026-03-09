@@ -2030,7 +2030,7 @@ let currentUser = null;
                                     <stop offset="100%" stop-color="currentColor" stop-opacity="0" />
                                 </radialGradient>
                             </defs>
-                            <ellipse class="steam-bloom" cx="10.5" cy="4" rx="6" ry="3.5" fill="url(#steam-glow-empty1)" />
+                            <ellipse class="steam-bloom" cx="10.5" cy="5" rx="5" ry="5" fill="url(#steam-glow-empty1)" />
                             <!-- Cup -->
                             <path d="M17 8H4v7a4 4 0 0 0 4 4h5a4 4 0 0 0 4-4V8z"/>
                             <!-- Handle -->
@@ -2229,7 +2229,7 @@ let currentUser = null;
                                     <stop offset="100%" stop-color="currentColor" stop-opacity="0" />
                                 </radialGradient>
                             </defs>
-                            <ellipse class="steam-bloom" cx="10.5" cy="4" rx="6" ry="3.5" fill="url(#steam-glow-empty2)" />
+                            <ellipse class="steam-bloom" cx="10.5" cy="5" rx="5" ry="5" fill="url(#steam-glow-empty2)" />
                             <!-- Cup -->
                             <path d="M17 8H4v7a4 4 0 0 0 4 4h5a4 4 0 0 0 4-4V8z"/>
                             <!-- Handle -->
