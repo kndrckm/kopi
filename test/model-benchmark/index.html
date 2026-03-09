@@ -47,43 +47,43 @@
 
         <!-- Results Grid -->
         <div class="results-grid" id="results-grid">
-            <!-- Model Card: RMBG-1.4 q8 (Current Production) -->
-            <div class="model-card original-card" data-model="rmbg14-q8">
+            <!-- Model Card: RMBG-1.4 Quantized (WASM) — Current Production -->
+            <div class="model-card original-card" data-model="rmbg14-quantized">
                 <div class="model-header">
-                    <h3>RMBG-1.4 — q8</h3>
+                    <h3>RMBG-1.4 — Quantized</h3>
                     <span class="model-badge badge-original">CURRENT</span>
                 </div>
-                <div class="model-meta">8-bit quantised — smallest download</div>
+                <div class="model-meta">uint8 quantised (44 MB) — WASM</div>
                 <div class="model-canvas-wrap">
-                    <canvas class="model-canvas" id="canvas-rmbg14-q8"></canvas>
-                    <div class="model-placeholder" id="ph-rmbg14-q8">Waiting...</div>
+                    <canvas class="model-canvas" id="canvas-rmbg14-quantized"></canvas>
+                    <div class="model-placeholder" id="ph-rmbg14-quantized">Waiting...</div>
                 </div>
                 <div class="timing-strip">
                     <div class="timing-item">
                         <span class="timing-label">Load</span>
-                        <span class="timing-value" id="time-load-rmbg14-q8">—</span>
+                        <span class="timing-value" id="time-load-rmbg14-quantized">—</span>
                     </div>
                     <div class="timing-item">
                         <span class="timing-label">Process</span>
-                        <span class="timing-value" id="time-process-rmbg14-q8">—</span>
+                        <span class="timing-value" id="time-process-rmbg14-quantized">—</span>
                     </div>
                     <div class="timing-item">
                         <span class="timing-label">Total</span>
-                        <span class="timing-value timing-total" id="time-total-rmbg14-q8">—</span>
+                        <span class="timing-value timing-total" id="time-total-rmbg14-quantized">—</span>
                     </div>
                 </div>
-                <div class="progress-bar"><div class="progress-fill" id="prog-rmbg14-q8"></div></div>
-                <p class="model-status" id="status-rmbg14-q8">Ready</p>
-                <button class="btn-card-run" id="btn-run-rmbg14-q8" disabled>Run</button>
+                <div class="progress-bar"><div class="progress-fill" id="prog-rmbg14-quantized"></div></div>
+                <p class="model-status" id="status-rmbg14-quantized">Ready</p>
+                <button class="btn-card-run" id="btn-run-rmbg14-quantized" disabled>Run</button>
             </div>
 
-            <!-- Model Card: RMBG-1.4 fp16 -->
+            <!-- Model Card: RMBG-1.4 FP16 (WASM) -->
             <div class="model-card" data-model="rmbg14-fp16">
                 <div class="model-header">
-                    <h3>RMBG-1.4 — fp16</h3>
+                    <h3>RMBG-1.4 — FP16</h3>
                     <span class="model-badge badge-medium">FP16</span>
                 </div>
-                <div class="model-meta">Half-precision float — balanced size/quality</div>
+                <div class="model-meta">Half-precision float (88 MB) — WASM</div>
                 <div class="model-canvas-wrap">
                     <canvas class="model-canvas" id="canvas-rmbg14-fp16"></canvas>
                     <div class="model-placeholder" id="ph-rmbg14-fp16">Waiting...</div>
@@ -107,43 +107,13 @@
                 <button class="btn-card-run" id="btn-run-rmbg14-fp16" disabled>Run</button>
             </div>
 
-            <!-- Model Card: RMBG-1.4 q4 -->
-            <div class="model-card" data-model="rmbg14-q4">
-                <div class="model-header">
-                    <h3>RMBG-1.4 — q4</h3>
-                    <span class="model-badge badge-small">Q4</span>
-                </div>
-                <div class="model-meta">4-bit quantised — smallest memory footprint</div>
-                <div class="model-canvas-wrap">
-                    <canvas class="model-canvas" id="canvas-rmbg14-q4"></canvas>
-                    <div class="model-placeholder" id="ph-rmbg14-q4">Waiting...</div>
-                </div>
-                <div class="timing-strip">
-                    <div class="timing-item">
-                        <span class="timing-label">Load</span>
-                        <span class="timing-value" id="time-load-rmbg14-q4">—</span>
-                    </div>
-                    <div class="timing-item">
-                        <span class="timing-label">Process</span>
-                        <span class="timing-value" id="time-process-rmbg14-q4">—</span>
-                    </div>
-                    <div class="timing-item">
-                        <span class="timing-label">Total</span>
-                        <span class="timing-value timing-total" id="time-total-rmbg14-q4">—</span>
-                    </div>
-                </div>
-                <div class="progress-bar"><div class="progress-fill" id="prog-rmbg14-q4"></div></div>
-                <p class="model-status" id="status-rmbg14-q4">Ready</p>
-                <button class="btn-card-run" id="btn-run-rmbg14-q4" disabled>Run</button>
-            </div>
-
-            <!-- Model Card: RMBG-1.4 WebGPU (fp32) -->
+            <!-- Model Card: RMBG-1.4 Quantized (WebGPU) -->
             <div class="model-card" data-model="rmbg14-webgpu">
                 <div class="model-header">
                     <h3>RMBG-1.4 — WebGPU</h3>
                     <span class="model-badge badge-gpu">GPU</span>
                 </div>
-                <div class="model-meta">fp32 via WebGPU — GPU-accelerated inference</div>
+                <div class="model-meta">uint8 quantised (44 MB) — GPU-accelerated</div>
                 <div class="model-canvas-wrap">
                     <canvas class="model-canvas" id="canvas-rmbg14-webgpu"></canvas>
                     <div class="model-placeholder" id="ph-rmbg14-webgpu">Waiting...</div>
@@ -184,7 +154,7 @@
                 </thead>
                 <tbody id="summary-tbody"></tbody>
             </table>
-            <p class="summary-note">WASM models: q8, fp16, q4. WebGPU requires Chrome/Edge 113+ with GPU support.</p>
+            <p class="summary-note">WASM models: Quantized (uint8), FP16. WebGPU: Quantized (uint8). Requires Chrome/Edge 113+ with GPU support.</p>
         </div>
 
         <footer>
