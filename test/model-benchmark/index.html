@@ -107,13 +107,13 @@
                 <button class="btn-card-run" id="btn-run-rmbg14-fp16" disabled>Run</button>
             </div>
 
-            <!-- Model Card: RMBG-1.4 Quantized (WebGPU) -->
+            <!-- Model Card: RMBG-1.4 FP32 (WebGPU) -->
             <div class="model-card" data-model="rmbg14-webgpu">
                 <div class="model-header">
-                    <h3>RMBG-1.4 — WebGPU</h3>
+                    <h3>RMBG-1.4 — WebGPU (fp32)</h3>
                     <span class="model-badge badge-gpu">GPU</span>
                 </div>
-                <div class="model-meta">uint8 quantised (44 MB) — GPU-accelerated</div>
+                <div class="model-meta">fp32 full precision (176 MB) — GPU-accelerated</div>
                 <div class="model-canvas-wrap">
                     <canvas class="model-canvas" id="canvas-rmbg14-webgpu"></canvas>
                     <div class="model-placeholder" id="ph-rmbg14-webgpu">Waiting...</div>
@@ -154,7 +154,7 @@
                 </thead>
                 <tbody id="summary-tbody"></tbody>
             </table>
-            <p class="summary-note">WASM models: Quantized (uint8), FP16. WebGPU: Quantized (uint8). Requires Chrome/Edge 113+ with GPU support.</p>
+            <p class="summary-note">WASM models: Quantized (uint8), FP16. WebGPU: fp32 full precision (176 MB). Requires Chrome/Edge 113+ with GPU support.</p>
         </div>
 
         <footer>
