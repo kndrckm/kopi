@@ -201,6 +201,38 @@ header .subtitle { color: var(--muted); font-size: 14px; margin-top: 4px; }
 .model-card.fastest {
     box-shadow: 0 0 0 3px var(--green), 0 4px 24px rgba(52,199,89,0.2);
 }
+
+/* Original / Current Production Card */
+.original-card {
+    border: 2px solid #f59e0b;
+    background: linear-gradient(135deg, #fffbeb 0%, var(--card) 40%);
+    position: relative;
+}
+.original-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #f59e0b, #d97706);
+    border-radius: 18px 18px 0 0;
+}
+@media (prefers-color-scheme: dark) {
+    .original-card {
+        border-color: #d97706;
+        background: linear-gradient(135deg, #2a2000 0%, var(--card) 40%);
+    }
+}
+.badge-original {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #fff;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 10px;
+}
 .model-card.fastest::after {
     content: 'FASTEST';
     display: block;
