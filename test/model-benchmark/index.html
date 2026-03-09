@@ -77,64 +77,34 @@
                 <button class="btn-card-run" id="btn-run-rmbg14-quantized" disabled>Run</button>
             </div>
 
-            <!-- Model Card: RMBG-1.4 FP16 (WASM) -->
-            <div class="model-card" data-model="rmbg14-fp16">
+            <!-- Model Card: IMG.LY ISNet -->
+            <div class="model-card" data-model="imgly-isnet">
                 <div class="model-header">
-                    <h3>RMBG-1.4 — FP16</h3>
-                    <span class="model-badge badge-medium">FP16</span>
+                    <h3>IMG.LY — ISNet</h3>
+                    <span class="model-badge badge-imgly">IMGLY</span>
                 </div>
-                <div class="model-meta">Half-precision float (88 MB) — WASM</div>
+                <div class="model-meta">ISNet fp16 model (~40 MB) — @imgly/background-removal</div>
                 <div class="model-canvas-wrap">
-                    <canvas class="model-canvas" id="canvas-rmbg14-fp16"></canvas>
-                    <div class="model-placeholder" id="ph-rmbg14-fp16">Waiting...</div>
+                    <canvas class="model-canvas" id="canvas-imgly-isnet"></canvas>
+                    <div class="model-placeholder" id="ph-imgly-isnet">Waiting...</div>
                 </div>
                 <div class="timing-strip">
                     <div class="timing-item">
                         <span class="timing-label">Load</span>
-                        <span class="timing-value" id="time-load-rmbg14-fp16">—</span>
+                        <span class="timing-value" id="time-load-imgly-isnet">—</span>
                     </div>
                     <div class="timing-item">
                         <span class="timing-label">Process</span>
-                        <span class="timing-value" id="time-process-rmbg14-fp16">—</span>
+                        <span class="timing-value" id="time-process-imgly-isnet">—</span>
                     </div>
                     <div class="timing-item">
                         <span class="timing-label">Total</span>
-                        <span class="timing-value timing-total" id="time-total-rmbg14-fp16">—</span>
+                        <span class="timing-value timing-total" id="time-total-imgly-isnet">—</span>
                     </div>
                 </div>
-                <div class="progress-bar"><div class="progress-fill" id="prog-rmbg14-fp16"></div></div>
-                <p class="model-status" id="status-rmbg14-fp16">Ready</p>
-                <button class="btn-card-run" id="btn-run-rmbg14-fp16" disabled>Run</button>
-            </div>
-
-            <!-- Model Card: RMBG-1.4 FP32 (WebGPU) -->
-            <div class="model-card" data-model="rmbg14-webgpu">
-                <div class="model-header">
-                    <h3>RMBG-1.4 — WebGPU (fp32)</h3>
-                    <span class="model-badge badge-gpu">GPU</span>
-                </div>
-                <div class="model-meta">fp32 full precision (176 MB) — GPU-accelerated</div>
-                <div class="model-canvas-wrap">
-                    <canvas class="model-canvas" id="canvas-rmbg14-webgpu"></canvas>
-                    <div class="model-placeholder" id="ph-rmbg14-webgpu">Waiting...</div>
-                </div>
-                <div class="timing-strip">
-                    <div class="timing-item">
-                        <span class="timing-label">Load</span>
-                        <span class="timing-value" id="time-load-rmbg14-webgpu">—</span>
-                    </div>
-                    <div class="timing-item">
-                        <span class="timing-label">Process</span>
-                        <span class="timing-value" id="time-process-rmbg14-webgpu">—</span>
-                    </div>
-                    <div class="timing-item">
-                        <span class="timing-label">Total</span>
-                        <span class="timing-value timing-total" id="time-total-rmbg14-webgpu">—</span>
-                    </div>
-                </div>
-                <div class="progress-bar"><div class="progress-fill" id="prog-rmbg14-webgpu"></div></div>
-                <p class="model-status" id="status-rmbg14-webgpu">Ready</p>
-                <button class="btn-card-run" id="btn-run-rmbg14-webgpu" disabled>Run</button>
+                <div class="progress-bar"><div class="progress-fill" id="prog-imgly-isnet"></div></div>
+                <p class="model-status" id="status-imgly-isnet">Ready</p>
+                <button class="btn-card-run" id="btn-run-imgly-isnet" disabled>Run</button>
             </div>
 
         </div>
@@ -154,7 +124,7 @@
                 </thead>
                 <tbody id="summary-tbody"></tbody>
             </table>
-            <p class="summary-note">WASM models: Quantized (uint8), FP16. WebGPU: fp32 full precision (176 MB). Requires Chrome/Edge 113+ with GPU support.</p>
+            <p class="summary-note">RMBG-1.4: Transformers.js uint8 WASM. IMG.LY: ISNet fp16 via @imgly/background-removal.</p>
         </div>
 
         <footer>
