@@ -1,58 +1,86 @@
 // ============================================================
 // benchmark.js — Kopi BG Removal Model Benchmark
-// 4 models: RMBG-1.4 q8 / fp16 / q4 (WASM) + WebGPU fp32
-// Each card has its own Run button
+// 3 models: RMBG-1.4 Quantized (WASM) / FP16 (WASM) / Quantized (WebGPU)
+// All inference runs in a dedicated Web Worker to prevent UI crashes.
+// Images downscaled to max 1024px before inference.
 // ============================================================
 
-import { pipeline, AutoModel, AutoProcessor, RawImage, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.4.1';
-
-env.allowLocalModels = false;
-
 // ── Model Definitions ──────────────────────────────────────
+// briaai/RMBG-1.4 ONNX files available:
+//   model.onnx          (fp32, 176 MB)
+//   model_fp16.onnx     (fp16, 88 MB)
+//   model_quantized.onnx (uint8, 44 MB)
+//
+// quantized: true  → loads model_quantized.onnx
+// dtype: 'fp16'    → loads model_fp16.onnx
+// (default)        → loads model.onnx (fp32)
 const MODELS = [
     {
-        id: 'rmbg14-q8',
-        name: 'RMBG-1.4 — q8',
+        id: 'rmbg14-quantized',
+        name: 'RMBG-1.4 — Quantized',
         modelId: 'briaai/RMBG-1.4',
         device: 'wasm',
-        dtype: 'q8',
-        useAutoModel: true,
-        modelConfig: { model_type: 'bria-rmbg' },
+        dtype: null,
+        quantized: true,
     },
     {
         id: 'rmbg14-fp16',
-        name: 'RMBG-1.4 — fp16',
+        name: 'RMBG-1.4 — FP16',
         modelId: 'briaai/RMBG-1.4',
         device: 'wasm',
         dtype: 'fp16',
-        useAutoModel: true,
-        modelConfig: { model_type: 'bria-rmbg' },
-    },
-    {
-        id: 'rmbg14-q4',
-        name: 'RMBG-1.4 — q4',
-        modelId: 'briaai/RMBG-1.4',
-        device: 'wasm',
-        dtype: 'q4',
-        useAutoModel: true,
-        modelConfig: { model_type: 'bria-rmbg' },
+        quantized: false,
     },
     {
         id: 'rmbg14-webgpu',
         name: 'RMBG-1.4 — WebGPU',
         modelId: 'briaai/RMBG-1.4',
         device: 'webgpu',
-        dtype: 'fp32',
-        useAutoModel: true,
-        modelConfig: { model_type: 'bria-rmbg' },
+        dtype: null,
+        quantized: true,
     },
 ];
+
+const MAX_DIM = 1024; // downscale images to max 1024px on longest side
 
 // ── State ──────────────────────────────────────────────────
 let uploadedFile = null;
 let results = {};
 let stickerMode = 'stroke';
 let runningModel = null; // lock: only one model runs at a time
+
+// ── Web Worker ─────────────────────────────────────────────
+const worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
+
+worker.onmessage = (e) => {
+    const msg = e.data;
+    const { id } = msg;
+
+    switch (msg.type) {
+        case 'status':
+            setStatus(id, msg.text);
+            break;
+
+        case 'progress':
+            setProgress(id, msg.pct);
+            break;
+
+        case 'loadTime':
+            if (results[id]) {
+                results[id].loadTime = msg.loadTime;
+                setTime(id, 'load', msg.loadTime);
+            }
+            break;
+
+        case 'result':
+            handleWorkerResult(id, msg);
+            break;
+
+        case 'error':
+            handleWorkerError(id, msg.message);
+            break;
+    }
+};
 
 // ── DOM refs ───────────────────────────────────────────────
 const fileInput       = document.getElementById('file-input');
@@ -79,8 +107,27 @@ async function hasWebGPU() {
 
 // ── Utility: Format time ───────────────────────────────────
 function fmt(ms) {
-    if (ms == null) return '—';
+    if (ms == null) return '\u2014';
     return (ms / 1000).toFixed(2) + 's';
+}
+
+// ── Utility: Downscale image to max 1024px ─────────────────
+// Returns { data: Uint8ClampedArray (RGBA), width, height }
+function downscaleImage(bitmap) {
+    let w = bitmap.width;
+    let h = bitmap.height;
+
+    if (w > MAX_DIM || h > MAX_DIM) {
+        const scale = MAX_DIM / Math.max(w, h);
+        w = Math.round(w * scale);
+        h = Math.round(h * scale);
+    }
+
+    const canvas = new OffscreenCanvas(w, h);
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    const imageData = ctx.getImageData(0, 0, w, h);
+    return { data: imageData.data, width: w, height: h };
 }
 
 // ── Sticker Post-Processing: Current Stroke Method ─────────
@@ -202,16 +249,20 @@ function trimCanvas(canvas) {
 
 // ── Update DOM helpers ─────────────────────────────────────
 function setStatus(modelId, text) {
-    document.getElementById(`status-${modelId}`).textContent = text;
+    const el = document.getElementById(`status-${modelId}`);
+    if (el) el.textContent = text;
 }
 function setProgress(modelId, pct) {
-    document.getElementById(`prog-${modelId}`).style.width = pct + '%';
+    const el = document.getElementById(`prog-${modelId}`);
+    if (el) el.style.width = pct + '%';
 }
 function setTime(modelId, phase, ms) {
-    document.getElementById(`time-${phase}-${modelId}`).textContent = fmt(ms);
+    const el = document.getElementById(`time-${phase}-${modelId}`);
+    if (el) el.textContent = fmt(ms);
 }
 function setCardState(modelId, state) {
     const card = document.querySelector(`.model-card[data-model="${modelId}"]`);
+    if (!card) return;
     card.classList.remove('running', 'done', 'error', 'fastest');
     if (state) card.classList.add(state);
 }
@@ -257,123 +308,32 @@ function setAllRunBtns(disabled) {
     });
 }
 
+// ── Convert RGBA ArrayBuffer from worker into a PNG Blob ───
+function rgbaToBlob(buffer, width, height) {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    const imageData = new ImageData(new Uint8ClampedArray(buffer), width, height);
+    ctx.putImageData(imageData, 0, 0);
+    return new Promise(res => canvas.toBlob(res, 'image/png'));
+}
+
 // ════════════════════════════════════════════════════════════
-// LOAD + INFERENCE PER MODEL
+// WORKER RESULT / ERROR HANDLERS
 // ════════════════════════════════════════════════════════════
 
-async function runModel(modelDef, imageBlob) {
-    const { id, modelId, device, dtype } = modelDef;
+// Per-run resolve/reject stored here so the worker message handler
+// can settle the promise created in runSingle().
+const pendingRuns = {}; // id -> { resolve }
 
-    results[id] = { status: 'running', loadTime: null, processTime: null, totalTime: null, blob: null };
-
-    setCardState(id, 'running');
-    setStatus(id, 'Loading model...');
-    setProgress(id, 5);
-
-    const tStart = performance.now();
-
+async function handleWorkerResult(id, msg) {
     try {
-        // ── Step 1: Determine device ──
-        let actualDevice = device;
-        if (device === 'webgpu') {
-            const gpuOk = await hasWebGPU();
-            if (!gpuOk) {
-                actualDevice = 'wasm';
-                setStatus(id, 'WebGPU N/A, falling back to WASM...');
-            }
-        }
-
-        const progressCb = (p) => {
-            if (p.status === 'progress' && p.total) {
-                const pct = Math.round((p.loaded / p.total) * 45);
-                setProgress(id, 5 + pct);
-                const mb = (p.loaded / 1024 / 1024).toFixed(1);
-                setStatus(id, `Downloading... ${mb} MB`);
-            }
-        };
-
-        // ── Step 2: Load model ──
-        let model, processor, segmenter;
-        const tLoad0 = performance.now();
-
-        if (modelDef.useAutoModel) {
-            [model, processor] = await Promise.all([
-                AutoModel.from_pretrained(modelId, {
-                    dtype: dtype,
-                    revision: 'main',
-                    config: modelDef.modelConfig || {},
-                    device: actualDevice,
-                    progress_callback: progressCb,
-                }),
-                AutoProcessor.from_pretrained(modelId, {}),
-            ]);
-        } else {
-            segmenter = await pipeline('background-removal', modelId, {
-                device: actualDevice,
-                dtype: dtype,
-                progress_callback: progressCb,
-            });
-        }
-
-        const loadTime = performance.now() - tLoad0;
-        results[id].loadTime = loadTime;
-        setTime(id, 'load', loadTime);
-        setProgress(id, 55);
-        setStatus(id, 'Processing image...');
-
-        // ── Step 3: Run inference ──
-        const tProc0 = performance.now();
-        let rawBlob;
-
-        if (modelDef.useAutoModel) {
-            const bmp = await createImageBitmap(imageBlob);
-            const imgUrl = URL.createObjectURL(imageBlob);
-            const image = await RawImage.fromURL(imgUrl);
-            URL.revokeObjectURL(imgUrl);
-
-            setProgress(id, 65);
-
-            const { pixel_values } = await processor(image);
-            const { output } = await model({ input: pixel_values });
-
-            const outputTensor = output[0] ? output[0] : output;
-            const mask = await RawImage.fromTensor(
-                outputTensor.mul(255).to('uint8')
-            ).resize(bmp.width, bmp.height);
-
-            const cvs = document.createElement('canvas');
-            cvs.width = bmp.width;
-            cvs.height = bmp.height;
-            const ctx = cvs.getContext('2d');
-            ctx.drawImage(bmp, 0, 0);
-
-            const imgData = ctx.getImageData(0, 0, cvs.width, cvs.height);
-            for (let i = 0; i < mask.data.length; ++i) {
-                imgData.data[i * 4 + 3] = mask.data[i];
-            }
-            ctx.putImageData(imgData, 0, 0);
-
-            rawBlob = await new Promise(res => cvs.toBlob(res, 'image/png'));
-        } else {
-            const imageUrl = URL.createObjectURL(imageBlob);
-            setProgress(id, 65);
-            const output = await segmenter(imageUrl);
-            URL.revokeObjectURL(imageUrl);
-
-            if (output[0] && typeof output[0].toBlob === 'function') {
-                rawBlob = await output[0].toBlob();
-            } else if (output[0] && typeof output[0].toCanvas === 'function') {
-                const cvs = output[0].toCanvas();
-                rawBlob = await new Promise(res => cvs.toBlob(res, 'image/png'));
-            } else {
-                rawBlob = await output[0].toBlob();
-            }
-        }
+        const rawBlob = await rgbaToBlob(msg.resultData, msg.width, msg.height);
 
         setProgress(id, 85);
         setStatus(id, 'Applying sticker effect...');
 
-        // ── Step 4: Apply sticker post-processing ──
         let finalBlob;
         if (stickerMode === 'stickerify') {
             finalBlob = await applyStickerify(rawBlob);
@@ -381,8 +341,14 @@ async function runModel(modelDef, imageBlob) {
             finalBlob = await applyCurrentStroke(rawBlob);
         }
 
-        const processTime = performance.now() - tProc0;
-        const totalTime = performance.now() - tStart;
+        const totalTime = performance.now() - results[id]._startTime;
+        const processTime = msg.processTime;
+
+        // If loadTime wasn't sent (cached model), compute approximate
+        if (results[id].loadTime == null) {
+            results[id].loadTime = totalTime - processTime;
+            setTime(id, 'load', results[id].loadTime);
+        }
 
         results[id].processTime = processTime;
         results[id].totalTime = totalTime;
@@ -393,56 +359,126 @@ async function runModel(modelDef, imageBlob) {
         setTime(id, 'total', totalTime);
         setProgress(id, 100);
         setCardState(id, 'done');
-        setStatus(id, `Done — ${fmt(totalTime)}`);
+        setStatus(id, `Done \u2014 ${fmt(totalTime)}`);
 
         await displayResult(id, finalBlob);
-
     } catch (err) {
-        console.error(`[${id}] Error:`, err);
-        const totalTime = performance.now() - tStart;
+        console.error(`[${id}] Post-processing error:`, err);
         results[id].status = 'error';
-        results[id].totalTime = totalTime;
         setCardState(id, 'error');
         setStatus(id, `Error: ${String(err.message || err).slice(0, 60)}`);
         setProgress(id, 100);
     }
 
-    return results[id];
+    if (pendingRuns[id]) {
+        pendingRuns[id].resolve();
+        delete pendingRuns[id];
+    }
 }
 
-// ── Run a single model by ID ───────────────────────────────
+function handleWorkerError(id, message) {
+    const totalTime = performance.now() - (results[id]?._startTime || 0);
+    if (results[id]) {
+        results[id].status = 'error';
+        results[id].totalTime = totalTime;
+    }
+    setCardState(id, 'error');
+    setStatus(id, `Error: ${message}`);
+    setProgress(id, 100);
+    console.error(`[${id}] Worker error:`, message);
+
+    if (pendingRuns[id]) {
+        pendingRuns[id].resolve(); // resolve (not reject) so runSingle continues cleanup
+        delete pendingRuns[id];
+    }
+}
+
+// ════════════════════════════════════════════════════════════
+// RUN A SINGLE MODEL
+// ════════════════════════════════════════════════════════════
+
 async function runSingle(modelId) {
     if (!uploadedFile) return;
-    if (runningModel) return; // already running something
+    if (runningModel) return;
 
     const modelDef = MODELS.find(m => m.id === modelId);
     if (!modelDef) return;
 
+    // For WebGPU models, check availability first
+    if (modelDef.device === 'webgpu') {
+        const gpuOk = await hasWebGPU();
+        if (!gpuOk) {
+            setCardState(modelId, 'error');
+            setStatus(modelId, 'WebGPU not available on this device');
+            return;
+        }
+    }
+
     runningModel = modelId;
     setRunBtnState(modelId, true, 'Running...');
-    setAllRunBtns(true); // disable all other buttons
+    setAllRunBtns(true);
 
-    // Reset this card
-    setCardState(modelId, null);
-    setStatus(modelId, 'Starting...');
+    // Reset card
+    setCardState(modelId, 'running');
+    setStatus(modelId, 'Preparing image...');
     setProgress(modelId, 0);
     setTime(modelId, 'load', null);
     setTime(modelId, 'process', null);
     setTime(modelId, 'total', null);
     const canvas = document.getElementById(`canvas-${modelId}`);
     canvas.classList.remove('visible');
-    document.getElementById(`ph-${modelId}`).classList.remove('hidden');
-    document.getElementById(`ph-${modelId}`).textContent = 'Processing...';
+    const ph = document.getElementById(`ph-${modelId}`);
+    ph.classList.remove('hidden');
+    ph.textContent = 'Processing...';
 
-    await runModel(modelDef, uploadedFile);
+    results[modelId] = {
+        status: 'running',
+        loadTime: null,
+        processTime: null,
+        totalTime: null,
+        blob: null,
+        _startTime: performance.now(),
+    };
 
-    // Highlight fastest among completed
+    // ── Downscale image to max 1024px ──
+    const bitmap = await createImageBitmap(uploadedFile);
+    const scaled = downscaleImage(bitmap);
+    bitmap.close();
+
+    setProgress(modelId, 2);
+
+    // ── Send to worker ──
+    const runPromise = new Promise(resolve => {
+        pendingRuns[modelId] = { resolve };
+    });
+
+    worker.postMessage(
+        {
+            type: 'run',
+            id: modelId,
+            config: {
+                modelId: modelDef.modelId,
+                device: modelDef.device,
+                dtype: modelDef.dtype,
+                quantized: modelDef.quantized,
+            },
+            imageData: scaled.data.buffer,
+            imageWidth: scaled.width,
+            imageHeight: scaled.height,
+        },
+        [scaled.data.buffer] // transfer ownership for zero-copy
+    );
+
+    // Wait for worker to finish
+    await runPromise;
+
+    // Update summary
     highlightFastest();
     buildSummary();
 
     runningModel = null;
     setRunBtnState(modelId, false, 'Run');
-    setAllRunBtns(false); // re-enable all buttons
+    setAllRunBtns(false);
 }
 
 // ── Highlight fastest completed model ──────────────────────
@@ -461,7 +497,8 @@ function highlightFastest() {
         }
     }
     if (fastestId) {
-        document.querySelector(`.model-card[data-model="${fastestId}"]`).classList.add('fastest');
+        const card = document.querySelector(`.model-card[data-model="${fastestId}"]`);
+        if (card) card.classList.add('fastest');
     }
     return fastestId;
 }
@@ -493,7 +530,7 @@ function buildSummary() {
             <td>${fmt(r.loadTime)}</td>
             <td>${fmt(r.processTime)}</td>
             <td class="${isWinner ? 'winner' : ''}">${fmt(r.totalTime)}</td>
-            <td class="${isFailed ? 'failed' : ''}">${r.status === 'done' ? 'OK' : r.status === 'error' ? 'FAIL' : '—'}</td>
+            <td class="${isFailed ? 'failed' : ''}">${r.status === 'done' ? 'OK' : r.status === 'error' ? 'FAIL' : '\u2014'}</td>
         `;
         summaryTbody.appendChild(tr);
     });
@@ -584,6 +621,12 @@ MODELS.forEach(m => {
             b.textContent = 'WebGPU (N/A)';
             b.style.opacity = '0.5';
         });
+        // Disable WebGPU run button if no GPU
+        const gpuBtn = document.getElementById('btn-run-rmbg14-webgpu');
+        if (gpuBtn) {
+            gpuBtn.disabled = true;
+            gpuBtn.textContent = 'No GPU';
+        }
     }
     console.log('Kopi Benchmark: Ready. WebGPU:', gpuAvailable ? 'Available' : 'Not available');
 })();
