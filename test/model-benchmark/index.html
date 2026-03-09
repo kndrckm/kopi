@@ -50,66 +50,92 @@
 
         <!-- Results Grid -->
         <div class="results-grid" id="results-grid">
-            <!-- Model Card: Original (Current Production) -->
-            <div class="model-card original-card" data-model="original">
+            <!-- Model Card: RMBG-1.4 q8 (Current Production) -->
+            <div class="model-card original-card" data-model="rmbg14-q8">
                 <div class="model-header">
-                    <h3>RMBG-1.4</h3>
+                    <h3>RMBG-1.4 — q8</h3>
                     <span class="model-badge badge-original">CURRENT</span>
                 </div>
-                <div class="model-meta">Production — AutoModel + q8 WASM</div>
+                <div class="model-meta">8-bit quantised — smallest download</div>
                 <div class="model-canvas-wrap">
-                    <canvas class="model-canvas" id="canvas-original"></canvas>
-                    <div class="model-placeholder" id="ph-original">Waiting...</div>
+                    <canvas class="model-canvas" id="canvas-rmbg14-q8"></canvas>
+                    <div class="model-placeholder" id="ph-rmbg14-q8">Waiting...</div>
                 </div>
                 <div class="timing-strip">
                     <div class="timing-item">
                         <span class="timing-label">Load</span>
-                        <span class="timing-value" id="time-load-original">—</span>
+                        <span class="timing-value" id="time-load-rmbg14-q8">—</span>
                     </div>
                     <div class="timing-item">
                         <span class="timing-label">Process</span>
-                        <span class="timing-value" id="time-process-original">—</span>
+                        <span class="timing-value" id="time-process-rmbg14-q8">—</span>
                     </div>
                     <div class="timing-item">
                         <span class="timing-label">Total</span>
-                        <span class="timing-value timing-total" id="time-total-original">—</span>
+                        <span class="timing-value timing-total" id="time-total-rmbg14-q8">—</span>
                     </div>
                 </div>
-                <div class="progress-bar"><div class="progress-fill" id="prog-original"></div></div>
-                <p class="model-status" id="status-original">Ready</p>
+                <div class="progress-bar"><div class="progress-fill" id="prog-rmbg14-q8"></div></div>
+                <p class="model-status" id="status-rmbg14-q8">Ready</p>
             </div>
 
-
-
-
-            <div class="model-card" data-model="rmbg14-webgpu">
+            <!-- Model Card: RMBG-1.4 fp16 -->
+            <div class="model-card" data-model="rmbg14-fp16">
                 <div class="model-header">
-                    <h3>RMBG-1.4</h3>
-                    <span class="model-badge badge-gpu">WebGPU</span>
+                    <h3>RMBG-1.4 — fp16</h3>
+                    <span class="model-badge badge-medium">FP16</span>
                 </div>
-                <div class="model-meta">Current model + GPU accel</div>
+                <div class="model-meta">Half-precision float — balanced size/quality</div>
                 <div class="model-canvas-wrap">
-                    <canvas class="model-canvas" id="canvas-rmbg14-webgpu"></canvas>
-                    <div class="model-placeholder" id="ph-rmbg14-webgpu">Waiting...</div>
+                    <canvas class="model-canvas" id="canvas-rmbg14-fp16"></canvas>
+                    <div class="model-placeholder" id="ph-rmbg14-fp16">Waiting...</div>
                 </div>
                 <div class="timing-strip">
                     <div class="timing-item">
                         <span class="timing-label">Load</span>
-                        <span class="timing-value" id="time-load-rmbg14-webgpu">—</span>
+                        <span class="timing-value" id="time-load-rmbg14-fp16">—</span>
                     </div>
                     <div class="timing-item">
                         <span class="timing-label">Process</span>
-                        <span class="timing-value" id="time-process-rmbg14-webgpu">—</span>
+                        <span class="timing-value" id="time-process-rmbg14-fp16">—</span>
                     </div>
                     <div class="timing-item">
                         <span class="timing-label">Total</span>
-                        <span class="timing-value timing-total" id="time-total-rmbg14-webgpu">—</span>
+                        <span class="timing-value timing-total" id="time-total-rmbg14-fp16">—</span>
                     </div>
                 </div>
-                <div class="progress-bar"><div class="progress-fill" id="prog-rmbg14-webgpu"></div></div>
-                <p class="model-status" id="status-rmbg14-webgpu">Ready</p>
+                <div class="progress-bar"><div class="progress-fill" id="prog-rmbg14-fp16"></div></div>
+                <p class="model-status" id="status-rmbg14-fp16">Ready</p>
             </div>
 
+            <!-- Model Card: RMBG-1.4 q4 -->
+            <div class="model-card" data-model="rmbg14-q4">
+                <div class="model-header">
+                    <h3>RMBG-1.4 — q4</h3>
+                    <span class="model-badge badge-small">Q4</span>
+                </div>
+                <div class="model-meta">4-bit quantised — smallest memory footprint</div>
+                <div class="model-canvas-wrap">
+                    <canvas class="model-canvas" id="canvas-rmbg14-q4"></canvas>
+                    <div class="model-placeholder" id="ph-rmbg14-q4">Waiting...</div>
+                </div>
+                <div class="timing-strip">
+                    <div class="timing-item">
+                        <span class="timing-label">Load</span>
+                        <span class="timing-value" id="time-load-rmbg14-q4">—</span>
+                    </div>
+                    <div class="timing-item">
+                        <span class="timing-label">Process</span>
+                        <span class="timing-value" id="time-process-rmbg14-q4">—</span>
+                    </div>
+                    <div class="timing-item">
+                        <span class="timing-label">Total</span>
+                        <span class="timing-value timing-total" id="time-total-rmbg14-q4">—</span>
+                    </div>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="prog-rmbg14-q4"></div></div>
+                <p class="model-status" id="status-rmbg14-q4">Ready</p>
+            </div>
 
         </div>
 
@@ -128,7 +154,7 @@
                 </thead>
                 <tbody id="summary-tbody"></tbody>
             </table>
-            <p class="summary-note">WebGPU models require Chrome/Edge 113+. WASM fallback is used if unavailable.</p>
+            <p class="summary-note">All models run via WASM. q8 = 8-bit, fp16 = half-precision, q4 = 4-bit quantisation.</p>
         </div>
 
         <footer>
