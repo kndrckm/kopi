@@ -1,6 +1,7 @@
 // ============================================================
 // benchmark.js — Kopi BG Removal Model Benchmark
-// Uses Transformers.js v3 background-removal pipeline
+// Phase 1: Preload all models on page load
+// Phase 2: Run inference only when user uploads image
 // ============================================================
 
 import { pipeline, AutoModel, AutoProcessor, RawImage, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.4.1';
@@ -15,7 +16,7 @@ const MODELS = [
         modelId: 'briaai/RMBG-1.4',
         device: 'wasm',
         dtype: 'q8',
-        useAutoModel: true,   // matches production: AutoModel + AutoProcessor
+        useAutoModel: true,
         modelConfig: { model_type: 'bria-rmbg' },
     },
     {
@@ -57,8 +58,13 @@ const MODELS = [
 
 // ── State ──────────────────────────────────────────────────
 let uploadedFile = null;
-let results = {};       // modelId -> { loadTime, processTime, totalTime, blob, status }
-let stickerMode = 'stroke'; // 'stroke' or 'stickerify'
+let results = {};
+let stickerMode = 'stroke';
+
+// Preloaded model instances: modelId -> { model, processor } or { segmenter }
+const loadedModels = {};
+let preloadDone = false;
+let modelsLoadedCount = 0;
 
 // ── DOM refs ───────────────────────────────────────────────
 const fileInput       = document.getElementById('file-input');
@@ -74,6 +80,9 @@ const labelStroke     = document.getElementById('label-stroke');
 const labelStickerify = document.getElementById('label-stickerify');
 const summarySection  = document.getElementById('summary-section');
 const summaryTbody    = document.getElementById('summary-tbody');
+const preloadBanner   = document.getElementById('preload-banner');
+const preloadStatus   = document.getElementById('preload-status');
+const preloadProgress = document.getElementById('preload-progress');
 
 // ── Utility: Check WebGPU availability ─────────────────────
 async function hasWebGPU() {
@@ -91,7 +100,6 @@ function fmt(ms) {
 }
 
 // ── Sticker Post-Processing: Current Stroke Method ─────────
-// Replicates the addWhiteOutline from bg-removal.js
 function applyCurrentStroke(blob, outlineWidth = 15) {
     return new Promise((resolve) => {
         const url = URL.createObjectURL(blob);
@@ -103,25 +111,20 @@ function applyCurrentStroke(blob, outlineWidth = 15) {
             canvas.height = img.height + pad;
             const ctx = canvas.getContext('2d');
 
-            // Draw dilated silhouette
             for (let angle = 0; angle < 360; angle += 15) {
                 const ox = Math.cos(angle * Math.PI / 180) * outlineWidth;
                 const oy = Math.sin(angle * Math.PI / 180) * outlineWidth;
                 ctx.drawImage(img, pad / 2 + ox, pad / 2 + oy);
             }
 
-            // Fill silhouette white
             ctx.globalCompositeOperation = 'source-in';
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Draw original on top
             ctx.globalCompositeOperation = 'source-over';
             ctx.drawImage(img, pad / 2, pad / 2);
 
             URL.revokeObjectURL(url);
-
-            // Trim
             const trimmed = trimCanvas(canvas);
             trimmed.toBlob((b) => resolve(b), 'image/png');
         };
@@ -145,9 +148,7 @@ function applyStickerify(blob, outlineWidth = 12) {
             const cx = pad / 2;
             const cy = pad / 2 - shadowOffY / 2;
 
-            // Step 1: Create white outline via radial offsets (stickerify approach)
             ctx.save();
-            // Draw multiple offsets to build outline
             const steps = 64;
             for (let i = 0; i < steps; i++) {
                 const angle = (i / steps) * Math.PI * 2;
@@ -155,13 +156,11 @@ function applyStickerify(blob, outlineWidth = 12) {
                 const oy = Math.sin(angle) * outlineWidth;
                 ctx.drawImage(img, cx + ox, cy + oy);
             }
-            // Color the silhouette white
             ctx.globalCompositeOperation = 'source-in';
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.restore();
 
-            // Step 2: Apply drop shadow to the white outline
             const outlineCanvas = document.createElement('canvas');
             outlineCanvas.width = canvas.width;
             outlineCanvas.height = canvas.height;
@@ -172,7 +171,6 @@ function applyStickerify(blob, outlineWidth = 12) {
             octx.shadowOffsetY = shadowOffY;
             octx.drawImage(canvas, 0, 0);
 
-            // Step 3: Draw original image on top
             octx.shadowColor = 'transparent';
             octx.shadowBlur = 0;
             octx.shadowOffsetX = 0;
@@ -180,7 +178,6 @@ function applyStickerify(blob, outlineWidth = 12) {
             octx.drawImage(img, cx, cy);
 
             URL.revokeObjectURL(url);
-
             const trimmed = trimCanvas(outlineCanvas);
             trimmed.toBlob((b) => resolve(b), 'image/png');
         };
@@ -231,7 +228,7 @@ function setTime(modelId, phase, ms) {
 }
 function setCardState(modelId, state) {
     const card = document.querySelector(`.model-card[data-model="${modelId}"]`);
-    card.classList.remove('running', 'done', 'error', 'fastest');
+    card.classList.remove('running', 'done', 'error', 'fastest', 'preloaded');
     if (state) card.classList.add(state);
 }
 
@@ -258,20 +255,20 @@ async function displayResult(modelId, blob) {
     });
 }
 
-// ── Run a single model benchmark ───────────────────────────
-async function runModel(modelDef, imageBlob) {
+// ════════════════════════════════════════════════════════════
+// PHASE 1: PRELOAD ALL MODELS ON PAGE LOAD
+// ════════════════════════════════════════════════════════════
+
+async function preloadModel(modelDef) {
     const { id, modelId, device, dtype } = modelDef;
-    const result = { loadTime: null, processTime: null, totalTime: null, blob: null, status: 'running' };
-    results[id] = result;
 
     setCardState(id, 'running');
-    setStatus(id, 'Loading model...');
-    setProgress(id, 10);
+    setStatus(id, 'Preloading model...');
+    setProgress(id, 5);
 
     const t0 = performance.now();
 
     try {
-        // Determine actual device — fallback to wasm if webgpu not available
         let actualDevice = device;
         if (device === 'webgpu') {
             const gpuOk = await hasWebGPU();
@@ -281,20 +278,17 @@ async function runModel(modelDef, imageBlob) {
             }
         }
 
-        let rawBlob;
-        const tLoad0 = performance.now();
+        const progressCb = (p) => {
+            if (p.status === 'progress' && p.total) {
+                const pct = Math.round((p.loaded / p.total) * 90);
+                setProgress(id, 5 + pct);
+                const mb = (p.loaded / 1024 / 1024).toFixed(1);
+                setStatus(id, `Downloading... ${mb} MB`);
+            }
+        };
 
         if (modelDef.useAutoModel) {
-            // ── Production path: AutoModel + AutoProcessor (matches bg-removal.js) ──
-            const progressCb = (p) => {
-                if (p.status === 'progress' && p.total) {
-                    const pct = Math.round((p.loaded / p.total) * 50);
-                    setProgress(id, 10 + pct);
-                    const mb = (p.loaded / 1024 / 1024).toFixed(1);
-                    setStatus(id, `Downloading... ${mb} MB`);
-                }
-            };
-
+            // Production path: AutoModel + AutoProcessor
             const [model, processor] = await Promise.all([
                 AutoModel.from_pretrained(modelId, {
                     dtype: dtype,
@@ -305,24 +299,122 @@ async function runModel(modelDef, imageBlob) {
                 }),
                 AutoProcessor.from_pretrained(modelId, {}),
             ]);
+            loadedModels[id] = { model, processor, useAutoModel: true };
+        } else {
+            // Challenger path: pipeline
+            const segmenter = await pipeline('background-removal', modelId, {
+                device: actualDevice,
+                dtype: dtype,
+                progress_callback: progressCb,
+            });
+            loadedModels[id] = { segmenter, useAutoModel: false };
+        }
 
-            const tLoad1 = performance.now();
-            result.loadTime = tLoad1 - tLoad0;
-            setTime(id, 'load', result.loadTime);
-            setProgress(id, 65);
-            setStatus(id, 'Processing image...');
+        const loadTime = performance.now() - t0;
+        setTime(id, 'load', loadTime);
+        setProgress(id, 100);
+        setCardState(id, 'preloaded');
+        setStatus(id, `Preloaded in ${fmt(loadTime)}`);
 
-            // Run inference — same as hf-worker.js
-            const tProc0 = performance.now();
+        // Store load time for later summary
+        results[id] = results[id] || {};
+        results[id].loadTime = loadTime;
+
+        modelsLoadedCount++;
+        updatePreloadBanner();
+
+    } catch (err) {
+        console.error(`[${id}] Preload error:`, err);
+        setCardState(id, 'error');
+        setStatus(id, `Preload failed: ${err.message.slice(0, 60)}`);
+        setProgress(id, 100);
+        loadedModels[id] = null;
+        modelsLoadedCount++;
+        updatePreloadBanner();
+    }
+}
+
+function updatePreloadBanner() {
+    const total = MODELS.length;
+    const pct = Math.round((modelsLoadedCount / total) * 100);
+    preloadStatus.textContent = `Preloading models... ${modelsLoadedCount}/${total}`;
+    preloadProgress.style.width = pct + '%';
+
+    if (modelsLoadedCount >= total) {
+        preloadDone = true;
+        preloadStatus.textContent = `All ${total} models preloaded and ready`;
+        preloadBanner.classList.add('done');
+        // Enable run button if image is already uploaded
+        if (uploadedFile) {
+            btnRun.disabled = false;
+        }
+    }
+}
+
+async function preloadAllModels() {
+    preloadBanner.style.display = 'block';
+    preloadStatus.textContent = `Preloading models... 0/${MODELS.length}`;
+    preloadProgress.style.width = '0%';
+
+    // Reset all cards
+    MODELS.forEach(m => {
+        setCardState(m.id, null);
+        setStatus(m.id, 'Waiting to preload...');
+        setProgress(m.id, 0);
+        setTime(m.id, 'load', null);
+        setTime(m.id, 'process', null);
+        setTime(m.id, 'total', null);
+    });
+
+    // Preload all models in parallel
+    await Promise.all(MODELS.map(m => preloadModel(m)));
+}
+
+// ════════════════════════════════════════════════════════════
+// PHASE 2: INFERENCE ONLY (after user uploads image)
+// ════════════════════════════════════════════════════════════
+
+async function runInference(modelDef, imageBlob) {
+    const { id, modelId } = modelDef;
+    const loaded = loadedModels[id];
+
+    if (!loaded) {
+        // Model failed to preload
+        results[id] = results[id] || {};
+        results[id].status = 'error';
+        results[id].processTime = null;
+        results[id].totalTime = null;
+        setCardState(id, 'error');
+        setStatus(id, 'Skipped — preload failed');
+        return results[id];
+    }
+
+    results[id] = results[id] || {};
+    results[id].status = 'running';
+    results[id].blob = null;
+
+    setCardState(id, 'running');
+    setStatus(id, 'Processing image...');
+    setProgress(id, 30);
+
+    const t0 = performance.now();
+
+    try {
+        let rawBlob;
+
+        if (loaded.useAutoModel) {
+            // Production path inference
+            const { model, processor } = loaded;
             const bmp = await createImageBitmap(imageBlob);
             const imgUrl = URL.createObjectURL(imageBlob);
             const image = await RawImage.fromURL(imgUrl);
             URL.revokeObjectURL(imgUrl);
 
+            setProgress(id, 50);
+
             const { pixel_values } = await processor(image);
             const { output } = await model({ input: pixel_values });
 
-            // Convert mask to alpha channel on canvas (same as production)
             const outputTensor = output[0] ? output[0] : output;
             const mask = await RawImage.fromTensor(
                 outputTensor.mul(255).to('uint8')
@@ -340,46 +432,16 @@ async function runModel(modelDef, imageBlob) {
             }
             ctx.putImageData(imgData, 0, 0);
 
-            const tProc1 = performance.now();
-            result.processTime = tProc1 - tProc0;
-            setTime(id, 'process', result.processTime);
-            setProgress(id, 85);
-            setStatus(id, 'Applying sticker effect...');
-
             rawBlob = await new Promise(res => cvs.toBlob(res, 'image/png'));
 
         } else {
-            // ── Challenger path: pipeline('background-removal') ──
-            const segmenter = await pipeline('background-removal', modelId, {
-                device: actualDevice,
-                dtype: dtype,
-                progress_callback: (p) => {
-                    if (p.status === 'progress' && p.total) {
-                        const pct = Math.round((p.loaded / p.total) * 50);
-                        setProgress(id, 10 + pct);
-                        const mb = (p.loaded / 1024 / 1024).toFixed(1);
-                        setStatus(id, `Downloading... ${mb} MB`);
-                    }
-                }
-            });
-
-            const tLoad1 = performance.now();
-            result.loadTime = tLoad1 - tLoad0;
-            setTime(id, 'load', result.loadTime);
-            setProgress(id, 65);
-            setStatus(id, 'Processing image...');
-
-            const tProc0 = performance.now();
+            // Pipeline inference
+            const { segmenter } = loaded;
             const imageUrl = URL.createObjectURL(imageBlob);
+            setProgress(id, 50);
             const output = await segmenter(imageUrl);
             URL.revokeObjectURL(imageUrl);
-            const tProc1 = performance.now();
-            result.processTime = tProc1 - tProc0;
-            setTime(id, 'process', result.processTime);
-            setProgress(id, 85);
-            setStatus(id, 'Applying sticker effect...');
 
-            // Get the raw cutout blob from pipeline output
             if (output[0] && typeof output[0].toBlob === 'function') {
                 rawBlob = await output[0].toBlob();
             } else if (output[0] && typeof output[0].toCanvas === 'function') {
@@ -390,6 +452,9 @@ async function runModel(modelDef, imageBlob) {
             }
         }
 
+        setProgress(id, 80);
+        setStatus(id, 'Applying sticker effect...');
+
         // Apply sticker post-processing
         let finalBlob;
         if (stickerMode === 'stickerify') {
@@ -398,64 +463,69 @@ async function runModel(modelDef, imageBlob) {
             finalBlob = await applyCurrentStroke(rawBlob);
         }
 
-        result.blob = finalBlob;
-        result.totalTime = performance.now() - t0;
-        result.status = 'done';
+        const processTime = performance.now() - t0;
+        results[id].processTime = processTime;
+        results[id].totalTime = (results[id].loadTime || 0) + processTime;
+        results[id].blob = finalBlob;
+        results[id].status = 'done';
 
-        setTime(id, 'total', result.totalTime);
+        setTime(id, 'process', processTime);
+        setTime(id, 'total', results[id].totalTime);
         setProgress(id, 100);
         setCardState(id, 'done');
-        setStatus(id, `Done in ${fmt(result.totalTime)}`);
+        setStatus(id, `Inference: ${fmt(processTime)}`);
 
         await displayResult(id, finalBlob);
 
     } catch (err) {
-        console.error(`[${id}] Error:`, err);
-        result.status = 'error';
-        result.totalTime = performance.now() - t0;
+        console.error(`[${id}] Inference error:`, err);
+        results[id].status = 'error';
+        results[id].processTime = performance.now() - t0;
+        results[id].totalTime = (results[id].loadTime || 0) + results[id].processTime;
         setCardState(id, 'error');
         setStatus(id, `Error: ${err.message.slice(0, 60)}`);
         setProgress(id, 100);
     }
 
-    return result;
+    return results[id];
 }
 
-// ── Run all models sequentially ────────────────────────────
-// Sequential to avoid GPU/memory contention between models
-async function runAllModels() {
-    if (!uploadedFile) return;
+// ── Run inference on all preloaded models ───────────────────
+async function runAllInference() {
+    if (!uploadedFile || !preloadDone) return;
 
     btnRun.disabled = true;
-    btnRun.textContent = 'Running...';
+    btnRun.textContent = 'Running Inference...';
     summarySection.style.display = 'none';
-    results = {};
 
-    // Reset all cards
+    // Reset inference-related state on cards
     MODELS.forEach(m => {
-        setCardState(m.id, null);
-        setStatus(m.id, 'Queued...');
-        setProgress(m.id, 0);
-        setTime(m.id, 'load', null);
-        setTime(m.id, 'process', null);
-        setTime(m.id, 'total', null);
-        const canvas = document.getElementById(`canvas-${m.id}`);
-        canvas.classList.remove('visible');
-        document.getElementById(`ph-${m.id}`).classList.remove('hidden');
-        document.getElementById(`ph-${m.id}`).textContent = 'Queued...';
+        if (loadedModels[m.id]) {
+            setCardState(m.id, null);
+            setStatus(m.id, 'Queued...');
+            setProgress(m.id, 0);
+            setTime(m.id, 'process', null);
+            setTime(m.id, 'total', null);
+            // Keep load time visible
+            setTime(m.id, 'load', results[m.id]?.loadTime ?? null);
+            const canvas = document.getElementById(`canvas-${m.id}`);
+            canvas.classList.remove('visible');
+            document.getElementById(`ph-${m.id}`).classList.remove('hidden');
+            document.getElementById(`ph-${m.id}`).textContent = 'Queued...';
+        }
     });
 
-    // Run each model one at a time
+    // Run each model sequentially to avoid GPU/memory contention
     for (const model of MODELS) {
-        await runModel(model, uploadedFile);
+        await runInference(model, uploadedFile);
     }
 
-    // Highlight fastest
+    // Highlight fastest by process time (inference only)
     let fastestId = null;
     let fastestTime = Infinity;
     for (const [id, r] of Object.entries(results)) {
-        if (r.status === 'done' && r.totalTime < fastestTime) {
-            fastestTime = r.totalTime;
+        if (r.status === 'done' && r.processTime < fastestTime) {
+            fastestTime = r.processTime;
             fastestId = id;
         }
     }
@@ -464,11 +534,10 @@ async function runAllModels() {
         document.querySelector(`.model-card[data-model="${fastestId}"]`).classList.add('fastest');
     }
 
-    // Build summary table
     buildSummary(fastestId);
 
     btnRun.disabled = false;
-    btnRun.textContent = 'Run All Models';
+    btnRun.textContent = 'Run Inference Again';
 }
 
 // ── Build summary table ────────────────────────────────────
@@ -478,7 +547,7 @@ function buildSummary(fastestId) {
         .sort((a, b) => {
             if (a.status === 'done' && b.status !== 'done') return -1;
             if (a.status !== 'done' && b.status === 'done') return 1;
-            return (a.totalTime || Infinity) - (b.totalTime || Infinity);
+            return (a.processTime || Infinity) - (b.processTime || Infinity);
         });
 
     sorted.forEach(r => {
@@ -487,9 +556,9 @@ function buildSummary(fastestId) {
         const isFailed = r.status === 'error';
         tr.innerHTML = `
             <td>${r.name}${isWinner ? ' *' : ''}</td>
-            <td class="${isWinner ? 'winner' : ''}">${fmt(r.loadTime)}</td>
+            <td>${fmt(r.loadTime)}</td>
             <td class="${isWinner ? 'winner' : ''}">${fmt(r.processTime)}</td>
-            <td class="${isWinner ? 'winner' : ''}">${fmt(r.totalTime)}</td>
+            <td>${fmt(r.totalTime)}</td>
             <td class="${isFailed ? 'failed' : ''}">${r.status === 'done' ? 'OK' : r.status === 'error' ? 'FAIL' : '—'}</td>
         `;
         summaryTbody.appendChild(tr);
@@ -498,23 +567,12 @@ function buildSummary(fastestId) {
     summarySection.style.display = 'block';
 }
 
-// ── Re-apply sticker effect to existing results ────────────
+// ── Re-apply sticker effect ────────────────────────────────
 async function reapplySticker() {
-    for (const model of MODELS) {
-        const r = results[model.id];
-        if (!r || r.status !== 'done' || !r.blob) continue;
-
-        setStatus(model.id, 'Re-applying sticker...');
-
-        // We need the raw (pre-sticker) blob — but we only stored the final.
-        // For a proper re-apply we'd need to store the raw cutout.
-        // For now, note: toggling re-runs the benchmark to see both styles.
-    }
-    // Show a note that re-run is needed
     if (Object.keys(results).length > 0) {
         const note = document.createElement('p');
         note.style.cssText = 'text-align:center;color:var(--primary);font-size:13px;font-weight:600;margin-bottom:16px;';
-        note.textContent = 'Toggle changed! Click "Run All Models" to see results with the new sticker style.';
+        note.textContent = 'Toggle changed! Click "Run Inference" to see results with the new sticker style.';
         const existing = document.querySelector('.toggle-note');
         if (existing) existing.remove();
         note.classList.add('toggle-note');
@@ -534,7 +592,14 @@ function handleFile(file) {
 
     uploadArea.style.display = 'none';
     previewRow.style.display = 'flex';
-    btnRun.disabled = false;
+
+    // Enable run button only if models are preloaded
+    btnRun.disabled = !preloadDone;
+    if (!preloadDone) {
+        btnRun.textContent = 'Waiting for models...';
+    } else {
+        btnRun.textContent = 'Run Inference';
+    }
 }
 
 // ── Event listeners ────────────────────────────────────────
@@ -570,10 +635,10 @@ stickerToggle.addEventListener('change', () => {
     reapplySticker();
 });
 
-// Run benchmark
-btnRun.addEventListener('click', () => runAllModels());
+// Run inference (not loading — models are already preloaded)
+btnRun.addEventListener('click', () => runAllInference());
 
-// ── Init ───────────────────────────────────────────────────
+// ── Init: Start preloading immediately ─────────────────────
 (async () => {
     const gpuAvailable = await hasWebGPU();
     const gpuCards = document.querySelectorAll('.badge-gpu');
@@ -583,5 +648,10 @@ btnRun.addEventListener('click', () => runAllModels());
             b.style.opacity = '0.5';
         });
     }
-    console.log('Kopi Benchmark ready. WebGPU:', gpuAvailable ? 'Available' : 'Not available');
+    console.log('Kopi Benchmark: Preloading all models. WebGPU:', gpuAvailable ? 'Available' : 'Not available');
+
+    // Start preloading all models immediately
+    btnRun.textContent = 'Preloading models...';
+    btnRun.disabled = true;
+    await preloadAllModels();
 })();
