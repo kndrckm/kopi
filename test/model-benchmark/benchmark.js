@@ -5,7 +5,7 @@
 // Images downscaled to max 1024px before inference.
 // ============================================================
 
-// ── Model Definitions ──────────────────────────────────────
+// ── Model Definitions ───────────────────────────────────────
 const MODELS = [
     {
         id: 'rmbg14-quantized',
@@ -33,7 +33,7 @@ let results = {};
 let stickerMode = 'stroke';
 let runningModel = null; // lock: only one model runs at a time
 
-// ── Web Worker (for Transformers.js models only) ───────────
+// ── Web Worker (for Transformers.js models only) ────────────
 const worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
 
 worker.onmessage = (e) => {
@@ -80,9 +80,9 @@ const labelStickerify = document.getElementById('label-stickerify');
 const summarySection  = document.getElementById('summary-section');
 const summaryTbody    = document.getElementById('summary-tbody');
 
-// ── Utility: Format time ───────────────────────────────────
+// ── Utility: Format time ─────────────────────────────────
 function fmt(ms) {
-    if (ms == null) return '\u2014';
+    if (ms == null) return '—';
     return (ms / 1000).toFixed(2) + 's';
 }
 
@@ -191,7 +191,7 @@ function applyStickerify(blob, outlineWidth = 12) {
     });
 }
 
-// ── Trim transparent pixels ────────────────────────────────
+// ── Trim transparent pixels ──────────────────────────────
 function trimCanvas(canvas) {
     const ctx = canvas.getContext('2d');
     const w = canvas.width;
@@ -222,7 +222,7 @@ function trimCanvas(canvas) {
     return trimmed;
 }
 
-// ── Update DOM helpers ─────────────────────────────────────
+// ── Update DOM helpers ───────────────────────────────────
 function setStatus(modelId, text) {
     const el = document.getElementById(`status-${modelId}`);
     if (el) el.textContent = text;
@@ -242,7 +242,7 @@ function setCardState(modelId, state) {
     if (state) card.classList.add(state);
 }
 
-// ── Display result on canvas ───────────────────────────────
+// ── Display result on canvas ─────────────────────────────
 async function displayResult(modelId, blob) {
     const canvas = document.getElementById(`canvas-${modelId}`);
     const ph = document.getElementById(`ph-${modelId}`);
@@ -265,7 +265,7 @@ async function displayResult(modelId, blob) {
     });
 }
 
-// ── Per-card button state helpers ──────────────────────────
+// ── Per-card button state helpers ────────────────────────
 function setRunBtnState(modelId, disabled, text) {
     const btn = document.getElementById(`btn-run-${modelId}`);
     if (btn) {
@@ -331,7 +331,7 @@ async function handleWorkerResult(id, msg) {
         setTime(id, 'total', totalTime);
         setProgress(id, 100);
         setCardState(id, 'done');
-        setStatus(id, `Done \u2014 ${fmt(totalTime)}`);
+        setStatus(id, `Done — ${fmt(totalTime)}`);
 
         await displayResult(id, finalBlob);
     } catch (err) {
@@ -376,7 +376,7 @@ async function runImgly(modelId) {
     if (!imglyModule) {
         setStatus(modelId, 'Loading IMG.LY library...');
         setProgress(modelId, 5);
-        imglyModule = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.11/dist/index.js');
+        imglyModule = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm');
     }
 
     const removeBackground = imglyModule.removeBackground || imglyModule.default;
@@ -433,7 +433,7 @@ async function runImgly(modelId) {
     setTime(modelId, 'total', totalTime);
     setProgress(modelId, 100);
     setCardState(modelId, 'done');
-    setStatus(modelId, `Done \u2014 ${fmt(totalTime)}`);
+    setStatus(modelId, `Done — ${fmt(totalTime)}`);
 
     await displayResult(modelId, finalBlob);
 }
@@ -550,7 +550,7 @@ function highlightFastest() {
     return fastestId;
 }
 
-// ── Build summary table ────────────────────────────────────
+// ── Build summary table ───────────────────────────────────
 function buildSummary() {
     const completedModels = MODELS.filter(m => results[m.id]);
     if (completedModels.length === 0) {
@@ -577,7 +577,7 @@ function buildSummary() {
             <td>${fmt(r.loadTime)}</td>
             <td>${fmt(r.processTime)}</td>
             <td class="${isWinner ? 'winner' : ''}">${fmt(r.totalTime)}</td>
-            <td class="${isFailed ? 'failed' : ''}">${r.status === 'done' ? 'OK' : r.status === 'error' ? 'FAIL' : '\u2014'}</td>
+            <td class="${isFailed ? 'failed' : ''}">${r.status === 'done' ? 'OK' : r.status === 'error' ? 'FAIL' : '—'}</td>
         `;
         summaryTbody.appendChild(tr);
     });
@@ -585,7 +585,7 @@ function buildSummary() {
     summarySection.style.display = 'block';
 }
 
-// ── Re-apply sticker effect note ───────────────────────────
+// ── Re-apply sticker effect note ─────────────────────────
 async function reapplySticker() {
     if (Object.keys(results).length > 0) {
         const note = document.createElement('p');
@@ -618,7 +618,7 @@ function handleFile(file) {
     });
 }
 
-// ── Event listeners ────────────────────────────────────────
+// ── Event listeners ──────────────────────────────────────────
 uploadArea.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', (e) => {
     if (e.target.files[0]) handleFile(e.target.files[0]);
