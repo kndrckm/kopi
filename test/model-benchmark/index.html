@@ -45,9 +45,6 @@
             </div>
         </div>
 
-        <!-- Run Button -->
-        <button id="btn-run" class="btn-primary" disabled>Run All Models</button>
-
         <!-- Results Grid -->
         <div class="results-grid" id="results-grid">
             <!-- Model Card: RMBG-1.4 q8 (Current Production) -->
@@ -77,6 +74,7 @@
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="prog-rmbg14-q8"></div></div>
                 <p class="model-status" id="status-rmbg14-q8">Ready</p>
+                <button class="btn-card-run" id="btn-run-rmbg14-q8" disabled>Run</button>
             </div>
 
             <!-- Model Card: RMBG-1.4 fp16 -->
@@ -106,6 +104,7 @@
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="prog-rmbg14-fp16"></div></div>
                 <p class="model-status" id="status-rmbg14-fp16">Ready</p>
+                <button class="btn-card-run" id="btn-run-rmbg14-fp16" disabled>Run</button>
             </div>
 
             <!-- Model Card: RMBG-1.4 q4 -->
@@ -135,6 +134,37 @@
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="prog-rmbg14-q4"></div></div>
                 <p class="model-status" id="status-rmbg14-q4">Ready</p>
+                <button class="btn-card-run" id="btn-run-rmbg14-q4" disabled>Run</button>
+            </div>
+
+            <!-- Model Card: RMBG-1.4 WebGPU (fp32) -->
+            <div class="model-card" data-model="rmbg14-webgpu">
+                <div class="model-header">
+                    <h3>RMBG-1.4 — WebGPU</h3>
+                    <span class="model-badge badge-gpu">GPU</span>
+                </div>
+                <div class="model-meta">fp32 via WebGPU — GPU-accelerated inference</div>
+                <div class="model-canvas-wrap">
+                    <canvas class="model-canvas" id="canvas-rmbg14-webgpu"></canvas>
+                    <div class="model-placeholder" id="ph-rmbg14-webgpu">Waiting...</div>
+                </div>
+                <div class="timing-strip">
+                    <div class="timing-item">
+                        <span class="timing-label">Load</span>
+                        <span class="timing-value" id="time-load-rmbg14-webgpu">—</span>
+                    </div>
+                    <div class="timing-item">
+                        <span class="timing-label">Process</span>
+                        <span class="timing-value" id="time-process-rmbg14-webgpu">—</span>
+                    </div>
+                    <div class="timing-item">
+                        <span class="timing-label">Total</span>
+                        <span class="timing-value timing-total" id="time-total-rmbg14-webgpu">—</span>
+                    </div>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="prog-rmbg14-webgpu"></div></div>
+                <p class="model-status" id="status-rmbg14-webgpu">Ready</p>
+                <button class="btn-card-run" id="btn-run-rmbg14-webgpu" disabled>Run</button>
             </div>
 
         </div>
@@ -154,7 +184,7 @@
                 </thead>
                 <tbody id="summary-tbody"></tbody>
             </table>
-            <p class="summary-note">All models run via WASM. q8 = 8-bit, fp16 = half-precision, q4 = 4-bit quantisation.</p>
+            <p class="summary-note">WASM models: q8, fp16, q4. WebGPU requires Chrome/Edge 113+ with GPU support.</p>
         </div>
 
         <footer>
