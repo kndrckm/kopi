@@ -7,11 +7,11 @@ import { pipeline, AutoModel, AutoProcessor, RawImage, env } from 'https://cdn.j
 
 env.allowLocalModels = false;
 
-// ── Model Definitions (2 models — RMBG-1.4 WASM + WebGPU) ─
+// ── Model Definitions (3 quantisation variants of RMBG-1.4) ─
 const MODELS = [
     {
-        id: 'original',
-        name: 'RMBG-1.4 (Current)',
+        id: 'rmbg14-q8',
+        name: 'RMBG-1.4 — q8',
         modelId: 'briaai/RMBG-1.4',
         device: 'wasm',
         dtype: 'q8',
@@ -19,11 +19,22 @@ const MODELS = [
         modelConfig: { model_type: 'bria-rmbg' },
     },
     {
-        id: 'rmbg14-webgpu',
-        name: 'RMBG-1.4 (WebGPU)',
+        id: 'rmbg14-fp16',
+        name: 'RMBG-1.4 — fp16',
         modelId: 'briaai/RMBG-1.4',
-        device: 'webgpu',
-        dtype: 'fp32',
+        device: 'wasm',
+        dtype: 'fp16',
+        useAutoModel: true,
+        modelConfig: { model_type: 'bria-rmbg' },
+    },
+    {
+        id: 'rmbg14-q4',
+        name: 'RMBG-1.4 — q4',
+        modelId: 'briaai/RMBG-1.4',
+        device: 'wasm',
+        dtype: 'q4',
+        useAutoModel: true,
+        modelConfig: { model_type: 'bria-rmbg' },
     },
 ];
 
@@ -46,15 +57,6 @@ const labelStroke     = document.getElementById('label-stroke');
 const labelStickerify = document.getElementById('label-stickerify');
 const summarySection  = document.getElementById('summary-section');
 const summaryTbody    = document.getElementById('summary-tbody');
-
-// ── Utility: Check WebGPU availability ─────────────────────
-async function hasWebGPU() {
-    if (!navigator.gpu) return false;
-    try {
-        const adapter = await navigator.gpu.requestAdapter();
-        return !!adapter;
-    } catch { return false; }
-}
 
 // ── Utility: Format time ───────────────────────────────────
 function fmt(ms) {
@@ -234,15 +236,7 @@ async function runModel(modelDef, imageBlob) {
     const tStart = performance.now();
 
     try {
-        // ── Step 1: Determine device ──
-        let actualDevice = device;
-        if (device === 'webgpu') {
-            const gpuOk = await hasWebGPU();
-            if (!gpuOk) {
-                actualDevice = 'wasm';
-                setStatus(id, 'WebGPU N/A, falling back to WASM...');
-            }
-        }
+        const actualDevice = device;
 
         const progressCb = (p) => {
             if (p.status === 'progress' && p.total) {
@@ -514,13 +508,5 @@ btnRun.addEventListener('click', () => runAll());
 
 // ── Init ───────────────────────────────────────────────────
 (async () => {
-    const gpuAvailable = await hasWebGPU();
-    const gpuCards = document.querySelectorAll('.badge-gpu');
-    if (!gpuAvailable) {
-        gpuCards.forEach(b => {
-            b.textContent = 'WebGPU (N/A)';
-            b.style.opacity = '0.5';
-        });
-    }
-    console.log('Kopi Benchmark: Ready. WebGPU:', gpuAvailable ? 'Available' : 'Not available');
+    console.log('Kopi Benchmark: Ready. Testing q8 / fp16 / q4 quantisations.');
 })();
