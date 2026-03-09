@@ -820,6 +820,11 @@ p {
 }
 
 /* Steam bloom glow — floats up only, resets at bottom */
+/* Let the SVG overflow so the bloom can escape the 24x24 viewBox */
+.nav-item svg {
+    overflow: visible;
+}
+
 .steam-bloom {
     opacity: 0;
     transform-origin: center bottom;
@@ -827,25 +832,25 @@ p {
 
 .empty-state-icon .steam-bloom,
 .nav-item.active .steam-bloom {
-    animation: steam-bloom 2.6s infinite ease-out;
+    animation: steam-bloom 3s infinite ease-out;
 }
 
 @keyframes steam-bloom {
     0% {
         opacity: 0;
-        transform: translateY(0) scale(0.7);
+        transform: translateY(0) scale(0.8);
     }
-    15% {
-        opacity: 0.55;
-        transform: translateY(-2px) scale(1);
+    12% {
+        opacity: 0.5;
+        transform: translateY(-3px) scale(1.1);
     }
-    60% {
-        opacity: 0.35;
-        transform: translateY(-6px) scale(1.15);
+    50% {
+        opacity: 0.3;
+        transform: translateY(-12px) scale(1.4);
     }
     100% {
         opacity: 0;
-        transform: translateY(-10px) scale(1.2);
+        transform: translateY(-20px) scale(1.6);
     }
 }
 
@@ -1972,6 +1977,7 @@ input:checked+.slider-toggle:before {
     touch-action: pan-y;
     border: 1px solid rgba(255, 255, 255, 0.5);
     pointer-events: auto;
+    overflow: visible;
 }
 
 .nav-indicator {
@@ -2088,6 +2094,7 @@ input:checked+.slider-toggle:before {
     transition: color var(--duration-normal), transform var(--duration-fast), background var(--duration-normal);
     position: relative;
     z-index: 2;
+    overflow: visible;
 }
 
 .nav-item:active {
