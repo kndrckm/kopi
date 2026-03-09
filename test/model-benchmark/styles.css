@@ -177,9 +177,6 @@ header .subtitle { color: var(--muted); font-size: 14px; margin-top: 4px; }
 @media (min-width: 640px) {
     .results-grid { grid-template-columns: 1fr 1fr; }
 }
-@media (min-width: 900px) {
-    .results-grid { grid-template-columns: 1fr 1fr 1fr; }
-}
 
 /* Model Card */
 .model-card {
@@ -263,6 +260,7 @@ header .subtitle { color: var(--muted); font-size: 14px; margin-top: 4px; }
 .badge-medium { background: #fff3e0; color: #e65100; }
 .badge-small { background: #e3f2fd; color: #1565c0; }
 .badge-gpu { background: #ede7f6; color: var(--gpu-badge); }
+.badge-imgly { background: #e0f2f1; color: #00695c; }
 
 .model-meta {
     font-size: 12px;
