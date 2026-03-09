@@ -6,6 +6,9 @@ let currentUser = null;
 // Initialize App — modules run after DOM is ready, no need for DOMContentLoaded
 (async () => {
 
+    // ══════════ PORTRAIT LOCK ══════════
+    try { await screen.orientation.lock('portrait'); } catch (_) { /* unsupported or denied */ }
+
     // ══════════ TOAST NOTIFICATION SYSTEM ══════════
     const toast = (() => {
         let container = document.getElementById('toast-container');
@@ -162,32 +165,43 @@ let currentUser = null;
             gravity: { x: 0, y: 0 },
             animReq: null,
             container: null,
+            idleFrames: 0,
+            IDLE_THRESHOLD: 0.05,
+            IDLE_FRAMES_TO_SLEEP: 30,
             init(containerEl) {
                 this.container = containerEl;
+                this.idleFrames = 0;
                 if (!this.animReq) this.loop();
             },
             add(el, x, y, rotation, pSize = STICKER_SIZE, pPerc = HITBOX_PERC) {
                 this.particles.push({
                     el, x, y, rotation,
-                    vx: (Math.random() - 0.5) * 6, // Slightly faster scatter
+                    vx: (Math.random() - 0.5) * 6,
                     vy: (Math.random() - 0.5) * 6,
                     w: pSize, h: pSize,
                     perc: pPerc
                 });
+                this.wake();
             },
             clear() {
                 this.particles = [];
+                this.idleFrames = 0;
                 if (this.animReq) {
                     cancelAnimationFrame(this.animReq);
                     this.animReq = null;
                 }
             },
+            wake() {
+                this.idleFrames = 0;
+                if (!this.animReq) this.loop();
+            },
             loop() {
                 if (this.particles.length > 0 && this.container) {
                     const cw = this.container.clientWidth;
                     const ch = this.container.clientHeight;
-                    const friction = 0.98; // Smoother slide
-                    const sensitivity = 0.15; // More gradual response
+                    const friction = 0.98;
+                    const sensitivity = 0.15;
+                    let totalMotion = 0;
                     this.particles.forEach((p, i) => {
                         p.vx += this.gravity.x * sensitivity;
                         p.vy += this.gravity.y * sensitivity;
@@ -208,8 +222,6 @@ let currentUser = null;
                             const rawDx = (p2.x + p2.w / 2) - (p.x + p.w / 2);
                             const rawDy = (p2.y + p2.h / 2) - (p.y + p.h / 2);
 
-                            // 👈 Multiply horizontal distance slightly to make the "circle" hitbox an oval.
-                            // This allows tall rectangular cups to stand closer together horizontally!
                             const dx = rawDx * 1.35;
                             const dy = rawDy * 1.0;
 
@@ -218,10 +230,8 @@ let currentUser = null;
                             const minDist = (p.w + p2.w) / 2 * avgPerc;
 
                             if (dist < minDist) {
-                                // Resolve overlap
                                 const angle = Math.atan2(dy, dx);
                                 const pushDist = minDist - dist;
-                                // Need to halve the push and un-scale the X axis push for visual accuracy
                                 const ax = Math.cos(angle) * pushDist * 0.1;
                                 const ay = Math.sin(angle) * pushDist * 0.1;
 
@@ -232,18 +242,24 @@ let currentUser = null;
                             }
                         }
 
+                        totalMotion += Math.abs(p.vx) + Math.abs(p.vy);
                         p.el.style.transform = `translate(${p.x}px, ${p.y}px) rotate(${p.rotation}deg)`;
                     });
+
+                    // Sleep when all particles have settled
+                    if (totalMotion < this.IDLE_THRESHOLD * this.particles.length) {
+                        this.idleFrames++;
+                    } else {
+                        this.idleFrames = 0;
+                    }
+                    if (this.idleFrames >= this.IDLE_FRAMES_TO_SLEEP) {
+                        this.animReq = null;
+                        return; // Stop loop — wake() restarts it
+                    }
                 }
                 this.animReq = requestAnimationFrame(() => this.loop());
             }
         };
-
-        window.addEventListener('deviceorientation', (e) => {
-            // Gamma is left-to-right tilt (-90 to 90), Beta is front-to-back tilt (-180 to 180)
-            stickerPhysics.gravity.x = (e.gamma || 0) / 45;
-            stickerPhysics.gravity.y = (e.beta || 0) / 45;
-        });
 
         // Setup Auth Listener
         supabase.auth.onAuthStateChange((event, session) => {
@@ -542,7 +558,6 @@ let currentUser = null;
                     // Re-render statistics now that the container is visible and has layout dimensions
                     updateStatistics();
                 }, 10);
-                requestDeviceOrientation();
             }
 
             navItems.forEach(btn => {
@@ -2328,7 +2343,6 @@ let currentUser = null;
                 }
                 updateStatsSubtitle();
                 updateStatistics();
-                requestDeviceOrientation();
             });
         });
 
@@ -2994,18 +3008,7 @@ let currentUser = null;
                 document.getElementById('current-lang').textContent = lang;
             });
         });
-        async function requestDeviceOrientation() {
-            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                try {
-                    const permission = await DeviceOrientationEvent.requestPermission();
-                    if (permission === 'granted') {
-                        console.log('DeviceOrientation permission granted');
-                    }
-                } catch (error) {
-                    console.error('DeviceOrientation permission error:', error);
-                }
-            }
-        }
+        // deviceorientation removed — app is portrait-only, no tilt physics needed
 
         // ============================================================
         // PWA VERSION UPDATER
