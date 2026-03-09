@@ -352,6 +352,30 @@ header .subtitle { color: var(--muted); font-size: 14px; margin-top: 4px; }
     min-height: 16px;
 }
 
+/* Per-card Run Button */
+.btn-card-run {
+    display: block;
+    width: 100%;
+    margin-top: 12px;
+    padding: 10px 0;
+    border: none;
+    border-radius: 12px;
+    background: var(--primary);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.2s, opacity 0.2s;
+}
+.btn-card-run:hover:not(:disabled) {
+    background: var(--primary-dark);
+}
+.btn-card-run:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
 /* Summary Table */
 .summary-section {
     background: var(--card);
