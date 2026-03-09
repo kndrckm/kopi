@@ -3,12 +3,21 @@
 // Uses Transformers.js v3 background-removal pipeline
 // ============================================================
 
-import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.4.1';
+import { pipeline, AutoModel, AutoProcessor, RawImage, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.4.1';
 
 env.allowLocalModels = false;
 
 // ── Model Definitions ──────────────────────────────────────
 const MODELS = [
+    {
+        id: 'original',
+        name: 'RMBG-1.4 (Current)',
+        modelId: 'briaai/RMBG-1.4',
+        device: 'wasm',
+        dtype: 'q8',
+        useAutoModel: true,   // matches production: AutoModel + AutoProcessor
+        modelConfig: { model_type: 'bria-rmbg' },
+    },
     {
         id: 'u2netp',
         name: 'u2netp',
@@ -272,47 +281,113 @@ async function runModel(modelDef, imageBlob) {
             }
         }
 
-        // Load model via pipeline
+        let rawBlob;
         const tLoad0 = performance.now();
-        const segmenter = await pipeline('background-removal', modelId, {
-            device: actualDevice,
-            dtype: dtype,
-            progress_callback: (p) => {
+
+        if (modelDef.useAutoModel) {
+            // ── Production path: AutoModel + AutoProcessor (matches bg-removal.js) ──
+            const progressCb = (p) => {
                 if (p.status === 'progress' && p.total) {
                     const pct = Math.round((p.loaded / p.total) * 50);
                     setProgress(id, 10 + pct);
                     const mb = (p.loaded / 1024 / 1024).toFixed(1);
                     setStatus(id, `Downloading... ${mb} MB`);
                 }
+            };
+
+            const [model, processor] = await Promise.all([
+                AutoModel.from_pretrained(modelId, {
+                    dtype: dtype,
+                    revision: 'main',
+                    config: modelDef.modelConfig || {},
+                    device: actualDevice,
+                    progress_callback: progressCb,
+                }),
+                AutoProcessor.from_pretrained(modelId, {}),
+            ]);
+
+            const tLoad1 = performance.now();
+            result.loadTime = tLoad1 - tLoad0;
+            setTime(id, 'load', result.loadTime);
+            setProgress(id, 65);
+            setStatus(id, 'Processing image...');
+
+            // Run inference — same as hf-worker.js
+            const tProc0 = performance.now();
+            const bmp = await createImageBitmap(imageBlob);
+            const imgUrl = URL.createObjectURL(imageBlob);
+            const image = await RawImage.fromURL(imgUrl);
+            URL.revokeObjectURL(imgUrl);
+
+            const { pixel_values } = await processor(image);
+            const { output } = await model({ input: pixel_values });
+
+            // Convert mask to alpha channel on canvas (same as production)
+            const outputTensor = output[0] ? output[0] : output;
+            const mask = await RawImage.fromTensor(
+                outputTensor.mul(255).to('uint8')
+            ).resize(bmp.width, bmp.height);
+
+            const cvs = document.createElement('canvas');
+            cvs.width = bmp.width;
+            cvs.height = bmp.height;
+            const ctx = cvs.getContext('2d');
+            ctx.drawImage(bmp, 0, 0);
+
+            const imgData = ctx.getImageData(0, 0, cvs.width, cvs.height);
+            for (let i = 0; i < mask.data.length; ++i) {
+                imgData.data[i * 4 + 3] = mask.data[i];
             }
-        });
-        const tLoad1 = performance.now();
-        result.loadTime = tLoad1 - tLoad0;
-        setTime(id, 'load', result.loadTime);
-        setProgress(id, 65);
-        setStatus(id, 'Processing image...');
+            ctx.putImageData(imgData, 0, 0);
 
-        // Run inference
-        const tProc0 = performance.now();
-        const imageUrl = URL.createObjectURL(imageBlob);
-        const output = await segmenter(imageUrl);
-        URL.revokeObjectURL(imageUrl);
-        const tProc1 = performance.now();
-        result.processTime = tProc1 - tProc0;
-        setTime(id, 'process', result.processTime);
-        setProgress(id, 85);
-        setStatus(id, 'Applying sticker effect...');
+            const tProc1 = performance.now();
+            result.processTime = tProc1 - tProc0;
+            setTime(id, 'process', result.processTime);
+            setProgress(id, 85);
+            setStatus(id, 'Applying sticker effect...');
 
-        // Get the raw cutout blob
-        let rawBlob;
-        if (output[0] && typeof output[0].toBlob === 'function') {
-            rawBlob = await output[0].toBlob();
-        } else if (output[0] && typeof output[0].toCanvas === 'function') {
-            const cvs = output[0].toCanvas();
             rawBlob = await new Promise(res => cvs.toBlob(res, 'image/png'));
+
         } else {
-            // Fallback: output might be RawImage, try converting
-            rawBlob = await output[0].toBlob();
+            // ── Challenger path: pipeline('background-removal') ──
+            const segmenter = await pipeline('background-removal', modelId, {
+                device: actualDevice,
+                dtype: dtype,
+                progress_callback: (p) => {
+                    if (p.status === 'progress' && p.total) {
+                        const pct = Math.round((p.loaded / p.total) * 50);
+                        setProgress(id, 10 + pct);
+                        const mb = (p.loaded / 1024 / 1024).toFixed(1);
+                        setStatus(id, `Downloading... ${mb} MB`);
+                    }
+                }
+            });
+
+            const tLoad1 = performance.now();
+            result.loadTime = tLoad1 - tLoad0;
+            setTime(id, 'load', result.loadTime);
+            setProgress(id, 65);
+            setStatus(id, 'Processing image...');
+
+            const tProc0 = performance.now();
+            const imageUrl = URL.createObjectURL(imageBlob);
+            const output = await segmenter(imageUrl);
+            URL.revokeObjectURL(imageUrl);
+            const tProc1 = performance.now();
+            result.processTime = tProc1 - tProc0;
+            setTime(id, 'process', result.processTime);
+            setProgress(id, 85);
+            setStatus(id, 'Applying sticker effect...');
+
+            // Get the raw cutout blob from pipeline output
+            if (output[0] && typeof output[0].toBlob === 'function') {
+                rawBlob = await output[0].toBlob();
+            } else if (output[0] && typeof output[0].toCanvas === 'function') {
+                const cvs = output[0].toCanvas();
+                rawBlob = await new Promise(res => cvs.toBlob(res, 'image/png'));
+            } else {
+                rawBlob = await output[0].toBlob();
+            }
         }
 
         // Apply sticker post-processing
