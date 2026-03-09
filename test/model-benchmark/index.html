@@ -50,6 +50,35 @@
 
         <!-- Results Grid -->
         <div class="results-grid" id="results-grid">
+            <!-- Model Card: Original (Current Production) -->
+            <div class="model-card original-card" data-model="original">
+                <div class="model-header">
+                    <h3>RMBG-1.4</h3>
+                    <span class="model-badge badge-original">CURRENT</span>
+                </div>
+                <div class="model-meta">Production — AutoModel + q8 WASM</div>
+                <div class="model-canvas-wrap">
+                    <canvas class="model-canvas" id="canvas-original"></canvas>
+                    <div class="model-placeholder" id="ph-original">Waiting...</div>
+                </div>
+                <div class="timing-strip">
+                    <div class="timing-item">
+                        <span class="timing-label">Load</span>
+                        <span class="timing-value" id="time-load-original">—</span>
+                    </div>
+                    <div class="timing-item">
+                        <span class="timing-label">Process</span>
+                        <span class="timing-value" id="time-process-original">—</span>
+                    </div>
+                    <div class="timing-item">
+                        <span class="timing-label">Total</span>
+                        <span class="timing-value timing-total" id="time-total-original">—</span>
+                    </div>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="prog-original"></div></div>
+                <p class="model-status" id="status-original">Ready</p>
+            </div>
+
             <!-- Model Card: u2netp -->
             <div class="model-card" data-model="u2netp">
                 <div class="model-header">
