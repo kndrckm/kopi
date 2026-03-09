@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kopi — BG Removal Model Benchmark</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>BG Removal Benchmark</h1>
+            <p class="subtitle">Kopi — Model Comparison Tool</p>
+        </header>
+
+        <!-- Sticker Style Toggle -->
+        <div class="toggle-section">
+            <div class="toggle-row">
+                <span class="toggle-label active" id="label-stroke">Current Stroke</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="sticker-toggle">
+                    <span class="toggle-slider"></span>
+                </label>
+                <span class="toggle-label" id="label-stickerify">Stickerify + Shadow</span>
+            </div>
+            <p class="toggle-hint">Toggle post-processing style applied to all results</p>
+        </div>
+
+        <!-- Upload Section -->
+        <div class="upload-section">
+            <div class="upload-area" id="upload-area">
+                <div class="upload-icon">&#9757;</div>
+                <p class="upload-text">Tap to upload or drag a photo</p>
+                <p class="upload-hint">JPG / PNG / WebP</p>
+                <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp" hidden>
+            </div>
+            <div class="preview-row" id="preview-row" style="display:none;">
+                <img id="preview-img" alt="Preview">
+                <div class="preview-info">
+                    <p id="preview-name">photo.jpg</p>
+                    <p id="preview-size">0 KB</p>
+                    <button id="btn-change" class="btn-secondary">Change Photo</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Run Button -->
+        <button id="btn-run" class="btn-primary" disabled>Run All Models</button>
+
+        <!-- Results Grid -->
+        <div class="results-grid" id="results-grid">
+            <!-- Model Card: u2netp -->
+            <div class="model-card" data-model="u2netp">
+                <div class="model-header">
+                    <h3>u2netp</h3>
+                    <span class="model-badge badge-tiny">~4.7 MB</span>
+                </div>
+                <div class="model-meta">Lightweight saliency model</div>
+                <div class="model-canvas-wrap">
+                    <canvas class="model-canvas" id="canvas-u2netp"></canvas>
+                    <div class="model-placeholder" id="ph-u2netp">Waiting...</div>
+                </div>
+                <div class="timing-strip">
+                    <div class="timing-item">
+                        <span class="timing-label">Load</span>
+                        <span class="timing-value" id="time-load-u2netp">—</span>
+                    </div>
+                    <div class="timing-item">
+                        <span class="timing-label">Process</span>
+                        <span class="timing-value" id="time-process-u2netp">—</span>
+                    </div>
+                    <div class="timing-item">
+                        <span class="timing-label">Total</span>
+                        <span class="timing-value timing-total" id="time-total-u2netp">—</span>
+                    </div>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="prog-u2netp"></div></div>
+                <p class="model-status" id="status-u2netp">Ready</p>
+            </div>
+
+            <!-- Model Card: BiRefNet-lite -->
+            <div class="model-card" data-model="birefnet-lite">
+                <div class="model-header">
+                    <h3>BiRefNet-lite</h3>
+                    <span class="model-badge badge-medium">~339 MB</span>
+                </div>
+                <div class="model-meta">Bilateral Reference (lite)</div>
+                <div class="model-canvas-wrap">
+                    <canvas class="model-canvas" id="canvas-birefnet-lite"></canvas>
+                    <div class="model-placeholder" id="ph-birefnet-lite">Waiting...</div>
+                </div>
+                <div class="timing-strip">
+                    <div class="timing-item">
+                        <span class="timing-label">Load</span>
+                        <span class="timing-value" id="time-load-birefnet-lite">—</span>
+                    </div>
+                    <div class="timing-item">
+                        <span class="timing-label">Process</span>
+                        <span class="timing-value" id="time-process-birefnet-lite">—</span>
+                    </div>
+                    <div class="timing-item">
+                        <span class="timing-label">Total</span>
+                        <span class="timing-value timing-total" id="time-total-birefnet-lite">—</span>
+                    </div>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="prog-birefnet-lite"></div></div>
+                <p class="model-status" id="status-birefnet-lite">Ready</p>
+            </div>
+
+            <!-- Model Card: BEN2 -->
+            <div class="model-card" data-model="ben2">
+                <div class="model-header">
+                    <h3>BEN2</h3>
+                    <span class="model-badge badge-medium">~219 MB</span>
+                </div>
+                <div class="model-meta">Background Erase Network v2</div>
+                <div class="model-canvas-wrap">
+                    <canvas class="model-canvas" id="canvas-ben2"></canvas>
+                    <div class="model-placeholder" id="ph-ben2">Waiting...</div>
+                </div>
+                <div class="timing-strip">
+                    <div class="timing-item">
+                        <span class="timing-label">Load</span>
+                        <span class="timing-value" id="time-load-ben2">—</span>
+                    </div>
+                    <div class="timing-item">
+                        <span class="timing-label">Process</span>
+                        <span class="timing-value" id="time-process-ben2">—</span>
+                    </div>
+                    <div class="timing-item">
+                        <span class="timing-label">Total</span>
+                        <span class="timing-value timing-total" id="time-total-ben2">—</span>
+                    </div>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="prog-ben2"></div></div>
+                <p class="model-status" id="status-ben2">Ready</p>
+            </div>
+
+            <!-- Model Card: RMBG-1.4 + WebGPU -->
+            <div class="model-card" data-model="rmbg14-webgpu">
+                <div class="model-header">
+                    <h3>RMBG-1.4</h3>
+                    <span class="model-badge badge-gpu">WebGPU</span>
+                </div>
+                <div class="model-meta">Current model + GPU accel</div>
+                <div class="model-canvas-wrap">
+                    <canvas class="model-canvas" id="canvas-rmbg14-webgpu"></canvas>
+                    <div class="model-placeholder" id="ph-rmbg14-webgpu">Waiting...</div>
+                </div>
+                <div class="timing-strip">
+                    <div class="timing-item">
+                        <span class="timing-label">Load</span>
+                        <span class="timing-value" id="time-load-rmbg14-webgpu">—</span>
+                    </div>
+                    <div class="timing-item">
+                        <span class="timing-label">Process</span>
+                        <span class="timing-value" id="time-process-rmbg14-webgpu">—</span>
+                    </div>
+                    <div class="timing-item">
+                        <span class="timing-label">Total</span>
+                        <span class="timing-value timing-total" id="time-total-rmbg14-webgpu">—</span>
+                    </div>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="prog-rmbg14-webgpu"></div></div>
+                <p class="model-status" id="status-rmbg14-webgpu">Ready</p>
+            </div>
+
+            <!-- Model Card: BiRefNet-lite + WebGPU -->
+            <div class="model-card" data-model="birefnet-lite-webgpu">
+                <div class="model-header">
+                    <h3>BiRefNet-lite</h3>
+                    <span class="model-badge badge-gpu">WebGPU</span>
+                </div>
+                <div class="model-meta">BiRefNet lite + GPU accel</div>
+                <div class="model-canvas-wrap">
+                    <canvas class="model-canvas" id="canvas-birefnet-lite-webgpu"></canvas>
+                    <div class="model-placeholder" id="ph-birefnet-lite-webgpu">Waiting...</div>
+                </div>
+                <div class="timing-strip">
+                    <div class="timing-item">
+                        <span class="timing-label">Load</span>
+                        <span class="timing-value" id="time-load-birefnet-lite-webgpu">—</span>
+                    </div>
+                    <div class="timing-item">
+                        <span class="timing-label">Process</span>
+                        <span class="timing-value" id="time-process-birefnet-lite-webgpu">—</span>
+                    </div>
+                    <div class="timing-item">
+                        <span class="timing-label">Total</span>
+                        <span class="timing-value timing-total" id="time-total-birefnet-lite-webgpu">—</span>
+                    </div>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="prog-birefnet-lite-webgpu"></div></div>
+                <p class="model-status" id="status-birefnet-lite-webgpu">Ready</p>
+            </div>
+        </div>
+
+        <!-- Summary Table -->
+        <div class="summary-section" id="summary-section" style="display:none;">
+            <h2>Results Summary</h2>
+            <table class="summary-table">
+                <thead>
+                    <tr>
+                        <th>Model</th>
+                        <th>Load (s)</th>
+                        <th>Process (s)</th>
+                        <th>Total (s)</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="summary-tbody"></tbody>
+            </table>
+            <p class="summary-note">WebGPU models require Chrome/Edge 113+. WASM fallback is used if unavailable.</p>
+        </div>
+
+        <footer>
+            <p>Kopi Model Benchmark v1.0 — Isolated test, does not modify main app</p>
+        </footer>
+    </div>
+
+    <script type="module" src="benchmark.js"></script>
+</body>
+</html>
