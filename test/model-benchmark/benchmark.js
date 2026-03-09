@@ -1,13 +1,14 @@
 // ============================================================
 // benchmark.js — Kopi BG Removal Model Benchmark
-// Each model loads + runs inference individually when "Run All" is clicked
+// 4 models: RMBG-1.4 q8 / fp16 / q4 (WASM) + WebGPU fp32
+// Each card has its own Run button
 // ============================================================
 
 import { pipeline, AutoModel, AutoProcessor, RawImage, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.4.1';
 
 env.allowLocalModels = false;
 
-// ── Model Definitions (3 quantisation variants of RMBG-1.4) ─
+// ── Model Definitions ──────────────────────────────────────
 const MODELS = [
     {
         id: 'rmbg14-q8',
@@ -36,12 +37,22 @@ const MODELS = [
         useAutoModel: true,
         modelConfig: { model_type: 'bria-rmbg' },
     },
+    {
+        id: 'rmbg14-webgpu',
+        name: 'RMBG-1.4 — WebGPU',
+        modelId: 'briaai/RMBG-1.4',
+        device: 'webgpu',
+        dtype: 'fp32',
+        useAutoModel: true,
+        modelConfig: { model_type: 'bria-rmbg' },
+    },
 ];
 
 // ── State ──────────────────────────────────────────────────
 let uploadedFile = null;
 let results = {};
 let stickerMode = 'stroke';
+let runningModel = null; // lock: only one model runs at a time
 
 // ── DOM refs ───────────────────────────────────────────────
 const fileInput       = document.getElementById('file-input');
@@ -51,12 +62,20 @@ const previewImg      = document.getElementById('preview-img');
 const previewName     = document.getElementById('preview-name');
 const previewSize     = document.getElementById('preview-size');
 const btnChange       = document.getElementById('btn-change');
-const btnRun          = document.getElementById('btn-run');
 const stickerToggle   = document.getElementById('sticker-toggle');
 const labelStroke     = document.getElementById('label-stroke');
 const labelStickerify = document.getElementById('label-stickerify');
 const summarySection  = document.getElementById('summary-section');
 const summaryTbody    = document.getElementById('summary-tbody');
+
+// ── Utility: Check WebGPU availability ─────────────────────
+async function hasWebGPU() {
+    if (!navigator.gpu) return false;
+    try {
+        const adapter = await navigator.gpu.requestAdapter();
+        return !!adapter;
+    } catch { return false; }
+}
 
 // ── Utility: Format time ───────────────────────────────────
 function fmt(ms) {
@@ -220,8 +239,26 @@ async function displayResult(modelId, blob) {
     });
 }
 
+// ── Per-card button state helpers ──────────────────────────
+function setRunBtnState(modelId, disabled, text) {
+    const btn = document.getElementById(`btn-run-${modelId}`);
+    if (btn) {
+        btn.disabled = disabled;
+        btn.textContent = text;
+    }
+}
+
+function setAllRunBtns(disabled) {
+    MODELS.forEach(m => {
+        const btn = document.getElementById(`btn-run-${m.id}`);
+        if (btn && m.id !== runningModel) {
+            btn.disabled = disabled;
+        }
+    });
+}
+
 // ════════════════════════════════════════════════════════════
-// LOAD + INFERENCE PER MODEL (sequential)
+// LOAD + INFERENCE PER MODEL
 // ════════════════════════════════════════════════════════════
 
 async function runModel(modelDef, imageBlob) {
@@ -236,7 +273,15 @@ async function runModel(modelDef, imageBlob) {
     const tStart = performance.now();
 
     try {
-        const actualDevice = device;
+        // ── Step 1: Determine device ──
+        let actualDevice = device;
+        if (device === 'webgpu') {
+            const gpuOk = await hasWebGPU();
+            if (!gpuOk) {
+                actualDevice = 'wasm';
+                setStatus(id, 'WebGPU N/A, falling back to WASM...');
+            }
+        }
 
         const progressCb = (p) => {
             if (p.status === 'progress' && p.total) {
@@ -365,35 +410,48 @@ async function runModel(modelDef, imageBlob) {
     return results[id];
 }
 
-// ── Run all models sequentially ────────────────────────────
-async function runAll() {
+// ── Run a single model by ID ───────────────────────────────
+async function runSingle(modelId) {
     if (!uploadedFile) return;
+    if (runningModel) return; // already running something
 
-    btnRun.disabled = true;
-    btnRun.textContent = 'Running...';
-    summarySection.style.display = 'none';
-    results = {};
+    const modelDef = MODELS.find(m => m.id === modelId);
+    if (!modelDef) return;
 
-    // Reset all cards
+    runningModel = modelId;
+    setRunBtnState(modelId, true, 'Running...');
+    setAllRunBtns(true); // disable all other buttons
+
+    // Reset this card
+    setCardState(modelId, null);
+    setStatus(modelId, 'Starting...');
+    setProgress(modelId, 0);
+    setTime(modelId, 'load', null);
+    setTime(modelId, 'process', null);
+    setTime(modelId, 'total', null);
+    const canvas = document.getElementById(`canvas-${modelId}`);
+    canvas.classList.remove('visible');
+    document.getElementById(`ph-${modelId}`).classList.remove('hidden');
+    document.getElementById(`ph-${modelId}`).textContent = 'Processing...';
+
+    await runModel(modelDef, uploadedFile);
+
+    // Highlight fastest among completed
+    highlightFastest();
+    buildSummary();
+
+    runningModel = null;
+    setRunBtnState(modelId, false, 'Run');
+    setAllRunBtns(false); // re-enable all buttons
+}
+
+// ── Highlight fastest completed model ──────────────────────
+function highlightFastest() {
     MODELS.forEach(m => {
-        setCardState(m.id, null);
-        setStatus(m.id, 'Queued...');
-        setProgress(m.id, 0);
-        setTime(m.id, 'load', null);
-        setTime(m.id, 'process', null);
-        setTime(m.id, 'total', null);
-        const canvas = document.getElementById(`canvas-${m.id}`);
-        canvas.classList.remove('visible');
-        document.getElementById(`ph-${m.id}`).classList.remove('hidden');
-        document.getElementById(`ph-${m.id}`).textContent = 'Queued...';
+        const card = document.querySelector(`.model-card[data-model="${m.id}"]`);
+        if (card) card.classList.remove('fastest');
     });
 
-    // Run each model one at a time
-    for (const model of MODELS) {
-        await runModel(model, uploadedFile);
-    }
-
-    // Highlight fastest by total time
     let fastestId = null;
     let fastestTime = Infinity;
     for (const [id, r] of Object.entries(results)) {
@@ -403,20 +461,23 @@ async function runAll() {
         }
     }
     if (fastestId) {
-        setCardState(fastestId, 'done');
         document.querySelector(`.model-card[data-model="${fastestId}"]`).classList.add('fastest');
     }
-
-    buildSummary(fastestId);
-
-    btnRun.disabled = false;
-    btnRun.textContent = 'Run All Models';
+    return fastestId;
 }
 
 // ── Build summary table ────────────────────────────────────
-function buildSummary(fastestId) {
+function buildSummary() {
+    const completedModels = MODELS.filter(m => results[m.id]);
+    if (completedModels.length === 0) {
+        summarySection.style.display = 'none';
+        return;
+    }
+
+    const fastestId = highlightFastest();
+
     summaryTbody.innerHTML = '';
-    const sorted = MODELS.map(m => ({ ...m, ...results[m.id] }))
+    const sorted = completedModels.map(m => ({ ...m, ...results[m.id] }))
         .sort((a, b) => {
             if (a.status === 'done' && b.status !== 'done') return -1;
             if (a.status !== 'done' && b.status === 'done') return 1;
@@ -445,11 +506,12 @@ async function reapplySticker() {
     if (Object.keys(results).length > 0) {
         const note = document.createElement('p');
         note.style.cssText = 'text-align:center;color:var(--primary);font-size:13px;font-weight:600;margin-bottom:16px;';
-        note.textContent = 'Toggle changed! Click "Run All Models" to see results with the new sticker style.';
+        note.textContent = 'Toggle changed! Re-run individual models to see results with the new sticker style.';
         const existing = document.querySelector('.toggle-note');
         if (existing) existing.remove();
         note.classList.add('toggle-note');
-        btnRun.parentNode.insertBefore(note, btnRun);
+        const grid = document.getElementById('results-grid');
+        grid.parentNode.insertBefore(note, grid);
     }
 }
 
@@ -466,8 +528,10 @@ function handleFile(file) {
     uploadArea.style.display = 'none';
     previewRow.style.display = 'flex';
 
-    btnRun.disabled = false;
-    btnRun.textContent = 'Run All Models';
+    // Enable all per-card run buttons
+    MODELS.forEach(m => {
+        setRunBtnState(m.id, false, 'Run');
+    });
 }
 
 // ── Event listeners ────────────────────────────────────────
@@ -503,10 +567,23 @@ stickerToggle.addEventListener('change', () => {
     reapplySticker();
 });
 
-// Run button
-btnRun.addEventListener('click', () => runAll());
+// Per-card run buttons
+MODELS.forEach(m => {
+    const btn = document.getElementById(`btn-run-${m.id}`);
+    if (btn) {
+        btn.addEventListener('click', () => runSingle(m.id));
+    }
+});
 
 // ── Init ───────────────────────────────────────────────────
 (async () => {
-    console.log('Kopi Benchmark: Ready. Testing q8 / fp16 / q4 quantisations.');
+    const gpuAvailable = await hasWebGPU();
+    const gpuBadges = document.querySelectorAll('.badge-gpu');
+    if (!gpuAvailable) {
+        gpuBadges.forEach(b => {
+            b.textContent = 'WebGPU (N/A)';
+            b.style.opacity = '0.5';
+        });
+    }
+    console.log('Kopi Benchmark: Ready. WebGPU:', gpuAvailable ? 'Available' : 'Not available');
 })();
