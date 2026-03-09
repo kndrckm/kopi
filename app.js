@@ -5,6 +5,84 @@ let currentUser = null;
 
 // Initialize App — modules run after DOM is ready, no need for DOMContentLoaded
 (async () => {
+
+    // ══════════ TOAST NOTIFICATION SYSTEM ══════════
+    const toast = (() => {
+        let container = document.getElementById('toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'toast-container';
+            container.id = 'toast-container';
+            document.body.appendChild(container);
+        }
+
+        const ICONS = {
+            success: '<i class="ph ph-check-circle"></i>',
+            error: '<i class="ph ph-warning-circle"></i>',
+            warning: '<i class="ph ph-warning"></i>',
+            info: '<i class="ph ph-info"></i>',
+            neutral: '<i class="ph ph-coffee"></i>'
+        };
+
+        const DURATIONS = {
+            short: 2500,
+            normal: 3500,
+            long: 5000,
+            sticky: 0  // won't auto-dismiss
+        };
+
+        function show(message, { type = 'neutral', duration = 'normal', dismissible = true } = {}) {
+            const el = document.createElement('div');
+            el.className = `toast toast--${type}`;
+            el.innerHTML = `
+                <span class="toast-icon">${ICONS[type] || ICONS.neutral}</span>
+                <span class="toast-message">${_escapeHtml(message)}</span>
+                ${dismissible ? '<button class="toast-dismiss" aria-label="Dismiss"><i class="ph ph-x"></i></button>' : ''}
+            `;
+
+            if (dismissible) {
+                el.querySelector('.toast-dismiss').addEventListener('click', () => _dismiss(el));
+            }
+
+            container.appendChild(el);
+            // Trigger reflow then animate in
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => el.classList.add('show'));
+            });
+
+            const ms = DURATIONS[duration] ?? (typeof duration === 'number' ? duration : DURATIONS.normal);
+            if (ms > 0) {
+                setTimeout(() => _dismiss(el), ms);
+            }
+
+            return el;
+        }
+
+        function _dismiss(el) {
+            if (!el || !el.parentNode) return;
+            el.classList.remove('show');
+            el.classList.add('hiding');
+            el.addEventListener('transitionend', () => el.remove(), { once: true });
+            // Fallback if transition doesn't fire
+            setTimeout(() => { if (el.parentNode) el.remove(); }, 500);
+        }
+
+        function _escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        return {
+            show,
+            success: (msg, opts) => show(msg, { type: 'success', ...opts }),
+            error: (msg, opts) => show(msg, { type: 'error', duration: 'long', ...opts }),
+            warning: (msg, opts) => show(msg, { type: 'warning', ...opts }),
+            info: (msg, opts) => show(msg, { type: 'info', ...opts }),
+        };
+    })();
+    // ══════════ END TOAST SYSTEM ══════════
+
     try {
         // Preload RMBG-1.4 model quietly in the background
         setTimeout(() => preloadModel(), 500);
@@ -408,6 +486,7 @@ let currentUser = null;
                     fetchCoffeeEntries(); // force refresh
                 } catch (e) {
                     console.error("Cleanup error:", e);
+                    toast.error('Cleanup encountered an error.');
                     statusEl.textContent = 'Error: ' + e.message;
                 } finally {
                     btnCleanupStickers.disabled = false;
@@ -460,6 +539,8 @@ let currentUser = null;
                         statTabIndicator.style.left = `${activeTab.offsetLeft}px`;
                         statTabIndicator.style.width = `${activeTab.offsetWidth}px`;
                     }
+                    // Re-render statistics now that the container is visible and has layout dimensions
+                    updateStatistics();
                 }, 10);
                 requestDeviceOrientation();
             }
@@ -571,7 +652,7 @@ let currentUser = null;
                 });
                 if (error) {
                     console.error('Google login error:', error.message);
-                    alert('Login failed: ' + error.message);
+                    toast.error('Login failed. Please try again.');
                 }
             });
         }
@@ -658,7 +739,7 @@ let currentUser = null;
                     // Mock saving nickname
                     switchView('view-calendar');
                 } else {
-                    alert('Please enter a nickname.');
+                    toast.warning('Please enter a nickname.');
                 }
             });
         }
@@ -681,7 +762,7 @@ let currentUser = null;
 
                 fetchCoffeeEntries().then(() => {
                     if (btnIcon) btnIcon.classList.remove('ph-spin');
-                    alert('Cache cleared and data refreshed successfully.');
+                    toast.success('Cache cleared and data refreshed!');
                 });
             });
         }
@@ -1081,7 +1162,7 @@ let currentUser = null;
 
                 // Validate File Size (10MB Max before compression)
                 if (file.size > 10 * 1024 * 1024) {
-                    alert("Photo is too large. Max size is 10MB.");
+                    toast.warning('Photo is too large. Max size is 10MB.');
                     resetPhotoBox();
                     return;
                 }
@@ -1090,7 +1171,7 @@ let currentUser = null;
                 const validTypes = ['image/jpeg', 'image/png', 'image/heic', 'image/webp'];
                 const extension = file.name.split('.').pop().toLowerCase();
                 if (!validTypes.includes(file.type) && !['jpg', 'jpeg', 'png', 'heic', 'webp'].includes(extension)) {
-                    alert("Invalid file format. Please upload JPG, PNG, WEBP, or HEIC.");
+                    toast.warning('Invalid file format. Please upload JPG, PNG, WEBP, or HEIC.');
                     resetPhotoBox();
                     return;
                 }
@@ -1401,11 +1482,11 @@ let currentUser = null;
                                 finalStickerUrl = urlData.publicUrl;
                             } else {
                                 console.error('Storage upload error:', uploadError.message);
-                                alert('Failed to upload image: ' + uploadError.message);
+                                toast.error('Failed to upload image. Please try again.');
                             }
                         } catch (err) {
                             console.error('BG removal / upload failed:', err);
-                            alert('Failed to process image background.');
+                            toast.error('Failed to process image background.');
                         }
                     }
 
@@ -1448,7 +1529,7 @@ let currentUser = null;
                         }
                     } catch (dbErr) {
                         console.error('Database save error:', dbErr);
-                        alert('Failed to save coffee data: ' + dbErr.message);
+                        toast.error('Failed to save coffee data. Please try again.');
 
                         // If it completely failed to insert, we should probably remove the optimistic entry
                         if (!isEditing && entry.id.toString().startsWith('temp-')) {
@@ -2998,5 +3079,6 @@ let currentUser = null;
 
     } catch (err) {
         console.error('App initialization error:', err);
+        toast.error('Something went wrong loading the app. Please refresh.');
     }
 })();
