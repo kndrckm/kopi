@@ -261,6 +261,7 @@ header .subtitle { color: var(--muted); font-size: 14px; margin-top: 4px; }
 }
 .badge-tiny { background: #e8f5e9; color: #2e7d32; }
 .badge-medium { background: #fff3e0; color: #e65100; }
+.badge-small { background: #e3f2fd; color: #1565c0; }
 .badge-gpu { background: #ede7f6; color: var(--gpu-badge); }
 
 .model-meta {
