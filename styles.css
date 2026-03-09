@@ -1,5 +1,6 @@
-/* ══════════ PORTRAIT LOCK ══════════ */
-@media (orientation: landscape) {
+/* ══════════ PORTRAIT LOCK (mobile only) ══════════ */
+/* Only force portrait on small touch devices; desktops are naturally landscape */
+@media (orientation: landscape) and (max-width: 932px) and (hover: none) and (pointer: coarse) {
     html { transform: rotate(-90deg); transform-origin: left top; width: 100vh; height: 100vw; overflow-x: hidden; position: absolute; top: 100%; left: 0; }
 }
 
