@@ -20,7 +20,7 @@ const MODELS = [
         name: 'RMBG-1.4 — Quantized',
         modelId: 'briaai/RMBG-1.4',
         device: 'wasm',
-        dtype: null,
+        dtype: 'uint8',
         quantized: true,
     },
     {
@@ -33,11 +33,11 @@ const MODELS = [
     },
     {
         id: 'rmbg14-webgpu',
-        name: 'RMBG-1.4 — WebGPU',
+        name: 'RMBG-1.4 — WebGPU (fp32)',
         modelId: 'briaai/RMBG-1.4',
         device: 'webgpu',
-        dtype: null,
-        quantized: true,
+        dtype: 'fp32',
+        quantized: false,
     },
 ];
 
