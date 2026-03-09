@@ -1,14 +1,13 @@
 // ============================================================
 // benchmark.js — Kopi BG Removal Model Benchmark
-// Phase 1: Preload all models on page load
-// Phase 2: Run inference only when user uploads image
+// Each model loads + runs inference individually when "Run All" is clicked
 // ============================================================
 
 import { pipeline, AutoModel, AutoProcessor, RawImage, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.4.1';
 
 env.allowLocalModels = false;
 
-// ── Model Definitions ──────────────────────────────────────
+// ── Model Definitions (4 models — u2netp and BEN2 removed) ─
 const MODELS = [
     {
         id: 'original',
@@ -20,23 +19,9 @@ const MODELS = [
         modelConfig: { model_type: 'bria-rmbg' },
     },
     {
-        id: 'u2netp',
-        name: 'u2netp',
-        modelId: 'BritishWerewolf/U-2-Netp',
-        device: 'wasm',
-        dtype: 'fp32',
-    },
-    {
         id: 'birefnet-lite',
         name: 'BiRefNet-lite',
         modelId: 'onnx-community/BiRefNet_lite-ONNX',
-        device: 'wasm',
-        dtype: 'fp32',
-    },
-    {
-        id: 'ben2',
-        name: 'BEN2',
-        modelId: 'onnx-community/BEN2-ONNX',
         device: 'wasm',
         dtype: 'fp32',
     },
@@ -61,11 +46,6 @@ let uploadedFile = null;
 let results = {};
 let stickerMode = 'stroke';
 
-// Preloaded model instances: modelId -> { model, processor } or { segmenter }
-const loadedModels = {};
-let preloadDone = false;
-let modelsLoadedCount = 0;
-
 // ── DOM refs ───────────────────────────────────────────────
 const fileInput       = document.getElementById('file-input');
 const uploadArea      = document.getElementById('upload-area');
@@ -80,9 +60,6 @@ const labelStroke     = document.getElementById('label-stroke');
 const labelStickerify = document.getElementById('label-stickerify');
 const summarySection  = document.getElementById('summary-section');
 const summaryTbody    = document.getElementById('summary-tbody');
-const preloadBanner   = document.getElementById('preload-banner');
-const preloadStatus   = document.getElementById('preload-status');
-const preloadProgress = document.getElementById('preload-progress');
 
 // ── Utility: Check WebGPU availability ─────────────────────
 async function hasWebGPU() {
@@ -228,7 +205,7 @@ function setTime(modelId, phase, ms) {
 }
 function setCardState(modelId, state) {
     const card = document.querySelector(`.model-card[data-model="${modelId}"]`);
-    card.classList.remove('running', 'done', 'error', 'fastest', 'preloaded');
+    card.classList.remove('running', 'done', 'error', 'fastest');
     if (state) card.classList.add(state);
 }
 
@@ -256,19 +233,22 @@ async function displayResult(modelId, blob) {
 }
 
 // ════════════════════════════════════════════════════════════
-// PHASE 1: PRELOAD ALL MODELS ON PAGE LOAD
+// LOAD + INFERENCE PER MODEL (sequential)
 // ════════════════════════════════════════════════════════════
 
-async function preloadModel(modelDef) {
+async function runModel(modelDef, imageBlob) {
     const { id, modelId, device, dtype } = modelDef;
 
+    results[id] = { status: 'running', loadTime: null, processTime: null, totalTime: null, blob: null };
+
     setCardState(id, 'running');
-    setStatus(id, 'Preloading model...');
+    setStatus(id, 'Loading model...');
     setProgress(id, 5);
 
-    const t0 = performance.now();
+    const tStart = performance.now();
 
     try {
+        // ── Step 1: Determine device ──
         let actualDevice = device;
         if (device === 'webgpu') {
             const gpuOk = await hasWebGPU();
@@ -280,16 +260,19 @@ async function preloadModel(modelDef) {
 
         const progressCb = (p) => {
             if (p.status === 'progress' && p.total) {
-                const pct = Math.round((p.loaded / p.total) * 90);
+                const pct = Math.round((p.loaded / p.total) * 45);
                 setProgress(id, 5 + pct);
                 const mb = (p.loaded / 1024 / 1024).toFixed(1);
                 setStatus(id, `Downloading... ${mb} MB`);
             }
         };
 
+        // ── Step 2: Load model ──
+        let model, processor, segmenter;
+        const tLoad0 = performance.now();
+
         if (modelDef.useAutoModel) {
-            // Production path: AutoModel + AutoProcessor
-            const [model, processor] = await Promise.all([
+            [model, processor] = await Promise.all([
                 AutoModel.from_pretrained(modelId, {
                     dtype: dtype,
                     revision: 'main',
@@ -299,118 +282,31 @@ async function preloadModel(modelDef) {
                 }),
                 AutoProcessor.from_pretrained(modelId, {}),
             ]);
-            loadedModels[id] = { model, processor, useAutoModel: true };
         } else {
-            // Challenger path: pipeline
-            const segmenter = await pipeline('background-removal', modelId, {
+            segmenter = await pipeline('background-removal', modelId, {
                 device: actualDevice,
                 dtype: dtype,
                 progress_callback: progressCb,
             });
-            loadedModels[id] = { segmenter, useAutoModel: false };
         }
 
-        const loadTime = performance.now() - t0;
-        setTime(id, 'load', loadTime);
-        setProgress(id, 100);
-        setCardState(id, 'preloaded');
-        setStatus(id, `Preloaded in ${fmt(loadTime)}`);
-
-        // Store load time for later summary
-        results[id] = results[id] || {};
+        const loadTime = performance.now() - tLoad0;
         results[id].loadTime = loadTime;
+        setTime(id, 'load', loadTime);
+        setProgress(id, 55);
+        setStatus(id, 'Processing image...');
 
-        modelsLoadedCount++;
-        updatePreloadBanner();
-
-    } catch (err) {
-        console.error(`[${id}] Preload error:`, err);
-        setCardState(id, 'error');
-        setStatus(id, `Preload failed: ${err.message.slice(0, 60)}`);
-        setProgress(id, 100);
-        loadedModels[id] = null;
-        modelsLoadedCount++;
-        updatePreloadBanner();
-    }
-}
-
-function updatePreloadBanner() {
-    const total = MODELS.length;
-    const pct = Math.round((modelsLoadedCount / total) * 100);
-    preloadStatus.textContent = `Preloading models... ${modelsLoadedCount}/${total}`;
-    preloadProgress.style.width = pct + '%';
-
-    if (modelsLoadedCount >= total) {
-        preloadDone = true;
-        preloadStatus.textContent = `All ${total} models preloaded and ready`;
-        preloadBanner.classList.add('done');
-        // Enable run button if image is already uploaded
-        if (uploadedFile) {
-            btnRun.disabled = false;
-        }
-    }
-}
-
-async function preloadAllModels() {
-    preloadBanner.style.display = 'block';
-    preloadStatus.textContent = `Preloading models... 0/${MODELS.length}`;
-    preloadProgress.style.width = '0%';
-
-    // Reset all cards
-    MODELS.forEach(m => {
-        setCardState(m.id, null);
-        setStatus(m.id, 'Waiting to preload...');
-        setProgress(m.id, 0);
-        setTime(m.id, 'load', null);
-        setTime(m.id, 'process', null);
-        setTime(m.id, 'total', null);
-    });
-
-    // Preload all models in parallel
-    await Promise.all(MODELS.map(m => preloadModel(m)));
-}
-
-// ════════════════════════════════════════════════════════════
-// PHASE 2: INFERENCE ONLY (after user uploads image)
-// ════════════════════════════════════════════════════════════
-
-async function runInference(modelDef, imageBlob) {
-    const { id, modelId } = modelDef;
-    const loaded = loadedModels[id];
-
-    if (!loaded) {
-        // Model failed to preload
-        results[id] = results[id] || {};
-        results[id].status = 'error';
-        results[id].processTime = null;
-        results[id].totalTime = null;
-        setCardState(id, 'error');
-        setStatus(id, 'Skipped — preload failed');
-        return results[id];
-    }
-
-    results[id] = results[id] || {};
-    results[id].status = 'running';
-    results[id].blob = null;
-
-    setCardState(id, 'running');
-    setStatus(id, 'Processing image...');
-    setProgress(id, 30);
-
-    const t0 = performance.now();
-
-    try {
+        // ── Step 3: Run inference ──
+        const tProc0 = performance.now();
         let rawBlob;
 
-        if (loaded.useAutoModel) {
-            // Production path inference
-            const { model, processor } = loaded;
+        if (modelDef.useAutoModel) {
             const bmp = await createImageBitmap(imageBlob);
             const imgUrl = URL.createObjectURL(imageBlob);
             const image = await RawImage.fromURL(imgUrl);
             URL.revokeObjectURL(imgUrl);
 
-            setProgress(id, 50);
+            setProgress(id, 65);
 
             const { pixel_values } = await processor(image);
             const { output } = await model({ input: pixel_values });
@@ -433,12 +329,9 @@ async function runInference(modelDef, imageBlob) {
             ctx.putImageData(imgData, 0, 0);
 
             rawBlob = await new Promise(res => cvs.toBlob(res, 'image/png'));
-
         } else {
-            // Pipeline inference
-            const { segmenter } = loaded;
             const imageUrl = URL.createObjectURL(imageBlob);
-            setProgress(id, 50);
+            setProgress(id, 65);
             const output = await segmenter(imageUrl);
             URL.revokeObjectURL(imageUrl);
 
@@ -452,10 +345,10 @@ async function runInference(modelDef, imageBlob) {
             }
         }
 
-        setProgress(id, 80);
+        setProgress(id, 85);
         setStatus(id, 'Applying sticker effect...');
 
-        // Apply sticker post-processing
+        // ── Step 4: Apply sticker post-processing ──
         let finalBlob;
         if (stickerMode === 'stickerify') {
             finalBlob = await applyStickerify(rawBlob);
@@ -463,25 +356,27 @@ async function runInference(modelDef, imageBlob) {
             finalBlob = await applyCurrentStroke(rawBlob);
         }
 
-        const processTime = performance.now() - t0;
+        const processTime = performance.now() - tProc0;
+        const totalTime = performance.now() - tStart;
+
         results[id].processTime = processTime;
-        results[id].totalTime = (results[id].loadTime || 0) + processTime;
+        results[id].totalTime = totalTime;
         results[id].blob = finalBlob;
         results[id].status = 'done';
 
         setTime(id, 'process', processTime);
-        setTime(id, 'total', results[id].totalTime);
+        setTime(id, 'total', totalTime);
         setProgress(id, 100);
         setCardState(id, 'done');
-        setStatus(id, `Inference: ${fmt(processTime)}`);
+        setStatus(id, `Done — ${fmt(totalTime)}`);
 
         await displayResult(id, finalBlob);
 
     } catch (err) {
-        console.error(`[${id}] Inference error:`, err);
+        console.error(`[${id}] Error:`, err);
+        const totalTime = performance.now() - tStart;
         results[id].status = 'error';
-        results[id].processTime = performance.now() - t0;
-        results[id].totalTime = (results[id].loadTime || 0) + results[id].processTime;
+        results[id].totalTime = totalTime;
         setCardState(id, 'error');
         setStatus(id, `Error: ${err.message.slice(0, 60)}`);
         setProgress(id, 100);
@@ -490,42 +385,40 @@ async function runInference(modelDef, imageBlob) {
     return results[id];
 }
 
-// ── Run inference on all preloaded models ───────────────────
-async function runAllInference() {
-    if (!uploadedFile || !preloadDone) return;
+// ── Run all models sequentially ────────────────────────────
+async function runAll() {
+    if (!uploadedFile) return;
 
     btnRun.disabled = true;
-    btnRun.textContent = 'Running Inference...';
+    btnRun.textContent = 'Running...';
     summarySection.style.display = 'none';
+    results = {};
 
-    // Reset inference-related state on cards
+    // Reset all cards
     MODELS.forEach(m => {
-        if (loadedModels[m.id]) {
-            setCardState(m.id, null);
-            setStatus(m.id, 'Queued...');
-            setProgress(m.id, 0);
-            setTime(m.id, 'process', null);
-            setTime(m.id, 'total', null);
-            // Keep load time visible
-            setTime(m.id, 'load', results[m.id]?.loadTime ?? null);
-            const canvas = document.getElementById(`canvas-${m.id}`);
-            canvas.classList.remove('visible');
-            document.getElementById(`ph-${m.id}`).classList.remove('hidden');
-            document.getElementById(`ph-${m.id}`).textContent = 'Queued...';
-        }
+        setCardState(m.id, null);
+        setStatus(m.id, 'Queued...');
+        setProgress(m.id, 0);
+        setTime(m.id, 'load', null);
+        setTime(m.id, 'process', null);
+        setTime(m.id, 'total', null);
+        const canvas = document.getElementById(`canvas-${m.id}`);
+        canvas.classList.remove('visible');
+        document.getElementById(`ph-${m.id}`).classList.remove('hidden');
+        document.getElementById(`ph-${m.id}`).textContent = 'Queued...';
     });
 
-    // Run each model sequentially to avoid GPU/memory contention
+    // Run each model one at a time
     for (const model of MODELS) {
-        await runInference(model, uploadedFile);
+        await runModel(model, uploadedFile);
     }
 
-    // Highlight fastest by process time (inference only)
+    // Highlight fastest by total time
     let fastestId = null;
     let fastestTime = Infinity;
     for (const [id, r] of Object.entries(results)) {
-        if (r.status === 'done' && r.processTime < fastestTime) {
-            fastestTime = r.processTime;
+        if (r.status === 'done' && r.totalTime < fastestTime) {
+            fastestTime = r.totalTime;
             fastestId = id;
         }
     }
@@ -537,7 +430,7 @@ async function runAllInference() {
     buildSummary(fastestId);
 
     btnRun.disabled = false;
-    btnRun.textContent = 'Run Inference Again';
+    btnRun.textContent = 'Run All Models';
 }
 
 // ── Build summary table ────────────────────────────────────
@@ -547,7 +440,7 @@ function buildSummary(fastestId) {
         .sort((a, b) => {
             if (a.status === 'done' && b.status !== 'done') return -1;
             if (a.status !== 'done' && b.status === 'done') return 1;
-            return (a.processTime || Infinity) - (b.processTime || Infinity);
+            return (a.totalTime || Infinity) - (b.totalTime || Infinity);
         });
 
     sorted.forEach(r => {
@@ -557,8 +450,8 @@ function buildSummary(fastestId) {
         tr.innerHTML = `
             <td>${r.name}${isWinner ? ' *' : ''}</td>
             <td>${fmt(r.loadTime)}</td>
-            <td class="${isWinner ? 'winner' : ''}">${fmt(r.processTime)}</td>
-            <td>${fmt(r.totalTime)}</td>
+            <td>${fmt(r.processTime)}</td>
+            <td class="${isWinner ? 'winner' : ''}">${fmt(r.totalTime)}</td>
             <td class="${isFailed ? 'failed' : ''}">${r.status === 'done' ? 'OK' : r.status === 'error' ? 'FAIL' : '—'}</td>
         `;
         summaryTbody.appendChild(tr);
@@ -567,12 +460,12 @@ function buildSummary(fastestId) {
     summarySection.style.display = 'block';
 }
 
-// ── Re-apply sticker effect ────────────────────────────────
+// ── Re-apply sticker effect note ───────────────────────────
 async function reapplySticker() {
     if (Object.keys(results).length > 0) {
         const note = document.createElement('p');
         note.style.cssText = 'text-align:center;color:var(--primary);font-size:13px;font-weight:600;margin-bottom:16px;';
-        note.textContent = 'Toggle changed! Click "Run Inference" to see results with the new sticker style.';
+        note.textContent = 'Toggle changed! Click "Run All Models" to see results with the new sticker style.';
         const existing = document.querySelector('.toggle-note');
         if (existing) existing.remove();
         note.classList.add('toggle-note');
@@ -593,13 +486,8 @@ function handleFile(file) {
     uploadArea.style.display = 'none';
     previewRow.style.display = 'flex';
 
-    // Enable run button only if models are preloaded
-    btnRun.disabled = !preloadDone;
-    if (!preloadDone) {
-        btnRun.textContent = 'Waiting for models...';
-    } else {
-        btnRun.textContent = 'Run Inference';
-    }
+    btnRun.disabled = false;
+    btnRun.textContent = 'Run All Models';
 }
 
 // ── Event listeners ────────────────────────────────────────
@@ -635,10 +523,10 @@ stickerToggle.addEventListener('change', () => {
     reapplySticker();
 });
 
-// Run inference (not loading — models are already preloaded)
-btnRun.addEventListener('click', () => runAllInference());
+// Run button
+btnRun.addEventListener('click', () => runAll());
 
-// ── Init: Start preloading immediately ─────────────────────
+// ── Init ───────────────────────────────────────────────────
 (async () => {
     const gpuAvailable = await hasWebGPU();
     const gpuCards = document.querySelectorAll('.badge-gpu');
@@ -648,10 +536,5 @@ btnRun.addEventListener('click', () => runAllInference());
             b.style.opacity = '0.5';
         });
     }
-    console.log('Kopi Benchmark: Preloading all models. WebGPU:', gpuAvailable ? 'Available' : 'Not available');
-
-    // Start preloading all models immediately
-    btnRun.textContent = 'Preloading models...';
-    btnRun.disabled = true;
-    await preloadAllModels();
+    console.log('Kopi Benchmark: Ready. WebGPU:', gpuAvailable ? 'Available' : 'Not available');
 })();
