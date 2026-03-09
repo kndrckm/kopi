@@ -2023,14 +2023,10 @@ let currentUser = null;
                 <div class="card empty-state-card">
                     <div class="empty-state-icon">
                         <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-muted); opacity: 0.8;">
-                            <!-- Steam glow -->
-                            <defs>
-                                <radialGradient id="steam-glow-empty1" cx="50%" cy="50%" r="50%">
-                                    <stop offset="0%" stop-color="currentColor" stop-opacity="0.45" />
-                                    <stop offset="100%" stop-color="currentColor" stop-opacity="0" />
-                                </radialGradient>
-                            </defs>
-                            <ellipse class="steam-bloom" cx="10.5" cy="6" rx="8" ry="7" fill="url(#steam-glow-empty1)" />
+                            <!-- Wavy steam lines -->
+                            <path class="steam-line" d="M7.5 7 C7.5 5.5, 8.5 4.8, 7.5 3" stroke-width="1.2" fill="none" />
+                            <path class="steam-line" d="M10.5 6.5 C10.5 5, 11.5 4.3, 10.5 2.5" stroke-width="1.2" fill="none" />
+                            <path class="steam-line" d="M13.5 7 C13.5 5.5, 12.5 4.8, 13.5 3" stroke-width="1.2" fill="none" />
                             <!-- Cup -->
                             <path d="M17 8H4v7a4 4 0 0 0 4 4h5a4 4 0 0 0 4-4V8z"/>
                             <!-- Handle -->
@@ -2222,14 +2218,10 @@ let currentUser = null;
                 <div class="card empty-state-card">
                     <div class="empty-state-icon">
                         <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-muted); opacity: 0.8;">
-                            <!-- Steam glow -->
-                            <defs>
-                                <radialGradient id="steam-glow-empty2" cx="50%" cy="50%" r="50%">
-                                    <stop offset="0%" stop-color="currentColor" stop-opacity="0.45" />
-                                    <stop offset="100%" stop-color="currentColor" stop-opacity="0" />
-                                </radialGradient>
-                            </defs>
-                            <ellipse class="steam-bloom" cx="10.5" cy="6" rx="8" ry="7" fill="url(#steam-glow-empty2)" />
+                            <!-- Wavy steam lines -->
+                            <path class="steam-line" d="M7.5 7 C7.5 5.5, 8.5 4.8, 7.5 3" stroke-width="1.2" fill="none" />
+                            <path class="steam-line" d="M10.5 6.5 C10.5 5, 11.5 4.3, 10.5 2.5" stroke-width="1.2" fill="none" />
+                            <path class="steam-line" d="M13.5 7 C13.5 5.5, 12.5 4.8, 13.5 3" stroke-width="1.2" fill="none" />
                             <!-- Cup -->
                             <path d="M17 8H4v7a4 4 0 0 0 4 4h5a4 4 0 0 0 4-4V8z"/>
                             <!-- Handle -->
