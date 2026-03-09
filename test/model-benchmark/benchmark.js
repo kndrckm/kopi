@@ -7,7 +7,7 @@ import { pipeline, AutoModel, AutoProcessor, RawImage, env } from 'https://cdn.j
 
 env.allowLocalModels = false;
 
-// ── Model Definitions (4 models — u2netp and BEN2 removed) ─
+// ── Model Definitions (2 models — RMBG-1.4 WASM + WebGPU) ─
 const MODELS = [
     {
         id: 'original',
@@ -19,23 +19,9 @@ const MODELS = [
         modelConfig: { model_type: 'bria-rmbg' },
     },
     {
-        id: 'birefnet-lite',
-        name: 'BiRefNet-lite',
-        modelId: 'onnx-community/BiRefNet_lite-ONNX',
-        device: 'wasm',
-        dtype: 'fp32',
-    },
-    {
         id: 'rmbg14-webgpu',
         name: 'RMBG-1.4 (WebGPU)',
         modelId: 'briaai/RMBG-1.4',
-        device: 'webgpu',
-        dtype: 'fp32',
-    },
-    {
-        id: 'birefnet-lite-webgpu',
-        name: 'BiRefNet-lite (WebGPU)',
-        modelId: 'onnx-community/BiRefNet_lite-ONNX',
         device: 'webgpu',
         dtype: 'fp32',
     },
@@ -378,7 +364,7 @@ async function runModel(modelDef, imageBlob) {
         results[id].status = 'error';
         results[id].totalTime = totalTime;
         setCardState(id, 'error');
-        setStatus(id, `Error: ${err.message.slice(0, 60)}`);
+        setStatus(id, `Error: ${String(err.message || err).slice(0, 60)}`);
         setProgress(id, 100);
     }
 
