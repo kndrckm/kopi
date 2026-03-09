@@ -825,14 +825,14 @@ p {
     overflow: visible;
 }
 
+/* === Navbar bloom (overflow-friendly, fast fade) === */
 .steam-bloom {
     opacity: 0;
     transform-origin: center bottom;
 }
 
-.empty-state-icon .steam-bloom,
 .nav-item.active .steam-bloom {
-    animation: steam-bloom 3s infinite ease-out;
+    animation: steam-bloom 2.4s infinite ease-out;
 }
 
 @keyframes steam-bloom {
@@ -840,17 +840,67 @@ p {
         opacity: 0;
         transform: translateY(0) scale(0.8);
     }
-    12% {
-        opacity: 0.5;
-        transform: translateY(-3px) scale(1.1);
+    10% {
+        opacity: 0.45;
+        transform: translateY(-2px) scale(1.05);
     }
-    50% {
-        opacity: 0.3;
-        transform: translateY(-12px) scale(1.4);
+    35% {
+        opacity: 0.18;
+        transform: translateY(-10px) scale(1.3);
+    }
+    60% {
+        opacity: 0;
+        transform: translateY(-18px) scale(1.5);
     }
     100% {
         opacity: 0;
-        transform: translateY(-20px) scale(1.6);
+        transform: translateY(-20px) scale(1.5);
+    }
+}
+
+/* === Empty-state wavy steam lines === */
+.steam-line {
+    opacity: 0;
+    transform-origin: center bottom;
+}
+
+.empty-state-icon .steam-line {
+    animation: steam-wave 2.8s infinite ease-in-out;
+}
+.empty-state-icon .steam-line:nth-child(1) {
+    animation-delay: 0s;
+}
+.empty-state-icon .steam-line:nth-child(2) {
+    animation-delay: 0.5s;
+}
+.empty-state-icon .steam-line:nth-child(3) {
+    animation-delay: 1s;
+}
+
+@keyframes steam-wave {
+    0% {
+        opacity: 0;
+        transform: translateY(0) translateX(0);
+    }
+    15% {
+        opacity: 0.5;
+        transform: translateY(-1px) translateX(0.8px);
+    }
+    40% {
+        opacity: 0.4;
+        transform: translateY(-3px) translateX(-1px);
+    }
+    65% {
+        opacity: 0.25;
+        transform: translateY(-5px) translateX(0.6px);
+    }
+    85% {
+        opacity: 0.08;
+        transform: translateY(-6.5px) translateX(-0.4px);
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-8px) translateX(0);
     }
 }
 
