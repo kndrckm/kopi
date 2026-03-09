@@ -2023,10 +2023,14 @@ let currentUser = null;
                 <div class="card empty-state-card">
                     <div class="empty-state-icon">
                         <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-muted); opacity: 0.8;">
-                            <!-- Steam -->
-                            <path class="steam-path" d="M9 2c0 1 1.5 1.5 1.5 2.5s-1.5 1.5-1.5 2.5" style="animation-delay: 0s;"/>
-                            <path class="steam-path" d="M12 1c0 1 1.5 1.5 1.5 2.5s-1.5 1.5-1.5 2.5" style="animation-delay: 0.5s;"/>
-                            <path class="steam-path" d="M15 2c0 1 1.5 1.5 1.5 2.5s-1.5 1.5-1.5 2.5" style="animation-delay: 1s;"/>
+                            <!-- Steam glow -->
+                            <defs>
+                                <radialGradient id="steam-glow-empty1" cx="50%" cy="50%" r="50%">
+                                    <stop offset="0%" stop-color="currentColor" stop-opacity="0.45" />
+                                    <stop offset="100%" stop-color="currentColor" stop-opacity="0" />
+                                </radialGradient>
+                            </defs>
+                            <ellipse class="steam-bloom" cx="10.5" cy="4" rx="6" ry="3.5" fill="url(#steam-glow-empty1)" />
                             <!-- Cup -->
                             <path d="M17 8H4v7a4 4 0 0 0 4 4h5a4 4 0 0 0 4-4V8z"/>
                             <!-- Handle -->
@@ -2218,10 +2222,14 @@ let currentUser = null;
                 <div class="card empty-state-card">
                     <div class="empty-state-icon">
                         <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-muted); opacity: 0.8;">
-                            <!-- Steam -->
-                            <path class="steam-path" d="M9 2c0 1 1.5 1.5 1.5 2.5s-1.5 1.5-1.5 2.5" style="animation-delay: 0s;"/>
-                            <path class="steam-path" d="M12 1c0 1 1.5 1.5 1.5 2.5s-1.5 1.5-1.5 2.5" style="animation-delay: 0.5s;"/>
-                            <path class="steam-path" d="M15 2c0 1 1.5 1.5 1.5 2.5s-1.5 1.5-1.5 2.5" style="animation-delay: 1s;"/>
+                            <!-- Steam glow -->
+                            <defs>
+                                <radialGradient id="steam-glow-empty2" cx="50%" cy="50%" r="50%">
+                                    <stop offset="0%" stop-color="currentColor" stop-opacity="0.45" />
+                                    <stop offset="100%" stop-color="currentColor" stop-opacity="0" />
+                                </radialGradient>
+                            </defs>
+                            <ellipse class="steam-bloom" cx="10.5" cy="4" rx="6" ry="3.5" fill="url(#steam-glow-empty2)" />
                             <!-- Cup -->
                             <path d="M17 8H4v7a4 4 0 0 0 4 4h5a4 4 0 0 0 4-4V8z"/>
                             <!-- Handle -->
