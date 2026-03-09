@@ -14,6 +14,17 @@
             <p class="subtitle">Kopi — Model Comparison Tool</p>
         </header>
 
+        <!-- Preload Banner -->
+        <div class="preload-banner" id="preload-banner" style="display:none;">
+            <div class="preload-info">
+                <span class="preload-icon">&#9881;</span>
+                <span id="preload-status">Preloading models... 0/6</span>
+            </div>
+            <div class="preload-bar">
+                <div class="preload-bar-fill" id="preload-progress" style="width:0%"></div>
+            </div>
+        </div>
+
         <!-- Sticker Style Toggle -->
         <div class="toggle-section">
             <div class="toggle-row">
@@ -46,7 +57,7 @@
         </div>
 
         <!-- Run Button -->
-        <button id="btn-run" class="btn-primary" disabled>Run All Models</button>
+        <button id="btn-run" class="btn-primary" disabled>Preloading models...</button>
 
         <!-- Results Grid -->
         <div class="results-grid" id="results-grid">
