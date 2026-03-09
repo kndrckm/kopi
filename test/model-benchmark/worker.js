@@ -50,12 +50,11 @@ self.onmessage = async (e) => {
                 }
             };
 
-            // Always uint8 quantized for the WASM model
+            // Always quantized for the WASM model (no dtype - resolves model_quantized.onnx automatically)
             const modelOpts = {
                 revision: 'main',
                 config: { model_type: 'bria-rmbg' },
                 device: 'wasm',
-                dtype: 'uint8',
                 quantized: true,
                 progress_callback: progressCb,
             };
