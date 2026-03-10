@@ -261,6 +261,13 @@ let currentUser = null;
             }
         };
 
+        // Gyroscope — feed device tilt into the sticker physics gravity vector
+        window.addEventListener('deviceorientation', (e) => {
+            // Gamma is left-to-right tilt (-90 to 90), Beta is front-to-back tilt (-180 to 180)
+            stickerPhysics.gravity.x = (e.gamma || 0) / 45;
+            stickerPhysics.gravity.y = (e.beta || 0) / 45;
+        });
+
         // Setup Auth Listener
         supabase.auth.onAuthStateChange((event, session) => {
             if (event === 'SIGNED_IN') {
@@ -557,6 +564,7 @@ let currentUser = null;
                     }
                     // Re-render statistics now that the container is visible and has layout dimensions
                     updateStatistics();
+                    requestDeviceOrientation();
                 }, 10);
             }
 
@@ -2343,6 +2351,7 @@ let currentUser = null;
                 }
                 updateStatsSubtitle();
                 updateStatistics();
+                requestDeviceOrientation();
             });
         });
 
@@ -3083,5 +3092,18 @@ let currentUser = null;
     } catch (err) {
         console.error('App initialization error:', err);
         toast.error('Something went wrong loading the app. Please refresh.');
+    }
+
+    async function requestDeviceOrientation() {
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            try {
+                const permission = await DeviceOrientationEvent.requestPermission();
+                if (permission === 'granted') {
+                    console.log('DeviceOrientation permission granted');
+                }
+            } catch (error) {
+                console.error('DeviceOrientation permission error:', error);
+            }
+        }
     }
 })();
