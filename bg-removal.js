@@ -149,7 +149,8 @@ export async function removeBackground(imageBlob, progressCallback = null) {
             }
 
             const data = await response.json();
-
+            console.log("Raw Gemini API Output:", JSON.stringify(data)); // Exposes what Gemini is actually sending back
+            
             let resultBlob = null;
             for (const part of data.candidates?.[0]?.content?.parts || []) {
                 if (part.inlineData) {
