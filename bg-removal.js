@@ -73,7 +73,6 @@ export async function removeBackground(imageBlob, progressCallback = null) {
             if (progressCallback) progressCallback({ type: 'status', message: 'Initializing local AI model...' });
 
             const config = {
-                publicPath: "https://unpkg.com/@imgly/background-removal@1.4.3/dist/",
                 model: "small",
                 progress: (key, current, total) => {
                     if (progressCallback) {
