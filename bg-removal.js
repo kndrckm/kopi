@@ -89,8 +89,8 @@ export async function removeBackground(imageBlob, progressCallback = null) {
 
             if (progressCallback) progressCallback({ type: 'status', message: 'Trimming image...' });
 
-            // Trim transparent margins (Autocrop)
-            const bmpUrl = URL.createObjectURL(resultBlob);
+            // Add stickerify stroke and drop shadow natively
+            const imgUrl = URL.createObjectURL(resultBlob);
             const img = new Image();
             img.onload = () => {
                 const canvas = document.createElement('canvas');
@@ -99,21 +99,37 @@ export async function removeBackground(imageBlob, progressCallback = null) {
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0);
 
-                let processedCanvas = trimCanvas(canvas);
+                // Add white outline (dynamic thickness)
+                const thickness = Math.floor(Math.max(canvas.width, canvas.height) * 0.04) || 20;
+                let processedCanvas = stickerify(canvas, thickness, 'white');
 
-                // Add stickerify stroke (dynamic thickness based on image size)
-                const thickness = Math.floor(Math.max(processedCanvas.width, processedCanvas.height) * 0.04) || 20;
-                processedCanvas = stickerify(processedCanvas, thickness, 'white');
+                // Apply Drop Shadow AFTER stickerify
+                const shadowPadded = document.createElement('canvas');
+                // Allow enough room for a 15px blur shadow evenly around
+                const shadowPad = 30; 
+                shadowPadded.width = processedCanvas.width + shadowPad * 2;
+                shadowPadded.height = processedCanvas.height + shadowPad * 2;
+                const shadowCtx = shadowPadded.getContext('2d');
+                
+                shadowCtx.shadowColor = 'rgba(0, 0, 0, 0.15)';
+                shadowCtx.shadowBlur = 15;
+                shadowCtx.shadowOffsetX = 0;
+                shadowCtx.shadowOffsetY = 4;
+                
+                // Draw the stickerified image into the center, dropping the shadow
+                shadowCtx.drawImage(processedCanvas, shadowPad, shadowPad);
 
-                URL.revokeObjectURL(bmpUrl);
+                // Trim excess transparent margins off the final shadowed image
+                processedCanvas = trimCanvas(shadowPadded);
 
+                URL.revokeObjectURL(imgUrl);
                 processedCanvas.toBlob((finalBlob) => resolve(finalBlob), 'image/webp', 0.85);
             };
             img.onerror = () => {
-                URL.revokeObjectURL(bmpUrl);
-                resolve(resultBlob); // Fallback to untrimmed if error
+                URL.revokeObjectURL(imgUrl);
+                resolve(resultBlob);
             }
-            img.src = bmpUrl;
+            img.src = imgUrl;
 
         } catch (error) {
             console.error("Local BG Removal Error:", error);
