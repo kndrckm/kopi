@@ -131,15 +131,19 @@ export async function removeBackground(imageBlob, progressCallback = null) {
                 img.src = objUrl;
             });
 
-            // New AI Studio Proxy Endpoint (handles API key securely on the server side)
-            const endpoint = 'https://ais-dev-qgle3en2mrpmqhuege3w5c-326537839013.asia-east1.run.app/api/remove-bg';
+            // New AI Studio Pre-release Endpoint
+            const endpoint = 'https://ais-pre-qgle3en2mrpmqhuege3w5c-326537839013.asia-east1.run.app/api/remove-bg';
 
             if (progressCallback) progressCallback({ type: 'status', message: 'Processing with AI Studio...' });
 
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ imageBase64: `data:${mimeType};base64,${base64Img}`, mimeType: mimeType })
+                body: JSON.stringify({ 
+                    imageBase64: `data:${mimeType};base64,${base64Img}`, 
+                    mimeType: mimeType,
+                    apiKey: localStorage.getItem('gemini_api_key') || 'API_KEY_GEMINI_ANDA'
+                })
             });
 
             if (!response.ok) {
