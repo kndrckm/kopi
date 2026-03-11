@@ -149,28 +149,43 @@ export async function removeBackground(imageBlob, progressCallback = null) {
             }
 
             const data = await response.json();
-            console.log("Raw Gemini API Output:", JSON.stringify(data)); // Exposes what Gemini is actually sending back
             
+            // Check for safety blocks or errors from Gemini
+            if (data.candidates?.[0]?.finishReason === 'SAFETY') {
+                throw new Error('Gemini blocked the image for safety reasons. Try a different photo.');
+            }
+
             let resultBlob = null;
-            for (const part of data.candidates?.[0]?.content?.parts || []) {
+            const parts = data.candidates?.[0]?.content?.parts || [];
+            
+            if (parts.length === 0 && data.candidates?.[0]?.finishReason) {
+                console.error("Gemini Finish Reason:", data.candidates[0].finishReason);
+                throw new Error(`AI processing stopped: ${data.candidates[0].finishReason}`);
+            }
+
+            for (const part of parts) {
                 if (part.inlineData) {
                     resultBlob = base64ToBlob(part.inlineData.data, part.inlineData.mimeType);
                     break;
                 } else if (part.text) {
-                    // Check if it's returning base64 in markdown
-                    const match = part.text.match(/```(png|jpeg|jpg|webp)\n([\s\S]+?)\n```/);
+                    // Check for base64 inside markdown blocks (supporting any image type)
+                    const match = part.text.match(/```(?:[a-z]+)?\s*([\s\S]+?)\s*```/i);
                     if (match) {
-                        const mime = `image/${match[1]}`;
-                        const base64Str = match[2].replace(/\s/g, '');
-                        resultBlob = base64ToBlob(base64Str, mime);
-                        break;
+                        try {
+                            const rawBase64 = match[1].replace(/^data:image\/[a-z]+;base64,/i, '').replace(/\s/g, '');
+                            resultBlob = base64ToBlob(rawBase64, 'image/png');
+                            break;
+                        } catch (e) {
+                            console.warn("Failed to parse markdown base64:", e);
+                        }
                     }
                 }
             }
 
             if (!resultBlob) {
-                console.error("Failed to parse Gemini response parts:", data.candidates?.[0]?.content?.parts);
-                throw new Error('No image data returned from Edge Function.');
+                console.error("Gemini full payload error:", data);
+                if (data.error) throw new Error(`Gemini API Error: ${data.error.message || data.error}`);
+                throw new Error('No image detected in AI response. Gemini might have sent text instead.');
             }
 
             if (progressCallback) progressCallback({ type: 'status', message: 'Trimming image...' });
