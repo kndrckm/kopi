@@ -131,64 +131,33 @@ export async function removeBackground(imageBlob, progressCallback = null) {
                 img.src = objUrl;
             });
 
-            // Project ID extracted from config.js: ifwwlxasqzfiqpnphasr
-            const endpoint = 'https://ifwwlxasqzfiqpnphasr.supabase.co/functions/v1/gemini-bg-removal';
+            // New AI Studio Proxy Endpoint (handles API key securely on the server side)
+            const endpoint = 'https://ais-dev-qgle3en2mrpmqhuege3w5c-326537839013.asia-east1.run.app/api/remove-bg';
 
-            if (progressCallback) progressCallback({ type: 'status', message: 'Processing with Gemini...' });
+            if (progressCallback) progressCallback({ type: 'status', message: 'Processing with AI Studio...' });
 
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ imageBase64: base64Img, mimeType: mimeType })
+                body: JSON.stringify({ imageBase64: `data:${mimeType};base64,${base64Img}`, mimeType: mimeType })
             });
 
             if (!response.ok) {
-                const errResult = await response.json();
-                console.error("Edge Function Error:", errResult);
-                throw new Error(errResult.error || `Edge Function error ${response.status}`);
+                const errResult = await response.json().catch(() => ({}));
+                console.error("AI Studio Error:", errResult);
+                throw new Error(errResult.error || `AI Studio error ${response.status}`);
             }
 
             const data = await response.json();
             
-            // Check for safety blocks or errors from Gemini
-            if (data.candidates?.[0]?.finishReason === 'SAFETY') {
-                throw new Error('Gemini blocked the image for safety reasons. Try a different photo.');
+            if (!data.success || !data.resultImage) {
+                console.error("AI Studio Failure:", data);
+                throw new Error(data.error || 'AI Studio failed to return image data.');
             }
 
-            let resultBlob = null;
-            const parts = data.candidates?.[0]?.content?.parts || [];
-            
-            if (parts.length === 0 && data.candidates?.[0]?.finishReason) {
-                console.error("Gemini Finish Reason:", data.candidates[0].finishReason);
-                throw new Error(`AI processing stopped: ${data.candidates[0].finishReason}`);
-            }
-
-            for (const part of parts) {
-                // Support both REST (inline_data) and SDK (inlineData) formats
-                const inlineData = part.inline_data || part.inlineData;
-                if (inlineData) {
-                    resultBlob = base64ToBlob(inlineData.data, inlineData.mime_type || inlineData.mimeType);
-                    break;
-                } else if (part.text) {
-                    // Check for base64 inside markdown blocks (supporting any image type)
-                    const match = part.text.match(/```(?:[a-z]+)?\s*([\s\S]+?)\s*```/i);
-                    if (match) {
-                        try {
-                            const rawBase64 = match[1].replace(/^data:image\/[a-z]+;base64,/i, '').replace(/\s/g, '');
-                            resultBlob = base64ToBlob(rawBase64, 'image/png');
-                            break;
-                        } catch (e) {
-                            console.warn("Failed to parse markdown base64:", e);
-                        }
-                    }
-                }
-            }
-
-            if (!resultBlob) {
-                console.error("Gemini full payload error:", data);
-                if (data.error) throw new Error(`Gemini API Error: ${data.error.message || data.error}`);
-                throw new Error('No image detected in AI response. Gemini might have sent text instead.');
-            }
+            // The resultImage is a full data URL (e.g. data:image/png;base64,...)
+            const resultBase64 = data.resultImage.split(',')[1];
+            const resultBlob = base64ToBlob(resultBase64, 'image/png');
 
             if (progressCallback) progressCallback({ type: 'status', message: 'Trimming image...' });
 
