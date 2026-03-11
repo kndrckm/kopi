@@ -98,8 +98,8 @@ export async function removeBackground(imageBlob, progressCallback = null) {
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0);
 
-                // Add white outline (dynamic thickness)
-                const thickness = Math.floor(Math.max(canvas.width, canvas.height) * 0.04) || 20;
+                // Add white outline (dynamic thickness: ~2% of image size)
+                const thickness = Math.floor(Math.max(canvas.width, canvas.height) * 0.02) || 15;
                 let processedCanvas = stickerify(canvas, thickness, 'white');
 
                 // Apply Drop Shadow AFTER stickerify
