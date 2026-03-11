@@ -1754,11 +1754,12 @@ let currentUser = null;
                 if (entry.sticker) {
                     uploadedPhotoDataUrl = entry.sticker;
 
-                    // Fetch the image and mock a proper blob so background removal doesn't fail with DOMException
-                    fetch(entry.sticker)
+                    // Fetch the image with proper CORS so background removal doesn't fail with DOMException or tainted canvas
+                    fetch(entry.sticker, { mode: 'cors', cache: 'no-cache' })
                         .then(res => res.blob())
                         .then(blob => {
-                            uploadedPhotoBlob = blob;
+                            // Ensure the blob has a correct image type
+                            uploadedPhotoBlob = new File([blob], "existing_sticker.png", { type: blob.type || "image/png" });
                         })
                         .catch(err => console.error("Could not fetch sticker blob for edit:", err));
 
