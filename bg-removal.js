@@ -74,10 +74,10 @@ export async function removeBackground(imageBlob, progressCallback = null) {
 
             const config = {
                 publicPath: "https://unpkg.com/@imgly/background-removal@1.4.3/dist/",
-                model: "isnet_quint8",
+                model: "small",
                 progress: (key, current, total) => {
                     if (progressCallback) {
-                        const message = total > 0 
+                        const message = total > 0
                             ? `Downloading AI (${Math.round((current / total) * 100)}%)`
                             : `Processing image...`;
                         progressCallback({ type: 'progress', message: message, progress: total > 0 ? Math.round((current / total) * 100) : 0 });
@@ -106,16 +106,16 @@ export async function removeBackground(imageBlob, progressCallback = null) {
                 // Apply Drop Shadow AFTER stickerify
                 const shadowPadded = document.createElement('canvas');
                 // Allow enough room for a 15px blur shadow evenly around
-                const shadowPad = 30; 
+                const shadowPad = 30;
                 shadowPadded.width = processedCanvas.width + shadowPad * 2;
                 shadowPadded.height = processedCanvas.height + shadowPad * 2;
                 const shadowCtx = shadowPadded.getContext('2d');
-                
+
                 shadowCtx.shadowColor = 'rgba(0, 0, 0, 0.15)';
                 shadowCtx.shadowBlur = 15;
                 shadowCtx.shadowOffsetX = 0;
                 shadowCtx.shadowOffsetY = 4;
-                
+
                 // Draw the stickerified image into the center, dropping the shadow
                 shadowCtx.drawImage(processedCanvas, shadowPad, shadowPad);
 
