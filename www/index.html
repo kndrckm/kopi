@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Monicoffee</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#8B6F47">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Monicoffee">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+    <link rel="stylesheet" href="styles.css?v=16">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+
+<body>
+    <!-- OVERLAY BANNER FOR NEW VERSION (Hidden by default) -->
+    <div id="pwa-update-banner" class="pwa-update-banner">
+        <span>A new version is available! Tap to refresh.</span>
+    </div>
+
+    <div id="app-container">
+        <!-- ======================= -->
+        <!-- ONBOARDING VIEW          -->
+        <!-- ======================= -->
+        <div id="view-onboarding" class="view">
+            <div class="nickname-container">
+                <div class="app-logo">
+                    <i class="ph-fill ph-coffee"></i>
+                </div>
+                <h2>Setting up...</h2>
+                <p>Preparing your coffee journey</p>
+                <div style="margin-top: 20px;">
+                    <div class="btn-spinner" style="border-top-color: var(--primary); width: 32px; height: 32px; margin: 0 auto;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ======================= -->
+        <!-- LOGIN VIEW              -->
+        <!-- ======================= -->
+        <div id="view-login" class="view">
+            <div class="login-container">
+                <div class="app-logo">
+                    <i class="ph-fill ph-coffee"></i>
+                </div>
+                <h1>Monicoffee</h1>
+                <p>Sign in to sync your coffee journey</p>
+
+                <div class="bottom-action login-action">
+                    <button id="btn-google-login" class="btn-primary auth-btn">
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google"
+                            class="google-icon">
+                        Continue with Google
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ======================= -->
+        <!-- NICKNAME VIEW           -->
+        <!-- ======================= -->
+        <div id="view-nickname" class="view">
+            <div class="nickname-container">
+                <div class="app-logo small-logo">
+                    <i class="ph-fill ph-coffee"></i>
+                </div>
+                <h2>What should we call you?</h2>
+                <p>Enter a nickname for your coffee profile</p>
+
+                <div class="input-group">
+                    <input type="text" id="input-nickname" placeholder="e.g. John Doe" class="text-input"
+                        autocomplete="off" maxlength="20">
+                </div>
+
+                <div class="bottom-action">
+                    <button id="btn-save-nickname" class="btn-primary">Continue</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ======================= -->
+        <!-- CALENDAR VIEW           -->
+        <!-- ======================= -->
+        <div id="view-calendar" class="view">
+            <div class="page-header">
+                <h1 id="user-greeting">Mar</h1>
+                <p>Mon, 2 Mar 2026</p>
+            </div>
+
+            <div class="card calendar-card">
+                <div class="calendar-days-header">
+                    <span
+                        class="weekend">S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span
+                        class="weekend">S</span>
+                </div>
+                <div class="calendar-grid" id="calendar-grid">
+                    <!-- JS will populate days -->
+                </div>
+            </div>
+
+            <button class="btn-primary icon-btn" id="btn-add-cup-main"><i class="ph ph-plus"></i> Add a Cup</button>
+
+            <div class="section-title">
+                <h2>Today Coffee</h2>
+            </div>
+
+            <div class="coffee-list" id="today-coffee-list">
+                <div class="card empty-state-card">
+                    <div class="empty-state-icon">☕</div>
+                    <p class="empty-state-text">None, take a sip!</p>
+                </div>
+            </div>
+
+            <!-- Past Days' Records -->
+            <div id="past-coffee-list"></div>
+        </div>
+
+        <!-- ======================= -->
+        <!-- STATISTICS VIEW         -->
+        <!-- ======================= -->
+        <div id="view-statistics" class="view">
+            <div class="page-header">
+                <h1>Statistics</h1>
+                <p id="stats-subtitle" class="stats-subtitle-container">
+                    <span id="stats-sub-week" class="sub-part hidden">Week of </span><span id="stats-sub-month"
+                        class="sub-part">March </span><span id="stats-sub-year" class="sub-part sub-year">2026</span>
+                </p>
+            </div>
+
+            <div class="stats-tabs">
+                <div class="tabs-group" id="stats-tabs-group">
+                    <div class="tab-indicator" id="stat-tab-indicator"></div>
+                    <button class="tab-btn active" data-period="week">Week</button>
+                    <button class="tab-btn" data-period="month">Month</button>
+                    <button class="tab-btn" data-period="year">Year</button>
+                </div>
+                <button class="icon-tab-btn" id="btn-open-picker"><i class="ph ph-calendar-blank"></i></button>
+            </div>
+
+            <div class="card chart-placeholder-card" id="stats-chart-area">
+                <!-- Will show coffee stickers from saved entries -->
+            </div>
+
+            <div class="stats-grid">
+                <div class="card stat-box">
+                    <p>Total Cups</p>
+                    <div class="odometer-container">
+                        <h3 id="stat-total-cups" class="odometer-value">0</h3>
+                    </div>
+                </div>
+                <div class="card stat-box">
+                    <p>Total Spend</p>
+                    <div class="odometer-container">
+                        <h3 id="stat-total-spend" class="odometer-value">0</h3>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card feature-stat-card">
+                <div class="stat-header">
+                    <p>Most Popular</p>
+                </div>
+                <div class="popular-coffee" id="stat-most-popular">
+                    <div class="popular-icon" id="popular-icon-wrapper">
+                        <div class="popular-icon-inner" id="popular-icon-inner">☕</div>
+                    </div>
+                    <div class="popular-text">
+                        <div class="popular-title-wrapper" id="popular-title-wrapper">
+                            <h3 id="popular-title-inner">—</h3>
+                        </div>
+                        <div class="odometer-container">
+                            <p id="popular-cups-val" class="odometer-value">0</p>
+                            <p style="margin-left: 4px;">Cups</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" style="padding:20px;">
+                <div class="cups-title-container">
+                    <div class="cups-title-roulette" id="daily-cups-roulette">
+                        <span class="roulette-item">Daily</span>
+                        <span class="roulette-item">Weekly</span>
+                        <span class="roulette-item">Monthly</span>
+                    </div>
+                    <span>Cups</span>
+                </div>
+                <div class="daily-cups-chart" id="daily-cups-chart"></div>
+            </div>
+
+            <div class="card" style="padding:20px;">
+                <p style="font-weight:600;margin-bottom:16px;">By Type</p>
+                <div class="donut-container" id="by-type-chart"></div>
+            </div>
+        </div>
+
+        <!-- ======================= -->
+        <!-- SETTINGS VIEW           -->
+        <!-- ======================= -->
+        <div id="view-settings" class="view">
+            <div class="page-header">
+                <h1>Settings</h1>
+            </div>
+
+            <div class="card selectable" id="btn-open-type-editor">
+                <h3>Coffee Type</h3>
+                <p class="setting-hint">Customize icons, names &amp; order</p>
+            </div>
+
+            <div class="card" id="nickname-setting">
+                <h3>Display Name</h3>
+                <div class="setting-row" style="margin-top: 8px;">
+                    <input type="text" id="input-display-name" class="text-input" placeholder="Your name"
+                        style="flex:1; margin-right: 8px;">
+                    <button class="btn-pill-small" id="btn-save-display-name">Save</button>
+                </div>
+            </div>
+
+            <div class="card selectable" id="btn-toggle-theme">
+                <div class="setting-row">
+                    <h3>Theme</h3>
+                    <span class="setting-value" id="current-theme-label">System</span>
+                </div>
+            </div>
+
+            <div class="card selectable" id="btn-open-language">
+                <div class="setting-row">
+                    <h3>Language</h3>
+                    <span class="setting-value" id="current-lang">English</span>
+                </div>
+            </div>
+
+            <div class="card selectable" id="btn-hard-refresh">
+                <div class="setting-row">
+                    <h3>Hard Refresh Cache</h3>
+                    <span class="setting-value"><i class="ph ph-arrows-clockwise"></i></span>
+                </div>
+                <p class="setting-hint">Fixes missing stickers and forces a fresh reload.</p>
+            </div>
+
+            <div class="card selectable align-center" id="btn-logout" style="margin-top:24px;">
+                <div class="setting-row">
+                    <h3 style="color: #ff3b30;">Log Out</h3>
+                    <i class="ph ph-sign-out" style="color: #ff3b30; font-size: 20px;"></i>
+                </div>
+            </div>
+
+            <!-- Admin Maintenance (Only visible to admin UID) -->
+            <div class="card" id="admin-section"
+                style="display: none; margin-top: 24px; border: 1px dashed var(--border-color);">
+                <h3>Admin Maintenance</h3>
+                <p class="setting-hint">One-time tools to optimize app data.</p>
+                <button class="btn-primary icon-btn" id="btn-cleanup-stickers"
+                    style="margin-top: 12px; background: #2c3e50;">
+                    <i class="ph ph-magic-wand"></i> Trim Existing Stickers
+                </button>
+                <div id="cleanup-status"
+                    style="margin-top: 12px; font-size: 13px; color: var(--text-muted); line-height: 1.4; display: none;">
+                </div>
+            </div>
+
+            <!-- App Version Display -->
+            <div style="text-align: center; margin-top: 32px; margin-bottom: 32px; padding-bottom: 32px;">
+                <span id="settings-app-version"
+                    style="font-size: 12px; color: var(--text-muted); font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase;">Version
+                    1.0.0</span>
+            </div>
+        </div>
+
+        <!-- ======================= -->
+        <!-- COFFEE TYPE EDITOR       -->
+        <!-- ======================= -->
+        <div id="modal-type-editor" class="modal-view">
+            <div class="sheet-content">
+                <div class="modal-header flex-between">
+                    <button class="btn-sheet" id="btn-close-type-editor">Cancel</button>
+                    <h2>Coffee Type</h2>
+                    <button class="btn-sheet" id="btn-save-types">Save</button>
+                </div>
+                <div class="modal-body">
+                    <div id="type-editor-list" class="type-editor-list">
+                        <!-- JS populates -->
+                    </div>
+                    <button class="type-add-others-btn" id="btn-add-others-editor">
+                        <span class="type-add-icon">＋</span>
+                        <span>Others</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ======================= -->
+        <!-- NEW / EDIT COFFEE TYPE   -->
+        <!-- ======================= -->
+        <div id="modal-new-type" class="modal-view">
+            <div class="sheet-content">
+                <div class="modal-header flex-between">
+                    <button class="btn-sheet" id="btn-cancel-new-type">Cancel</button>
+                    <h2 id="new-type-title">New Coffee Type</h2>
+                    <button class="btn-sheet" id="btn-save-new-type">Save</button>
+                </div>
+                <div class="modal-body" style="text-align:center;">
+                    <div class="new-type-icon-preview" id="new-type-icon-preview">
+                        <span class="new-type-icon-emoji" id="new-type-icon-emoji">☕</span>
+                        <button class="new-type-icon-edit-btn" id="btn-edit-type-icon"><i
+                                class="ph ph-pencil-simple"></i></button>
+                    </div>
+                    <p class="setting-hint" style="margin-bottom:24px;">Tap to change icon</p>
+
+                    <div class="form-group" style="text-align:left;">
+                        <label>Coffee Name</label>
+                        <input type="text" class="text-input" id="input-new-type-name"
+                            placeholder="e.g., Cappuccino, Cold Brew">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ======================= -->
+        <!-- ICON PICKER OVERLAY      -->
+        <!-- ======================= -->
+        <div id="icon-picker-overlay" class="modal-view">
+            <div class="sheet-content">
+                <div class="modal-header flex-between">
+                    <div></div>
+                    <h2>Select Icon</h2>
+                    <button class="btn-sheet" id="btn-icon-picker-done">Done</button>
+                </div>
+                <div class="modal-body" style="text-align:center;">
+                    <div class="icon-picker-preview">
+                        <span class="icon-picker-selected" id="icon-picker-selected">☕</span>
+                        <p class="setting-hint">Selected Icon</p>
+                    </div>
+                    <div class="form-group" style="margin:20px 0;">
+                        <input type="text" class="text-input" id="input-other-emoji" placeholder="Other Emoji..."
+                            style="text-align:center;font-size:20px;">
+                    </div>
+                    <p style="font-weight:600;text-align:left;margin-bottom:12px;">Choose an Icon</p>
+                    <div class="icon-picker-grid" id="icon-picker-grid">
+                        <!-- JS populates -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- LANGUAGE PICKER OVERLAY -->
+        <div id="lang-overlay" class="modal-view">
+            <div class="picker-card sheet-content">
+                <div class="picker-handle"></div>
+                <div class="picker-header">
+                    <h3 style="font-size:16px;">Language</h3>
+                    <button class="btn-text highlight" id="btn-lang-done">Done</button>
+                </div>
+                <div class="lang-options">
+                    <div class="lang-option selected" data-lang="en">
+                        <span>English</span>
+                        <i class="ph ph-check"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ======================= -->
+        <!-- ADD COFFEE MODAL        -->
+        <!-- ======================= -->
+        <div id="modal-add-coffee" class="modal-view">
+            <div class="sheet-content">
+                <div class="modal-header flex-between">
+                    <button class="btn-sheet" id="btn-cancel-add">Cancel</button>
+                    <h2>Add Coffee</h2>
+                    <button class="btn-sheet" id="btn-save-coffee">Save</button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Photo (Optional)</label>
+                        <div class="photo-upload-box" id="photo-placeholder">
+                            <i class="ph ph-camera"></i>
+                            <span class="photo-upload-title">Add Photo</span>
+                            <span class="photo-upload-hint">Capture your coffee moment</span>
+                        </div>
+                        <input type="file" id="photo-input" accept="image/*" hidden>
+                    </div>
+
+                    <div class="split-row" style="display: flex; gap: 12px; margin-bottom: 24px;">
+                        <!-- Left Maps (50%) -->
+                        <div class="card list-input selectable compact-list-input" id="btn-open-maps"
+                            style="flex: 1; margin-bottom: 0; padding: 16px;">
+                            <div class="list-input-left" style="gap: 12px;">
+                                <i class="ph ph-map-pin" style="font-size: 22px; color: var(--primary-color);"></i>
+                                <div>
+                                    <h3 id="add-coffee-location" style="font-size: 14px; margin-bottom: 2px;">Add
+                                        Location</h3>
+                                    <p id="add-coffee-address" style="font-size: 13px;">Optional</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Date (50%) -->
+                        <div class="card list-input selectable compact-list-input" id="btn-open-dt-picker"
+                            style="flex: 1; margin-bottom: 0; padding: 16px;">
+                            <div class="list-input-left" style="gap: 12px;">
+                                <i class="ph ph-calendar-blank"
+                                    style="font-size: 22px; color: var(--primary-color);"></i>
+                                <div>
+                                    <h3 id="add-coffee-date" style="font-size: 14px; margin-bottom: 2px;">Tue, 3 Mar
+                                    </h3>
+                                    <p id="add-coffee-time" style="font-size: 13px;">03.04</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Name (Optional)</label>
+                        <input type="text" id="input-coffee-name" class="text-input" placeholder="e.g. Montblanc">
+                    </div>
+
+                    <!-- Coffee Type (2x3 grid) -->
+                    <div class="form-group">
+                        <label>Coffee Type</label>
+                        <div class="coffee-type-grid">
+                            <div class="type-card-lg">
+                                <span class="type-emoji">☕</span>
+                                <span>Espresso</span>
+                            </div>
+                            <div class="type-card-lg">
+                                <span class="type-emoji">🥛</span>
+                                <span>Latte</span>
+                            </div>
+                            <div class="type-card-lg">
+                                <span class="type-emoji">⚪</span>
+                                <span>Flat White</span>
+                            </div>
+                            <div class="type-card-lg active">
+                                <span class="type-emoji">🥃</span>
+                                <span>Americano</span>
+                            </div>
+                            <div class="type-card-lg">
+                                <span class="type-emoji">☁️</span>
+                                <span>Cappuccino</span>
+                            </div>
+                            <div class="type-card-lg">
+                                <span class="type-emoji">🍫</span>
+                                <span>Mocha</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Size Selector -->
+                    <div class="form-group">
+                        <label>Size</label>
+                        <div class="size-selector">
+                            <button class="size-btn active">Small</button>
+                            <button class="size-btn">Medium</button>
+                            <button class="size-btn">Large</button>
+                        </div>
+                    </div>
+
+                    <!-- Temperature Toggle -->
+                    <div class="form-group">
+                        <label>Temperature</label>
+                        <div class="temp-selector">
+                            <button class="temp-btn active">🧊 Iced</button>
+                            <button class="temp-btn">♨️ Hot</button>
+                        </div>
+                    </div>
+
+                    <!-- Price -->
+                    <div class="form-group">
+                        <label>Price (Optional)</label>
+                        <input type="text" inputmode="numeric" id="input-price" class="text-input" placeholder="0">
+                    </div>
+
+                    <!-- Note -->
+                    <div class="form-group">
+                        <label>Note (Optional)</label>
+                        <input type="text" class="text-input" placeholder="Morning ritual, with friends...">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LOCATION PICKER OVERLAY -->
+        <div id="modal-location" class="modal-view">
+            <div class="picker-card sheet-content" style="height: 85vh;">
+                <div class="picker-handle"></div>
+                <!-- Glassy header matching the style -->
+                <div class="modal-header"
+                    style="display: flex; flex-direction: column; align-items: stretch; gap: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <h3 style="font-size:18px; margin: 0;">Location</h3>
+                        <button class="btn-text highlight" id="btn-location-done"
+                            style="font-size: 16px; font-weight: 600;">Done</button>
+                    </div>
+                    <div class="search-bar"
+                        style="display: flex; align-items: center; background: var(--skeleton-bg); border-radius: 12px; padding: 12px 14px; gap: 10px;">
+                        <i class="ph ph-magnifying-glass" style="color: var(--text-muted); font-size: 20px;"></i>
+                        <input type="text" id="input-location-search" placeholder="Search or enter location"
+                            style="border: none; background: transparent; flex: 1; outline: none; font-size: 16px; color: var(--text-main);">
+                        <i class="ph-fill ph-x-circle" id="btn-clear-location"
+                            style="color: var(--text-muted); font-size: 20px; cursor: pointer; display: none;"></i>
+                    </div>
+                </div>
+                <div class="modal-body" style="padding: 0 24px 24px; margin-top: -8px;">
+                    <h4
+                        style="font-size: 13px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; margin-bottom: 16px; padding-top: 12px;">
+                        Recent Locations</h4>
+                    <div id="recent-locations-list" style="display: flex; flex-direction: column; gap: 8px;">
+                        <!-- JS populates -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DATE/TIME PICKER OVERLAY -->
+        <div id="dt-picker-overlay" class="modal-view">
+            <div class="picker-card sheet-content">
+                <div class="picker-handle"></div>
+                <div class="picker-header">
+                    <div></div>
+                    <button class="btn-text highlight" id="btn-dt-picker-done">Done</button>
+                </div>
+                <div class="picker-columns">
+                    <div class="picker-column" id="picker-dt-date"></div>
+                    <div class="picker-column" id="picker-dt-hour"></div>
+                    <div class="picker-column" id="picker-dt-minute"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MONTH/YEAR PICKER OVERLAY -->
+        <div id="picker-overlay" class="modal-view">
+            <div class="picker-card sheet-content">
+                <div class="picker-handle"></div>
+                <div class="picker-header">
+                    <div></div>
+                    <button class="btn-text highlight" id="btn-picker-done">Done</button>
+                </div>
+                <div class="picker-columns">
+                    <div class="picker-column" id="picker-year">
+                        <!-- JS populates -->
+                    </div>
+                    <div class="picker-column" id="picker-month">
+                        <!-- JS populates -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SAVE SUCCESS TOAST -->
+        <div class="save-toast" id="save-toast">✅ Save Success</div>
+
+        <!-- DAY DETAIL OVERLAY (BOTTOM SHEET) -->
+        <div class="modal-view" id="day-overlay-wrapper">
+            <div class="day-overlay sheet-content" id="day-overlay">
+                <div class="day-overlay-handle" id="day-overlay-handle"><span></span></div>
+                <div class="day-overlay-header">
+                    <h2 id="day-overlay-title">3 Mar</h2>
+                    <p id="day-overlay-subtitle">Tue</p>
+                </div>
+                <div class="day-overlay-body">
+                    <button class="btn-primary icon-btn" id="btn-add-cup-overlay"><i class="ph ph-plus"></i> Add a
+                        Cup</button>
+                    <div class="day-records-header">
+                        <h3>Coffee Records</h3>
+                        <span id="day-overlay-cup-count">0 Cups</span>
+                    </div>
+                    <div id="day-overlay-records"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DELETE CONFIRMATION MODAL -->
+        <div id="modal-confirm-delete" class="modal-view">
+            <div class="confirm-delete-card sheet-content">
+                <div class="picker-handle"></div>
+                <div class="confirm-delete-header">
+                    <div class="warning-icon"><i class="ph-fill ph-trash"></i></div>
+                    <h2>Delete Record?</h2>
+                    <p>Are you sure you want to delete this coffee record? This action cannot be undone.</p>
+                </div>
+                <div class="confirm-delete-actions">
+                    <button class="btn-secondary" id="btn-cancel-delete">Cancel</button>
+                    <button class="btn-danger" id="btn-confirm-delete">Delete</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SHARE CARD MODAL -->
+        <div id="modal-share-card" class="modal-view">
+            <div class="sheet-content share-sheet-content">
+                <div class="share-card-wrapper">
+                    <div class="share-card-preview" id="share-card-preview">
+                        <div class="share-card-top-row">
+                            <div class="share-card-date">
+                                <span id="share-card-date"></span>
+                                <span id="share-card-day" class="share-card-day"></span>
+                            </div>
+                        </div>
+                        <h2 id="share-card-name" class="share-card-name"></h2>
+                        <div class="share-card-sticker" id="share-card-sticker"></div>
+                        <div class="share-card-stats">
+                            <div class="share-stat">
+                                <span id="share-card-size" class="share-stat-value"></span>
+                                <span class="share-stat-label">SIZE</span>
+                            </div>
+                            <div class="share-stat-divider"></div>
+                            <div class="share-stat">
+                                <span id="share-card-temperature" class="share-stat-value"></span>
+                                <span class="share-stat-label">COFFEE</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="share-card-actions">
+                    <button class="btn-share-cancel" id="btn-share-cancel">Cancel</button>
+                    <button class="btn-share-submit" id="btn-share-submit">Share</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- FLOATING BOTTOM NAVIGATION -->
+        <div id="bottom-nav" class="bottom-nav">
+            <div class="nav-pill" id="nav-pill">
+                <div class="nav-indicator" id="nav-indicator"></div>
+                <button class="nav-item active" data-target="view-calendar">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <!-- Wavy steam lines -->
+                        <path class="steam-line" d="M7.5 7 C7.5 5.5, 8.5 4.8, 7.5 3" stroke-width="1.2" fill="none" />
+                        <path class="steam-line" d="M10.5 6.5 C10.5 5, 11.5 4.3, 10.5 2.5" stroke-width="1.2" fill="none" />
+                        <path class="steam-line" d="M13.5 7 C13.5 5.5, 12.5 4.8, 13.5 3" stroke-width="1.2" fill="none" />
+                        <!-- Filled Cup touching saucer at y=19 -->
+                        <path d="M17 8H4v7a4 4 0 0 0 4 4h5a4 4 0 0 0 4-4V8z" fill="currentColor" />
+                        <!-- Handle -->
+                        <path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17" />
+                        <!-- Saucer touching cup -->
+                        <path d="M2 19h17" />
+                    </svg>
+                </button>
+                <button class="nav-item" data-target="view-statistics">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                        <!-- Bar 1 (left) -->
+                        <rect x="4" y="14" width="4" height="6" rx="1.5" class="nav-bar-path"
+                            style="animation-delay: 0s;" />
+                        <!-- Bar 2 (middle) -->
+                        <rect x="10" y="8" width="4" height="12" rx="1.5" class="nav-bar-path"
+                            style="animation-delay: 0.2s;" />
+                        <!-- Bar 3 (right) -->
+                        <rect x="16" y="11" width="4" height="9" rx="1.5" class="nav-bar-path"
+                            style="animation-delay: 0.4s;" />
+                    </svg>
+                </button>
+                <button class="nav-item" data-target="view-settings">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <defs>
+                            <mask id="sliderMask">
+                                <rect x="0" y="0" width="24" height="24" fill="white" />
+                                <circle cx="7" cy="8" r="5" fill="black" class="nav-slider-mask top" />
+                                <circle cx="17" cy="16" r="5" fill="black" />
+                            </mask>
+                        </defs>
+                        <g mask="url(#sliderMask)">
+                            <line x1="3" y1="8" x2="21" y2="8" />
+                            <line x1="3" y1="16" x2="21" y2="16" />
+                        </g>
+                        <circle cx="7" cy="8" r="2.5" class="nav-slider-circle top" />
+                        <circle cx="17" cy="16" r="2.5" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Splash Animation Overlay -->
+    <div id="fab-splash" class="fab-splash"></div>
+
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <script type="module" src="app.js?v=4"></script>
+
+    <!-- Register Service Worker -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(err => {
+                console.warn('SW registration failed:', err);
+            });
+        }
+    </script>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div class="toast-container" id="toast-container"></div>
+</body>
+
+</html>
