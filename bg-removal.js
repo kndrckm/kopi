@@ -68,7 +68,7 @@ import { removeBackground as imglyRemoveBackground, preload } from "https://esm.
 
 // Start background cache early so the model is ready instantly
 const preloadConfig = {
-    model: "medium"
+    model: "small"
 };
 preload(preloadConfig).catch(e => console.error("Warning: Could not pre-fetch AI model", e));
 
@@ -79,7 +79,7 @@ export async function removeBackground(imageBlob, progressCallback = null) {
             if (progressCallback) progressCallback({ type: 'status', message: 'Initializing local AI model...' });
 
             const config = {
-                model: "medium",
+                model: "small",
                 progress: (key, current, total) => {
                     if (progressCallback) {
                         const message = total > 0
