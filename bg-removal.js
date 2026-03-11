@@ -104,15 +104,15 @@ export async function removeBackground(imageBlob, progressCallback = null) {
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
 
-                    // Always convert to WebP to drastically reduce size (often < 200KB)
-                    const dataUrl = canvas.toDataURL('image/webp', 0.85);
+                    // Use JPEG for the API payload to ensure maximum compatibility (WebP is sometimes rejected by REST API versions)
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
                     URL.revokeObjectURL(objUrl);
 
                     const match = dataUrl.match(/^data:(image\/[a-zA-Z+-]+);base64,(.+)$/);
                     if (match) {
                         res({ mimeType: match[1], base64Img: match[2] });
                     } else {
-                        res({ mimeType: 'image/webp', base64Img: dataUrl.split(',')[1] });
+                        res({ mimeType: 'image/jpeg', base64Img: dataUrl.split(',')[1] });
                     }
                 };
                 img.onerror = () => {
