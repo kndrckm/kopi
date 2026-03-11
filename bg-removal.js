@@ -2,11 +2,6 @@
 // bg-removal.js — Background Removal (Supabase Edge Function)
 // ============================================================
 
-export function preloadModel() {
-    // No-op. Cloud API doesn't need client-side preloading.
-    console.log("Gemini 2.5: Cloud model, no preloading required.");
-}
-
 // Helper to remove empty transparent pixels around the content
 export function trimCanvas(canvas) {
     const ctx = canvas.getContext('2d');
@@ -43,6 +38,32 @@ export function trimCanvas(canvas) {
     return trimmed;
 }
 
+// Native Stickerify Implementation to add outline locally
+function stickerify(canvas, thickness = 20, fillStyle = 'white', samples = 36) {
+    const x = thickness + 1;
+    const y = thickness + 1;
+    const padded = document.createElement('canvas');
+    padded.width = canvas.width + x * 2;
+    padded.height = canvas.height + y * 2;
+    const ctx = padded.getContext('2d');
+
+    // Draw original image in a circle to create the shadow structure
+    for (let angle = 0; angle < 360; angle += 360 / samples) {
+        ctx.drawImage(canvas, thickness * Math.sin((Math.PI * 2 * angle) / 360) + x, thickness * Math.cos((Math.PI * 2 * angle) / 360) + y);
+    }
+
+    // Fill the accumulated shadow region with the solid border color
+    ctx.globalCompositeOperation = 'source-in';
+    ctx.fillStyle = fillStyle;
+    ctx.fillRect(0, 0, padded.width, padded.height);
+
+    // Draw original image securely on top
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(canvas, x, y);
+
+    return padded;
+}
+
 // Convert Base64 into a Blob
 function base64ToBlob(base64Str, mime) {
     const byteString = atob(base64Str);
@@ -60,21 +81,65 @@ export async function removeBackground(imageBlob, progressCallback = null) {
         try {
             if (progressCallback) progressCallback({ type: 'status', message: 'Uploading to Edge Function...' });
 
-            const base64Img = await new Promise((res) => {
-                const reader = new FileReader();
-                reader.onloadend = () => res(reader.result.split(',')[1]);
-                reader.readAsDataURL(imageBlob);
+            // We compress the image first. Supabase Edge Functions have a 2MB payload size limit.
+            // If the image is loaded from an old high-res DB entry it will crash the function.
+            const { base64Img, mimeType } = await new Promise((res) => {
+                const img = new Image();
+                const objUrl = URL.createObjectURL(imageBlob);
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+
+                    // Downscale if larger than 1024px to save payload size
+                    const MAX_SIZE = 1024;
+                    if (width > MAX_SIZE || height > MAX_SIZE) {
+                        const ratio = Math.min(MAX_SIZE / width, MAX_SIZE / height);
+                        width = width * ratio;
+                        height = height * ratio;
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    // Always convert to WebP to drastically reduce size (often < 200KB)
+                    const dataUrl = canvas.toDataURL('image/webp', 0.85);
+                    URL.revokeObjectURL(objUrl);
+
+                    const match = dataUrl.match(/^data:(image\/[a-zA-Z+-]+);base64,(.+)$/);
+                    if (match) {
+                        res({ mimeType: match[1], base64Img: match[2] });
+                    } else {
+                        res({ mimeType: 'image/webp', base64Img: dataUrl.split(',')[1] });
+                    }
+                };
+                img.onerror = () => {
+                    // Fallback to FileReader if image parsing completely fails
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        const match = reader.result.match(/^data:(image\/[a-zA-Z+-]+);base64,(.+)$/);
+                        if (match) {
+                            res({ mimeType: match[1], base64Img: match[2] });
+                        } else {
+                            res({ mimeType: 'image/jpeg', base64Img: reader.result.split(',')[1] || reader.result });
+                        }
+                    };
+                    reader.readAsDataURL(imageBlob);
+                };
+                img.src = objUrl;
             });
 
             // Project ID extracted from config.js: ifwwlxasqzfiqpnphasr
             const endpoint = 'https://ifwwlxasqzfiqpnphasr.supabase.co/functions/v1/gemini-bg-removal';
-            
-            if (progressCallback) progressCallback({ type: 'status', message: 'Processing with AI...' });
+
+            if (progressCallback) progressCallback({ type: 'status', message: 'Processing with Gemini...' });
 
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ imageBase64: base64Img })
+                body: JSON.stringify({ imageBase64: base64Img, mimeType: mimeType })
             });
 
             if (!response.ok) {
@@ -84,7 +149,7 @@ export async function removeBackground(imageBlob, progressCallback = null) {
             }
 
             const data = await response.json();
-            
+
             let resultBlob = null;
             for (const part of data.candidates?.[0]?.content?.parts || []) {
                 if (part.inlineData) {
@@ -108,7 +173,7 @@ export async function removeBackground(imageBlob, progressCallback = null) {
             }
 
             if (progressCallback) progressCallback({ type: 'status', message: 'Trimming image...' });
-            
+
             // Trim transparent margins (Autocrop)
             const bmpUrl = URL.createObjectURL(resultBlob);
             const img = new Image();
@@ -118,11 +183,16 @@ export async function removeBackground(imageBlob, progressCallback = null) {
                 canvas.height = img.height;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0);
-                
-                const trimmedCanvas = trimCanvas(canvas);
+
+                let processedCanvas = trimCanvas(canvas);
+
+                // Add stickerify stroke (dynamic thickness based on image size)
+                const thickness = Math.floor(Math.max(processedCanvas.width, processedCanvas.height) * 0.04) || 20;
+                processedCanvas = stickerify(processedCanvas, thickness, 'white');
+
                 URL.revokeObjectURL(bmpUrl);
-                
-                trimmedCanvas.toBlob((finalBlob) => resolve(finalBlob), 'image/webp', 0.85);
+
+                processedCanvas.toBlob((finalBlob) => resolve(finalBlob), 'image/webp', 0.85);
             };
             img.onerror = () => {
                 URL.revokeObjectURL(bmpUrl);

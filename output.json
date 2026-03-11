@@ -1,0 +1,1 @@
+{"error":{"code":400,"message":"* GenerateContentRequest.generation_config.response_mime_type: allowed mimetypes are `text/plain`, `application/json`, `application/xml`, `application/yaml` and `text/x.enum`.\n","status":"INVALID_ARGUMENT"}}

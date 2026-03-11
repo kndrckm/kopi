@@ -1,4 +1,4 @@
-import { removeBackground, trimCanvas, preloadModel } from './bg-removal.js';
+import { removeBackground, trimCanvas } from './bg-removal.js';
 import { supabase } from './supabase.js';
 
 let currentUser = null;
@@ -87,9 +87,6 @@ let currentUser = null;
     // ══════════ END TOAST SYSTEM ══════════
 
     try {
-        // Preload RMBG-1.4 model quietly in the background
-        setTimeout(() => preloadModel(), 500);
-
         // Declare shared state early to avoid TDZ issues with auth callbacks
         const todayCoffeeList = document.getElementById('today-coffee-list');
         let coffeeEntries = [];
@@ -2457,7 +2454,7 @@ let currentUser = null;
                         el.style.height = currentSize + 'px';
 
                         if (e.sticker) {
-                            el.innerHTML = getCachedStickerImgTag(e.sticker, 'sticker-img sticker-shadow');
+                            el.innerHTML = getCachedStickerImgTag(e.sticker, 'sticker-img');
                         } else {
                             el.innerHTML = `<span class="sticker-emoji">${e.emoji || '☕'}</span>`;
                         }

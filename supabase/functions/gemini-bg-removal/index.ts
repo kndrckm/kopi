@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
@@ -12,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { imageBase64 } = await req.json()
+    const { imageBase64, mimeType } = await req.json()
     // Using the secret the user created: GEMINI_KOPI
     const apiKey = Deno.env.get('GEMINI_KOPI')
     
@@ -25,7 +26,7 @@ serve(async (req) => {
         contents: [{
             role: "user",
             parts: [
-                { inlineData: { mimeType: "image/jpeg", data: imageBase64 } },
+                { inlineData: { mimeType: mimeType || "image/jpeg", data: imageBase64 } },
                 { text: "Extract the main subject, remove the background (make it transparent), and add a thick white sticker border around the subject. Output as a transparent PNG if possible." }
             ]
         }],
@@ -33,8 +34,7 @@ serve(async (req) => {
             temperature: 0.1,
             topK: 32,
             topP: 1,
-            maxOutputTokens: 8192, 
-            outputOptions: { mimeType: "image/png" } 
+            maxOutputTokens: 8192
         }
     }
 

@@ -1230,7 +1230,6 @@ p {
     overflow: hidden;
     padding: 0;
     /* Override .card padding so physics container fills the entire visible card */
-    background: var(--md-sys-color-surface-container-low, #f6efe8);
 }
 
 .stickers-display {
