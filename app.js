@@ -280,6 +280,11 @@ let currentUser = null;
                 ]).then(() => {
                     updateUserGreeting();
                     checkAdminFeatures();
+                    // If we are on login view or onboarding, move to calendar
+                    const currentView = document.querySelector('.view.active');
+                    if (!currentView || currentView.id === 'view-login' || currentView.id === 'view-onboarding') {
+                        switchView('view-calendar');
+                    }
                 });
             } else if (event === 'SIGNED_OUT') {
                 currentUser = null;
@@ -528,6 +533,7 @@ let currentUser = null;
         // isDraggingNav, navStartX, indInitialLeft moved to top of IIFE
 
         function switchView(viewId) {
+            console.log(`[ViewTransition] Switching to: ${viewId}`);
             haptic('light');
 
             // Save outgoing view's scroll position
@@ -536,9 +542,14 @@ let currentUser = null;
                 scrollPositions[currentActive.id] = currentActive.scrollTop;
             }
 
-            views.forEach(v => v.classList.remove('active'));
-
             const newActive = document.getElementById(viewId);
+            if (!newActive) {
+                console.warn(`[ViewTransition] View with ID "${viewId}" not found. Falling back to calendar.`);
+                if (viewId !== 'view-calendar') return switchView('view-calendar');
+                return;
+            }
+
+            views.forEach(v => v.classList.remove('active'));
             newActive.classList.add('active');
 
             // Restore incoming view's scroll position
@@ -667,15 +678,16 @@ let currentUser = null;
 
         if (btnGoogleLogin) {
             btnGoogleLogin.addEventListener('click', async () => {
+                haptic('medium');
                 const { error } = await supabase.auth.signInWithOAuth({
                     provider: 'google',
                     options: {
-                        redirectTo: window.location.origin + (window.location.pathname.endsWith('/') ? window.location.pathname : window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1))
+                        redirectTo: window.location.origin
                     }
                 });
                 if (error) {
-                    console.error('Google login error:', error.message);
-                    toast.error('Login failed. Please try again.');
+                    console.error('Login error:', error.message);
+                    toast.error('Failed to start login flow.');
                 }
             });
         }
@@ -1658,7 +1670,7 @@ let currentUser = null;
 
             let stickerHtml = '';
             if (entry.sticker) {
-                stickerHtml = getCachedStickerImgTag(entry.sticker, 'coffee-item-sticker');
+                stickerHtml = getCachedStickerImgTag(entry.sticker, 'coffee-item-sticker sticker-shadow-sm');
             } else {
                 stickerHtml = `<span class="coffee-item-emoji">${entry.emoji || '☕'}</span>`;
             }
@@ -1851,7 +1863,7 @@ let currentUser = null;
             // Sticker or emoji
             const stickerEl = document.getElementById('share-card-sticker');
             if (entry.sticker) {
-                stickerEl.innerHTML = getCachedStickerImgTag(entry.sticker, '', 'crossorigin="anonymous" loading="lazy"');
+                stickerEl.innerHTML = getCachedStickerImgTag(entry.sticker, 'sticker-shadow', 'crossorigin="anonymous" loading="lazy"');
             } else {
                 stickerEl.innerHTML = `<span class="share-sticker-emoji">${entry.emoji || '☕'}</span>`;
             }
@@ -2445,7 +2457,7 @@ let currentUser = null;
                         el.style.height = currentSize + 'px';
 
                         if (e.sticker) {
-                            el.innerHTML = getCachedStickerImgTag(e.sticker, 'sticker-img');
+                            el.innerHTML = getCachedStickerImgTag(e.sticker, 'sticker-img sticker-shadow');
                         } else {
                             el.innerHTML = `<span class="sticker-emoji">${e.emoji || '☕'}</span>`;
                         }

@@ -1,143 +1,10 @@
 // ============================================================
-// bg-removal.js — Background Removal (RMBG-1.4 WebWorker)
+// bg-removal.js — Background Removal (Supabase Edge Function)
 // ============================================================
 
-let worker = null;
-let isModelPreloaded = false;
-
-// Initialize the worker and start caching the model quietly
 export function preloadModel() {
-    if (worker || isModelPreloaded) return;
-
-    worker = new Worker('hf-worker.js', { type: 'module' });
-    worker.postMessage({
-        type: 'init',
-        modelId: 'briaai/RMBG-1.4',
-        modelOpts: {
-            dtype: 'q8',
-            revision: 'main',
-            config: { model_type: 'bria-rmbg' }
-        }
-    });
-
-    // Listen for the initial load progress
-    worker.addEventListener('message', function preloadHandler(e) {
-        if (e.data.type === 'status' && e.data.data === 'Ready') {
-            isModelPreloaded = true;
-            worker.removeEventListener('message', preloadHandler);
-            console.log('RMBG-1.4 model preloaded successfully.');
-        }
-    });
-}
-
-// Ensure worker exists
-function getWorker() {
-    if (!worker) preloadModel();
-    return worker;
-}
-
-// --- Largest Connected Component filter ---
-// Runs iterative BFS over all pixels with alpha > 50.
-// Identifies every isolated blob, keeps only the largest one,
-// and zeroes the alpha of every pixel belonging to smaller blobs.
-// Operates directly on a Uint8ClampedArray (imgData.data).
-function keepLargestComponent(data, width, height) {
-    const total = width * height;
-    const visited = new Uint8Array(total); // 0 = unvisited
-
-    let largestId = -1;
-    let largestSize = 0;
-
-    // Store each component as { pixels: Int32Array, size }
-    const components = [];
-
-    // 4-connected BFS
-    const queue = new Int32Array(total); // pre-allocated ring buffer
-
-    for (let start = 0; start < total; start++) {
-        const a = data[(start << 2) + 3];
-        if (a <= 50 || visited[start]) continue;
-
-        // BFS from `start`
-        let head = 0, tail = 0;
-        queue[tail++] = start;
-        visited[start] = 1;
-
-        const compPixels = [];
-        while (head < tail) {
-            const idx = queue[head++];
-            compPixels.push(idx);
-
-            const x = idx % width;
-            const y = (idx / width) | 0;
-
-            // 4 neighbours
-            if (x > 0) { const n = idx - 1; if (!visited[n] && data[(n << 2) + 3] > 50) { visited[n] = 1; queue[tail++] = n; } }
-            if (x < width - 1) { const n = idx + 1; if (!visited[n] && data[(n << 2) + 3] > 50) { visited[n] = 1; queue[tail++] = n; } }
-            if (y > 0) { const n = idx - width; if (!visited[n] && data[(n << 2) + 3] > 50) { visited[n] = 1; queue[tail++] = n; } }
-            if (y < height - 1) { const n = idx + width; if (!visited[n] && data[(n << 2) + 3] > 50) { visited[n] = 1; queue[tail++] = n; } }
-        }
-
-        const id = components.length;
-        components.push(compPixels);
-        if (compPixels.length > largestSize) {
-            largestSize = compPixels.length;
-            largestId = id;
-        }
-    }
-
-    // Zero alpha for every component that is NOT the largest
-    for (let id = 0; id < components.length; id++) {
-        if (id === largestId) continue;
-        for (const px of components[id]) {
-            data[(px << 2) + 3] = 0;
-        }
-    }
-
-    return components.length;
-}
-
-// Add white sticker outline around a transparent-bg image
-async function addWhiteOutline(blob, outlineWidth = 15) {
-    const bmpUrl = URL.createObjectURL(blob);
-    return new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-            const pad = outlineWidth * 2;
-            const canvas = document.createElement('canvas');
-            canvas.width = img.width + pad;
-            canvas.height = img.height + pad;
-            const ctx = canvas.getContext('2d');
-
-            // Step 1: draw offset in all directions → dilated silhouette
-            const offsets = [];
-            for (let angle = 0; angle < 360; angle += 15) {
-                offsets.push({
-                    x: Math.cos(angle * Math.PI / 180) * outlineWidth,
-                    y: Math.sin(angle * Math.PI / 180) * outlineWidth
-                });
-            }
-            offsets.forEach(o => {
-                ctx.drawImage(img, pad / 2 + o.x, pad / 2 + o.y);
-            });
-
-            // Step 2: fill silhouette with white
-            ctx.globalCompositeOperation = 'source-in';
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Step 3: draw original on top
-            ctx.globalCompositeOperation = 'source-over';
-            ctx.drawImage(img, pad / 2, pad / 2);
-
-            // Step 4: Trim transparent margins (Autocrop)
-            const trimmedCanvas = trimCanvas(canvas);
-
-            URL.revokeObjectURL(bmpUrl);
-            trimmedCanvas.toBlob((blob) => resolve(blob), 'image/webp', 0.85);
-        };
-        img.src = bmpUrl;
-    });
+    // No-op. Cloud API doesn't need client-side preloading.
+    console.log("Gemini 2.5: Cloud model, no preloading required.");
 }
 
 // Helper to remove empty transparent pixels around the content
@@ -149,7 +16,7 @@ export function trimCanvas(canvas) {
     const l = pixels.data.length;
     let bound = { top: null, left: null, right: null, bottom: null };
 
-    // Use a higher alpha threshold (50) to ignore ghost shadows left by AI bg removal
+    // Use a higher alpha threshold (50) to ignore ghost shadows
     for (let i = 0; i < l; i += 4) {
         if (pixels.data[i + 3] > 50) {
             const x = (i / 4) % width;
@@ -176,64 +43,96 @@ export function trimCanvas(canvas) {
     return trimmed;
 }
 
-// Background removal via briaai/RMBG-1.4 (Method B) + white outline
+// Convert Base64 into a Blob
+function base64ToBlob(base64Str, mime) {
+    const byteString = atob(base64Str);
+    const arrayBuffer = new ArrayBuffer(byteString.length);
+    const int8Array = new Uint8Array(arrayBuffer);
+    for (let i = 0; i < byteString.length; i++) {
+        int8Array[i] = byteString.charCodeAt(i);
+    }
+    return new Blob([int8Array], { type: mime });
+}
+
+// Background removal via Secure Supabase Edge Function (Gemini handles the white outline)
 export async function removeBackground(imageBlob, progressCallback = null) {
     return new Promise(async (resolve, reject) => {
-        const imgWorker = getWorker();
-        const bmp = await createImageBitmap(imageBlob);
+        try {
+            if (progressCallback) progressCallback({ type: 'status', message: 'Uploading to Edge Function...' });
 
-        const messageHandler = async (e) => {
-            const data = e.data;
-            if (data.type === 'progress') {
-                if (progressCallback) progressCallback({ type: 'progress', name: data.data.name, loaded: data.data.loaded, total: data.data.total });
-                console.log(`RMBG: DL ${data.data.name || 'Model'}: ${Math.round((data.data.loaded / data.data.total) * 100)}%`);
-            } else if (data.type === 'status') {
-                if (progressCallback) progressCallback({ type: 'status', message: data.data });
-                console.log('RMBG Status:', data.data);
-            } else if (data.type === 'done') {
-                imgWorker.removeEventListener('message', messageHandler);
-                URL.revokeObjectURL(imageUrl);
+            const base64Img = await new Promise((res) => {
+                const reader = new FileReader();
+                reader.onloadend = () => res(reader.result.split(',')[1]);
+                reader.readAsDataURL(imageBlob);
+            });
 
-                const { maskData } = data;
+            // Project ID extracted from config.js: ifwwlxasqzfiqpnphasr
+            const endpoint = 'https://ifwwlxasqzfiqpnphasr.supabase.co/functions/v1/gemini-bg-removal';
+            
+            if (progressCallback) progressCallback({ type: 'status', message: 'Processing with AI...' });
 
-                // 1. Draw original onto canvas
-                const cvs = document.createElement('canvas');
-                cvs.width = bmp.width;
-                cvs.height = bmp.height;
-                const ctx = cvs.getContext('2d');
-                ctx.drawImage(bmp, 0, 0);
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ imageBase64: base64Img })
+            });
 
-                // 2. Inject Alpha Mask
-                const imgData = ctx.getImageData(0, 0, cvs.width, cvs.height);
-                for (let i = 0; i < maskData.length; ++i) {
-                    imgData.data[i * 4 + 3] = maskData[i];
-                }
-
-                // 3. Filter out disconnected artifacts (Largest Connected Component)
-                keepLargestComponent(imgData.data, cvs.width, cvs.height);
-                ctx.putImageData(imgData, 0, 0);
-
-                // 4. Export to blob and add stroke
-                const alphaBlob = await new Promise(res => cvs.toBlob(res, 'image/webp'));
-                const finalBlob = await addWhiteOutline(alphaBlob, 15);
-
-                resolve(finalBlob);
-            } else if (data.type === 'error') {
-                imgWorker.removeEventListener('message', messageHandler);
-                URL.revokeObjectURL(imageUrl);
-                reject(new Error(data.error));
+            if (!response.ok) {
+                const errResult = await response.json();
+                console.error("Edge Function Error:", errResult);
+                throw new Error(errResult.error || `Edge Function error ${response.status}`);
             }
-        };
 
-        imgWorker.addEventListener('message', messageHandler);
+            const data = await response.json();
+            
+            let resultBlob = null;
+            for (const part of data.candidates?.[0]?.content?.parts || []) {
+                if (part.inlineData) {
+                    resultBlob = base64ToBlob(part.inlineData.data, part.inlineData.mimeType);
+                    break;
+                } else if (part.text) {
+                    // Check if it's returning base64 in markdown
+                    const match = part.text.match(/```(png|jpeg|jpg|webp)\n([\s\S]+?)\n```/);
+                    if (match) {
+                        const mime = `image/${match[1]}`;
+                        const base64Str = match[2].replace(/\s/g, '');
+                        resultBlob = base64ToBlob(base64Str, mime);
+                        break;
+                    }
+                }
+            }
 
-        // Send to worker for inference
-        const imageUrl = URL.createObjectURL(imageBlob);
-        imgWorker.postMessage({
-            type: 'predict',
-            url: imageUrl,
-            width: bmp.width,
-            height: bmp.height
-        });
+            if (!resultBlob) {
+                console.error("Failed to parse Gemini response parts:", data.candidates?.[0]?.content?.parts);
+                throw new Error('No image data returned from Edge Function.');
+            }
+
+            if (progressCallback) progressCallback({ type: 'status', message: 'Trimming image...' });
+            
+            // Trim transparent margins (Autocrop)
+            const bmpUrl = URL.createObjectURL(resultBlob);
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                
+                const trimmedCanvas = trimCanvas(canvas);
+                URL.revokeObjectURL(bmpUrl);
+                
+                trimmedCanvas.toBlob((finalBlob) => resolve(finalBlob), 'image/webp', 0.85);
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(bmpUrl);
+                resolve(resultBlob); // Fallback to untrimmed if error
+            }
+            img.src = bmpUrl;
+
+        } catch (error) {
+            console.error(error);
+            reject(error);
+        }
     });
 }

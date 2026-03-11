@@ -1,15 +1,15 @@
 const CACHE_NAME = 'monicoffee-v2';
 const ASSETS_TO_CACHE = [
-    '/kopi/',
-    '/kopi/index.html',
-    '/kopi/styles.css',
-    '/kopi/app.js',
-    '/kopi/supabase.js',
-    '/kopi/config.js',
-    '/kopi/bg-removal.js',
-    '/kopi/manifest.json',
-    '/kopi/icons/icon-192.png',
-    '/kopi/icons/icon-512.png'
+    './',
+    'index.html',
+    'styles.css',
+    'app.js',
+    'supabase.js',
+    'config.js',
+    'bg-removal.js',
+    'manifest.json',
+    'icons/icon-192.png',
+    'icons/icon-512.png'
 ];
 
 // Install — cache core assets
@@ -48,7 +48,7 @@ self.addEventListener('fetch', (event) => {
 
     // --- STRATEGY 1: Stale-While-Revalidate for app shell assets ---
     // Returns cache immediately for instant load, updates cache in background
-    const isAppShell = ASSETS_TO_CACHE.some(asset => url.pathname.endsWith(asset) || url.pathname === asset);
+    const isAppShell = ASSETS_TO_CACHE.some(asset => url.pathname.endsWith(asset.replace('./', '')));
     if (isAppShell) {
         event.respondWith(
             caches.open(CACHE_NAME).then((cache) => {

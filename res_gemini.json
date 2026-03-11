@@ -1,0 +1,36 @@
+Could not read photo.jpg, using a tiny 1x1 image.
+STATUS: 200
+RESPONSE JSON: {
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "\n```png\niVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=\n```"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 284,
+    "candidatesTokenCount": 57,
+    "totalTokenCount": 592,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 26
+      },
+      {
+        "modality": "IMAGE",
+        "tokenCount": 258
+      }
+    ],
+    "thoughtsTokenCount": 251
+  },
+  "modelVersion": "gemini-2.5-flash",
+  "responseId": "sJmxaYCcI4eb1e8PlffFgAs"
+}

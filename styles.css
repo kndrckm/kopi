@@ -3233,3 +3233,25 @@ input:checked+.slider-toggle:before {
     transform: translateY(0);
     opacity: 1;
 }
+
+.sticker-shadow {
+    filter: 
+      drop-shadow(3px 0 0 white) 
+      drop-shadow(-3px 0 0 white) 
+      drop-shadow(0 3px 0 white) 
+      drop-shadow(0 -3px 0 white)
+      drop-shadow(2px 2px 0 white)
+      drop-shadow(-2px -2px 0 white)
+      drop-shadow(2px -2px 0 white)
+      drop-shadow(-2px 2px 0 white)
+      drop-shadow(0px 10px 15px rgba(0,0,0,0.2));
+}
+
+.sticker-shadow-sm {
+    filter: 
+      drop-shadow(1px 0 0 white) 
+      drop-shadow(-1px 0 0 white) 
+      drop-shadow(0 1px 0 white) 
+      drop-shadow(0 -1px 0 white)
+      drop-shadow(0px 2px 4px rgba(0,0,0,0.2));
+}
