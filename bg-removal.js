@@ -164,8 +164,10 @@ export async function removeBackground(imageBlob, progressCallback = null) {
             }
 
             for (const part of parts) {
-                if (part.inlineData) {
-                    resultBlob = base64ToBlob(part.inlineData.data, part.inlineData.mimeType);
+                // Support both REST (inline_data) and SDK (inlineData) formats
+                const inlineData = part.inline_data || part.inlineData;
+                if (inlineData) {
+                    resultBlob = base64ToBlob(inlineData.data, inlineData.mime_type || inlineData.mimeType);
                     break;
                 } else if (part.text) {
                     // Check for base64 inside markdown blocks (supporting any image type)
