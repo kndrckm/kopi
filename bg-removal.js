@@ -64,7 +64,13 @@ function stickerify(canvas, thickness = 20, fillStyle = 'white', samples = 36) {
     return padded;
 }
 
-import { removeBackground as imglyRemoveBackground } from "https://esm.sh/@imgly/background-removal";
+import { removeBackground as imglyRemoveBackground, preload } from "https://esm.sh/@imgly/background-removal";
+
+// Start background cache early so the model is ready instantly
+const preloadConfig = {
+    model: "small"
+};
+preload(preloadConfig).catch(e => console.error("Warning: Could not pre-fetch AI model", e));
 
 // Background removal via @imgly/background-removal (Local RMBG-1.4 Quantized)
 export async function removeBackground(imageBlob, progressCallback = null) {
