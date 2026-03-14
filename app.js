@@ -1,14 +1,92 @@
-import { removeBackground, trimCanvas, preloadModel } from './bg-removal.js';
+import { removeBackground, trimCanvas } from './bg-removal.js';
 import { supabase } from './supabase.js';
 
 let currentUser = null;
 
 // Initialize App — modules run after DOM is ready, no need for DOMContentLoaded
 (async () => {
-    try {
-        // Preload RMBG-1.4 model quietly in the background
-        setTimeout(() => preloadModel(), 500);
 
+    // ══════════ PORTRAIT LOCK ══════════
+    try { await screen.orientation.lock('portrait'); } catch (_) { /* unsupported or denied */ }
+
+    // ══════════ TOAST NOTIFICATION SYSTEM ══════════
+    const toast = (() => {
+        let container = document.getElementById('toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'toast-container';
+            container.id = 'toast-container';
+            document.body.appendChild(container);
+        }
+
+        const ICONS = {
+            success: '<i class="ph ph-check-circle"></i>',
+            error: '<i class="ph ph-warning-circle"></i>',
+            warning: '<i class="ph ph-warning"></i>',
+            info: '<i class="ph ph-info"></i>',
+            neutral: '<i class="ph ph-coffee"></i>'
+        };
+
+        const DURATIONS = {
+            short: 2500,
+            normal: 3500,
+            long: 5000,
+            sticky: 0  // won't auto-dismiss
+        };
+
+        function show(message, { type = 'neutral', duration = 'normal', dismissible = true } = {}) {
+            const el = document.createElement('div');
+            el.className = `toast toast--${type}`;
+            el.innerHTML = `
+                <span class="toast-icon">${ICONS[type] || ICONS.neutral}</span>
+                <span class="toast-message">${_escapeHtml(message)}</span>
+                ${dismissible ? '<button class="toast-dismiss" aria-label="Dismiss"><i class="ph ph-x"></i></button>' : ''}
+            `;
+
+            if (dismissible) {
+                el.querySelector('.toast-dismiss').addEventListener('click', () => _dismiss(el));
+            }
+
+            container.appendChild(el);
+            // Trigger reflow then animate in
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => el.classList.add('show'));
+            });
+
+            const ms = DURATIONS[duration] ?? (typeof duration === 'number' ? duration : DURATIONS.normal);
+            if (ms > 0) {
+                setTimeout(() => _dismiss(el), ms);
+            }
+
+            return el;
+        }
+
+        function _dismiss(el) {
+            if (!el || !el.parentNode) return;
+            el.classList.remove('show');
+            el.classList.add('hiding');
+            el.addEventListener('transitionend', () => el.remove(), { once: true });
+            // Fallback if transition doesn't fire
+            setTimeout(() => { if (el.parentNode) el.remove(); }, 500);
+        }
+
+        function _escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        return {
+            show,
+            success: (msg, opts) => show(msg, { type: 'success', ...opts }),
+            error: (msg, opts) => show(msg, { type: 'error', duration: 'long', ...opts }),
+            warning: (msg, opts) => show(msg, { type: 'warning', ...opts }),
+            info: (msg, opts) => show(msg, { type: 'info', ...opts }),
+        };
+    })();
+    // ══════════ END TOAST SYSTEM ══════════
+
+    try {
         // Declare shared state early to avoid TDZ issues with auth callbacks
         const todayCoffeeList = document.getElementById('today-coffee-list');
         let coffeeEntries = [];
@@ -84,32 +162,43 @@ let currentUser = null;
             gravity: { x: 0, y: 0 },
             animReq: null,
             container: null,
+            idleFrames: 0,
+            IDLE_THRESHOLD: 0.05,
+            IDLE_FRAMES_TO_SLEEP: 30,
             init(containerEl) {
                 this.container = containerEl;
+                this.idleFrames = 0;
                 if (!this.animReq) this.loop();
             },
             add(el, x, y, rotation, pSize = STICKER_SIZE, pPerc = HITBOX_PERC) {
                 this.particles.push({
                     el, x, y, rotation,
-                    vx: (Math.random() - 0.5) * 6, // Slightly faster scatter
+                    vx: (Math.random() - 0.5) * 6,
                     vy: (Math.random() - 0.5) * 6,
                     w: pSize, h: pSize,
                     perc: pPerc
                 });
+                this.wake();
             },
             clear() {
                 this.particles = [];
+                this.idleFrames = 0;
                 if (this.animReq) {
                     cancelAnimationFrame(this.animReq);
                     this.animReq = null;
                 }
             },
+            wake() {
+                this.idleFrames = 0;
+                if (!this.animReq) this.loop();
+            },
             loop() {
                 if (this.particles.length > 0 && this.container) {
                     const cw = this.container.clientWidth;
                     const ch = this.container.clientHeight;
-                    const friction = 0.98; // Smoother slide
-                    const sensitivity = 0.15; // More gradual response
+                    const friction = 0.98;
+                    const sensitivity = 0.15;
+                    let totalMotion = 0;
                     this.particles.forEach((p, i) => {
                         p.vx += this.gravity.x * sensitivity;
                         p.vy += this.gravity.y * sensitivity;
@@ -130,8 +219,6 @@ let currentUser = null;
                             const rawDx = (p2.x + p2.w / 2) - (p.x + p.w / 2);
                             const rawDy = (p2.y + p2.h / 2) - (p.y + p.h / 2);
 
-                            // 👈 Multiply horizontal distance slightly to make the "circle" hitbox an oval.
-                            // This allows tall rectangular cups to stand closer together horizontally!
                             const dx = rawDx * 1.35;
                             const dy = rawDy * 1.0;
 
@@ -140,10 +227,8 @@ let currentUser = null;
                             const minDist = (p.w + p2.w) / 2 * avgPerc;
 
                             if (dist < minDist) {
-                                // Resolve overlap
                                 const angle = Math.atan2(dy, dx);
                                 const pushDist = minDist - dist;
-                                // Need to halve the push and un-scale the X axis push for visual accuracy
                                 const ax = Math.cos(angle) * pushDist * 0.1;
                                 const ay = Math.sin(angle) * pushDist * 0.1;
 
@@ -154,13 +239,26 @@ let currentUser = null;
                             }
                         }
 
+                        totalMotion += Math.abs(p.vx) + Math.abs(p.vy);
                         p.el.style.transform = `translate(${p.x}px, ${p.y}px) rotate(${p.rotation}deg)`;
                     });
+
+                    // Sleep when all particles have settled
+                    if (totalMotion < this.IDLE_THRESHOLD * this.particles.length) {
+                        this.idleFrames++;
+                    } else {
+                        this.idleFrames = 0;
+                    }
+                    if (this.idleFrames >= this.IDLE_FRAMES_TO_SLEEP) {
+                        this.animReq = null;
+                        return; // Stop loop — wake() restarts it
+                    }
                 }
                 this.animReq = requestAnimationFrame(() => this.loop());
             }
         };
 
+        // Gyroscope — feed device tilt into the sticker physics gravity vector
         window.addEventListener('deviceorientation', (e) => {
             // Gamma is left-to-right tilt (-90 to 90), Beta is front-to-back tilt (-180 to 180)
             stickerPhysics.gravity.x = (e.gamma || 0) / 45;
@@ -179,6 +277,11 @@ let currentUser = null;
                 ]).then(() => {
                     updateUserGreeting();
                     checkAdminFeatures();
+                    // If we are on login view or onboarding, move to calendar
+                    const currentView = document.querySelector('.view.active');
+                    if (!currentView || currentView.id === 'view-login' || currentView.id === 'view-onboarding') {
+                        switchView('view-calendar');
+                    }
                 });
             } else if (event === 'SIGNED_OUT') {
                 currentUser = null;
@@ -408,6 +511,7 @@ let currentUser = null;
                     fetchCoffeeEntries(); // force refresh
                 } catch (e) {
                     console.error("Cleanup error:", e);
+                    toast.error('Cleanup encountered an error.');
                     statusEl.textContent = 'Error: ' + e.message;
                 } finally {
                     btnCleanupStickers.disabled = false;
@@ -426,6 +530,7 @@ let currentUser = null;
         // isDraggingNav, navStartX, indInitialLeft moved to top of IIFE
 
         function switchView(viewId) {
+            console.log(`[ViewTransition] Switching to: ${viewId}`);
             haptic('light');
 
             // Save outgoing view's scroll position
@@ -434,9 +539,14 @@ let currentUser = null;
                 scrollPositions[currentActive.id] = currentActive.scrollTop;
             }
 
-            views.forEach(v => v.classList.remove('active'));
-
             const newActive = document.getElementById(viewId);
+            if (!newActive) {
+                console.warn(`[ViewTransition] View with ID "${viewId}" not found. Falling back to calendar.`);
+                if (viewId !== 'view-calendar') return switchView('view-calendar');
+                return;
+            }
+
+            views.forEach(v => v.classList.remove('active'));
             newActive.classList.add('active');
 
             // Restore incoming view's scroll position
@@ -460,8 +570,10 @@ let currentUser = null;
                         statTabIndicator.style.left = `${activeTab.offsetLeft}px`;
                         statTabIndicator.style.width = `${activeTab.offsetWidth}px`;
                     }
+                    // Re-render statistics now that the container is visible and has layout dimensions
+                    updateStatistics();
+                    requestDeviceOrientation();
                 }, 10);
-                requestDeviceOrientation();
             }
 
             navItems.forEach(btn => {
@@ -563,15 +675,16 @@ let currentUser = null;
 
         if (btnGoogleLogin) {
             btnGoogleLogin.addEventListener('click', async () => {
+                haptic('medium');
                 const { error } = await supabase.auth.signInWithOAuth({
                     provider: 'google',
                     options: {
-                        redirectTo: window.location.origin + (window.location.pathname.endsWith('/') ? window.location.pathname : window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1))
+                        redirectTo: window.location.origin
                     }
                 });
                 if (error) {
-                    console.error('Google login error:', error.message);
-                    alert('Login failed: ' + error.message);
+                    console.error('Login error:', error.message);
+                    toast.error('Failed to start login flow.');
                 }
             });
         }
@@ -658,7 +771,7 @@ let currentUser = null;
                     // Mock saving nickname
                     switchView('view-calendar');
                 } else {
-                    alert('Please enter a nickname.');
+                    toast.warning('Please enter a nickname.');
                 }
             });
         }
@@ -681,7 +794,7 @@ let currentUser = null;
 
                 fetchCoffeeEntries().then(() => {
                     if (btnIcon) btnIcon.classList.remove('ph-spin');
-                    alert('Cache cleared and data refreshed successfully.');
+                    toast.success('Cache cleared and data refreshed!');
                 });
             });
         }
@@ -1081,7 +1194,7 @@ let currentUser = null;
 
                 // Validate File Size (10MB Max before compression)
                 if (file.size > 10 * 1024 * 1024) {
-                    alert("Photo is too large. Max size is 10MB.");
+                    toast.warning('Photo is too large. Max size is 10MB.');
                     resetPhotoBox();
                     return;
                 }
@@ -1090,7 +1203,7 @@ let currentUser = null;
                 const validTypes = ['image/jpeg', 'image/png', 'image/heic', 'image/webp'];
                 const extension = file.name.split('.').pop().toLowerCase();
                 if (!validTypes.includes(file.type) && !['jpg', 'jpeg', 'png', 'heic', 'webp'].includes(extension)) {
-                    alert("Invalid file format. Please upload JPG, PNG, WEBP, or HEIC.");
+                    toast.warning('Invalid file format. Please upload JPG, PNG, WEBP, or HEIC.');
                     resetPhotoBox();
                     return;
                 }
@@ -1401,11 +1514,11 @@ let currentUser = null;
                                 finalStickerUrl = urlData.publicUrl;
                             } else {
                                 console.error('Storage upload error:', uploadError.message);
-                                alert('Failed to upload image: ' + uploadError.message);
+                                toast.error('Failed to upload image. Please try again.');
                             }
                         } catch (err) {
                             console.error('BG removal / upload failed:', err);
-                            alert('Failed to process image background.');
+                            toast.error('Failed to process image background.');
                         }
                     }
 
@@ -1448,7 +1561,7 @@ let currentUser = null;
                         }
                     } catch (dbErr) {
                         console.error('Database save error:', dbErr);
-                        alert('Failed to save coffee data: ' + dbErr.message);
+                        toast.error('Failed to save coffee data. Please try again.');
 
                         // If it completely failed to insert, we should probably remove the optimistic entry
                         if (!isEditing && entry.id.toString().startsWith('temp-')) {
@@ -1554,7 +1667,7 @@ let currentUser = null;
 
             let stickerHtml = '';
             if (entry.sticker) {
-                stickerHtml = getCachedStickerImgTag(entry.sticker, 'coffee-item-sticker');
+                stickerHtml = getCachedStickerImgTag(entry.sticker, 'coffee-item-sticker sticker-shadow-sm');
             } else {
                 stickerHtml = `<span class="coffee-item-emoji">${entry.emoji || '☕'}</span>`;
             }
@@ -1641,11 +1754,12 @@ let currentUser = null;
                 if (entry.sticker) {
                     uploadedPhotoDataUrl = entry.sticker;
 
-                    // Fetch the image and mock a proper blob so background removal doesn't fail with DOMException
-                    fetch(entry.sticker)
+                    // Fetch the image with proper CORS so background removal doesn't fail with DOMException or tainted canvas
+                    fetch(entry.sticker, { mode: 'cors', cache: 'no-cache' })
                         .then(res => res.blob())
                         .then(blob => {
-                            uploadedPhotoBlob = blob;
+                            // Ensure the blob has a correct image type
+                            uploadedPhotoBlob = new File([blob], "existing_sticker.png", { type: blob.type || "image/png" });
                         })
                         .catch(err => console.error("Could not fetch sticker blob for edit:", err));
 
@@ -1747,7 +1861,7 @@ let currentUser = null;
             // Sticker or emoji
             const stickerEl = document.getElementById('share-card-sticker');
             if (entry.sticker) {
-                stickerEl.innerHTML = getCachedStickerImgTag(entry.sticker, '', 'crossorigin="anonymous" loading="lazy"');
+                stickerEl.innerHTML = getCachedStickerImgTag(entry.sticker, 'sticker-shadow', 'crossorigin="anonymous" loading="lazy"');
             } else {
                 stickerEl.innerHTML = `<span class="share-sticker-emoji">${entry.emoji || '☕'}</span>`;
             }
@@ -1942,10 +2056,10 @@ let currentUser = null;
                 <div class="card empty-state-card">
                     <div class="empty-state-icon">
                         <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-muted); opacity: 0.8;">
-                            <!-- Steam -->
-                            <path class="steam-path" d="M9 2c0 1 1.5 1.5 1.5 2.5s-1.5 1.5-1.5 2.5" style="animation-delay: 0s;"/>
-                            <path class="steam-path" d="M12 1c0 1 1.5 1.5 1.5 2.5s-1.5 1.5-1.5 2.5" style="animation-delay: 0.5s;"/>
-                            <path class="steam-path" d="M15 2c0 1 1.5 1.5 1.5 2.5s-1.5 1.5-1.5 2.5" style="animation-delay: 1s;"/>
+                            <!-- Wavy steam lines -->
+                            <path class="steam-line" d="M7.5 7 C7.5 5.5, 8.5 4.8, 7.5 3" stroke-width="1.2" fill="none" />
+                            <path class="steam-line" d="M10.5 6.5 C10.5 5, 11.5 4.3, 10.5 2.5" stroke-width="1.2" fill="none" />
+                            <path class="steam-line" d="M13.5 7 C13.5 5.5, 12.5 4.8, 13.5 3" stroke-width="1.2" fill="none" />
                             <!-- Cup -->
                             <path d="M17 8H4v7a4 4 0 0 0 4 4h5a4 4 0 0 0 4-4V8z"/>
                             <!-- Handle -->
@@ -2137,10 +2251,10 @@ let currentUser = null;
                 <div class="card empty-state-card">
                     <div class="empty-state-icon">
                         <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-muted); opacity: 0.8;">
-                            <!-- Steam -->
-                            <path class="steam-path" d="M9 2c0 1 1.5 1.5 1.5 2.5s-1.5 1.5-1.5 2.5" style="animation-delay: 0s;"/>
-                            <path class="steam-path" d="M12 1c0 1 1.5 1.5 1.5 2.5s-1.5 1.5-1.5 2.5" style="animation-delay: 0.5s;"/>
-                            <path class="steam-path" d="M15 2c0 1 1.5 1.5 1.5 2.5s-1.5 1.5-1.5 2.5" style="animation-delay: 1s;"/>
+                            <!-- Wavy steam lines -->
+                            <path class="steam-line" d="M7.5 7 C7.5 5.5, 8.5 4.8, 7.5 3" stroke-width="1.2" fill="none" />
+                            <path class="steam-line" d="M10.5 6.5 C10.5 5, 11.5 4.3, 10.5 2.5" stroke-width="1.2" fill="none" />
+                            <path class="steam-line" d="M13.5 7 C13.5 5.5, 12.5 4.8, 13.5 3" stroke-width="1.2" fill="none" />
                             <!-- Cup -->
                             <path d="M17 8H4v7a4 4 0 0 0 4 4h5a4 4 0 0 0 4-4V8z"/>
                             <!-- Handle -->
@@ -2913,18 +3027,7 @@ let currentUser = null;
                 document.getElementById('current-lang').textContent = lang;
             });
         });
-        async function requestDeviceOrientation() {
-            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                try {
-                    const permission = await DeviceOrientationEvent.requestPermission();
-                    if (permission === 'granted') {
-                        console.log('DeviceOrientation permission granted');
-                    }
-                } catch (error) {
-                    console.error('DeviceOrientation permission error:', error);
-                }
-            }
-        }
+        // deviceorientation removed — app is portrait-only, no tilt physics needed
 
         // ============================================================
         // PWA VERSION UPDATER
@@ -2998,5 +3101,19 @@ let currentUser = null;
 
     } catch (err) {
         console.error('App initialization error:', err);
+        toast.error('Something went wrong loading the app. Please refresh.');
+    }
+
+    async function requestDeviceOrientation() {
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            try {
+                const permission = await DeviceOrientationEvent.requestPermission();
+                if (permission === 'granted') {
+                    console.log('DeviceOrientation permission granted');
+                }
+            } catch (error) {
+                console.error('DeviceOrientation permission error:', error);
+            }
+        }
     }
 })();
